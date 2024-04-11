@@ -1,0 +1,1535 @@
+---
+title: "02_behav_&_parameter_analyses"
+author: "Milena Musial"
+format:
+  html:
+    embed-resources: true
+    editor: visual
+    toc: true
+    toc-depth: 4
+    number-sections: true
+    number-depth: 4
+---
+
+# Preps
+
+```{r}
+###### define sample #####
+
+rm(list=ls())
+
+sample <- "n56" # n71, n53, n56, n63, n50
+```
+
+```{r}
+# install.packages('tidyverse', 'stringr')
+libs<-c("tidyverse", "stringr", "plyr", "dplyr", "lme4", "robustlmm", "lmerTest",
+        "sjPlot", "remef")
+sapply(libs, require, character.only=TRUE)
+
+cbPalette <- c( "#0072B2", "#D55E00", "#009E73", "#CC79A7",
+                "#F0E442", "#56B4E9", "#999999", "#E69F00")
+
+
+data_path<-'C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT'
+
+if (sample == 'n71') {
+  load(file.path(data_path,"WP2_ILT_DATA/Behav/behav_final_n71.RData"))
+  load(file.path(data_path,"WP2_ILT_DATA/RedCap/redcap_n71.RData"))
+  load(file.path(data_path,"WP2_ILT_DATA/Behav/behav_final_redcap_n71.RData")) 
+} else if (sample == 'n63') {
+  load(file.path(data_path,"WP2_ILT_DATA/Behav/behav_final_n63.RData"))
+  load(file.path(data_path,"WP2_ILT_DATA/RedCap/redcap_n63.RData"))
+  load(file.path(data_path,"WP2_ILT_DATA/Behav/behav_final_redcap_n63.RData")) 
+} else if (sample == 'n60') {
+  load(file.path(data_path,"WP2_ILT_DATA/Behav/behav_final_n60.RData"))
+  load(file.path(data_path,"WP2_ILT_DATA/RedCap/redcap_n60.RData"))
+  load(file.path(data_path,"WP2_ILT_DATA/Behav/behav_final_redcap_n60.RData")) 
+} else if (sample == 'n56') {
+  load(file.path(data_path,"WP2_ILT_DATA/Behav/behav_final_n56.RData"))
+  load(file.path(data_path,"WP2_ILT_DATA/RedCap/redcap_n56.RData"))
+  load(file.path(data_path,"WP2_ILT_DATA/Behav/behav_final_redcap_n56.RData")) 
+} else if (sample == 'n53') {
+  load(file.path(data_path,"WP2_ILT_DATA/Behav/behav_final_n53.RData"))
+  load(file.path(data_path,"WP2_ILT_DATA/RedCap/redcap_n53.RData"))
+  load(file.path(data_path,"WP2_ILT_DATA/Behav/behav_final_redcap_n53.RData")) 
+} else if (sample == 'n50') {
+  load(file.path(data_path,"WP2_ILT_DATA/Behav/behav_final_n50.RData"))
+  load(file.path(data_path,"WP2_ILT_DATA/RedCap/redcap_n50.RData"))
+  load(file.path(data_path,"WP2_ILT_DATA/Behav/behav_final_redcap_n50.RData")) 
+}
+
+# create outcome as predictor for stay switch analyses
+behav_final$outcome_pred <- factor(behav_final$outcome)
+behav_final_redcap$outcome_pred <- factor(behav_final_redcap$outcome)
+
+# code aud criteria and audit criteria as factor
+#behav_final_redcap$aud_sum <- factor(behav_final_redcap$aud_sum)
+#behav_final_redcap$audit_sum <- factor(behav_final_redcap$audit_sum)
+#redcap$aud_sum <- factor(redcap$aud_sum)
+#redcap$audit_sum <- factor(redcap$audit_sum)
+
+# set contrasts
+contrasts(behav_final$reinforcer_type) <- abs(contr.treatment(2)-1)
+contrasts(behav_final_redcap$reinforcer_type) <- abs(contr.treatment(2)-1)
+
+redcap$aud_group <- factor(redcap$aud_group, levels = c("HC", "AUD"))
+contrasts(redcap$aud_group) <- contr.treatment(2)
+contrasts(behav_final_redcap$aud_group) <- contr.treatment(2)
+
+contrasts(behav_final$outcome_pred) <- contr.treatment(2)
+contrasts(behav_final_redcap$outcome_pred) <- contr.treatment(2)
+
+# se function
+se <- function(x) sd(x, na.rm=TRUE)/sqrt(length(x)-sum(is.nan(x)))
+```
+
+# Mandatory exclusion criteria (preregistered)
+
+Exclude subjects where 2) signal loss or artefacts in MRI images were visually detected OR 3) participants exhibited translation \> 4 mm or rotation \> 4° across each block
+
+```{r}
+#ID_excl <- factor(c("12343","12654","12895"))
+```
+
+# Optional exclusion criteria (preregistered)
+
+## More than 10% NaN per block
+
+```{r}
+# df_NaN <- behav_final %>%
+#   group_by(ID,reinforcer_type) %>%
+#   summarise_at(vars(rt), funs(s_NaN = sum(is.na(.)), p_NaN = sum(is.na(.))/50)) %>%
+#   mutate(excl_rt = p_NaN>0.1)
+# 
+# # add IDs to optionally excluded IDs
+# ID_excl <- append(ID_excl,c(df_NaN$ID[df_NaN$p_NaN>0.1]))
+# ID_excl
+```
+
+Subject 12654 has 12 % missing responses and is excluded anyways because of head movement.
+
+## Same key in \>95% of trials
+
+```{r}
+# df_key <- behav_final %>%
+#   group_by(ID,reinforcer_type) %>%
+#   summarise_at(vars(side), funs(p_left = sum(side==1, na.rm=T)/50)) %>%
+#   mutate(excl_side = p_left>0.95)
+# 
+# # add IDs to optionally excluded IDs
+# ID_excl <- append(ID_excl,c(df_key$ID[df_key$p_left>0.95]))
+# ID_excl
+```
+
+None of the subjects pressed the same key in \>95% of trials.
+
+## 5% lowest taste ratings across blocks and participants
+
+### Prepare dfs
+
+```{r}
+# get df with taste and craving ratings per subject and block
+behav_rating <- behav_final %>%
+  group_by(ID,reinforcer_type) %>%
+  select(ID,reinforcer_type,ID_block,taste1, taste2, crave1, crave2) %>%
+  distinct() %>%
+  mutate(taste_diff=taste2-taste1,
+         crave_diff=crave2-crave1)
+behav_rating <- merge(behav_rating,redcap,by="ID",all.x = T) # merge with demographic data for linear mixed-effects regression
+
+
+behav_rating_alc <- behav_rating[behav_rating$reinforcer_type=='A',]
+behav_rating_jui <- behav_rating[behav_rating$reinforcer_type=='J',]
+```
+
+```{r}
+# behav_rating_lowest <- behav_rating[behav_rating$taste1 < quantile(behav_rating$taste1, 0.05),]
+# 
+# # add IDs to optionally excluded IDs
+# ID_excl <- append(ID_excl,c(behav_rating_lowest$ID))
+# ID_excl
+```
+
+8 subjects have taste1 scores \< the 5% percentile.
+
+# Post-hoc performance-based exclusion criteria
+
+```{r}
+# # get p correct per ID and block and trial
+# df_c_ID_block_trialbin <- behav_final_redcap %>%
+#   mutate(trial_bin = ntile(trial_block, n=5)) %>%
+#   group_by(ID,reinforcer_type,trial_bin) %>%
+#   summarise_at(vars(correct), list(p_correct = mean), na.rm=T) %>%
+#   mutate(trial_bin = as.factor(trial_bin))
+# 
+# df_c_ID_block_trialbin_wide <- pivot_wider(df_c_ID_block_trialbin, id_cols="ID", names_from = c(reinforcer_type, trial_bin), values_from = c(p_correct))
+# 
+# df_c_ID_block_trialbin_wide <- df_c_ID_block_trialbin_wide %>%
+#   mutate(A_diff = A_5 - A_1,
+#          J_diff = J_5 - J_1)
+# 
+# df_c_ID_block_trialbin_excl <- df_c_ID_block_trialbin[df_c_ID_block_trialbin$trial_bin==5&df_c_ID_block_trialbin$p_correct<=0.6,] # less than 50% correct in last 5 trials
+# 
+# #df_c_ID_block_trialbin_wide_excl <- df_c_ID_block_trialbin_wide[df_c_ID_block_trialbin_wide$A_diff<(-0.2)|df_c_ID_block_trialbin_wide$J_diff<(-0.2),] # 20% less correct in last 5 compared to first 5 trials
+# 
+# #ID_excl_c <- unique(append(c(unique(df_c_ID_block_trialbin_excl$ID)),c(df_c_ID_block_trialbin_wide_excl$ID)))
+# ID_excl_c <- c(unique(df_c_ID_block_trialbin_excl$ID))
+# 
+# length(ID_excl_c)
+# ID_excl_c
+```
+
+```{r}
+# save excluded IDs
+#ID_excluded <- unique(append(ID_excl,ID_excl_c))
+#length(ID_excluded)
+
+#write.table(ID_excluded, file='C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_DATA/Behav/ID_excluded_n60.txt', append = FALSE, sep = " ", dec = ".", row.names = F, col.names = F)
+
+```
+
+# Pleasantness and craving rating
+
+## Prep long df
+
+```{r}
+behav_rating_long <- behav_rating %>%
+  select(ID, aud_group, reinforcer_type, taste1, taste2, crave1, crave2) %>%
+  pivot_longer(cols = c(taste1, taste2, crave1, crave2), names_to = "ratings")
+
+behav_rating_long_taste <- behav_rating_long %>%
+  filter(ratings %in% c("taste1", "taste2"))
+
+behav_rating_long_crave <- behav_rating_long %>%
+  filter(ratings %in% c("crave1", "crave2"))
+
+behav_rating_long_taste$ratings <- factor(behav_rating_long_taste$ratings)
+contrasts(behav_rating_long_taste$ratings) <- contr.treatment(2)
+
+behav_rating_long_crave$ratings <- factor(behav_rating_long_crave$ratings)
+contrasts(behav_rating_long_crave$ratings) <- contr.treatment(2)
+```
+
+
+## Descriptive stats
+
+```{r}
+d_rating_all<- behav_rating %>%
+  dplyr::summarise(across(c('taste1','taste2','crave1','crave2','taste_diff','crave_diff'), .fns=
+                   list('_mean' = mean,
+                        '_sd' = sd,
+                        '_min' = min,
+                        '_max' = max),
+                   na.rm=T))
+
+d_rating <- behav_rating %>%
+  group_by(reinforcer_type,aud_group) %>%
+  dplyr::summarise(across(c('taste1','taste2','crave1','crave2','taste_diff','crave_diff'), .fns=
+                   list('_mean' = mean,
+                        '_sd' = sd,
+                        '_min' = min,
+                        '_max' = max),
+                   na.rm=T))
+
+d_rating_nan <- behav_rating %>%
+  group_by(reinforcer_type,aud_group) %>%
+  dplyr::summarise(across(c('taste1','taste2','crave1','crave2','taste_diff','crave_diff'), 
+                          .fns=list('_na' = ~sum(is.na(.)))))
+d_rating_nan
+
+# alc HC
+stats <- d_rating[1,-1:-2] %>% gather(stat, val) %>%
+  separate(stat, into = c("var", "stat"), sep = "__") %>%
+  spread(stat, val) %>%
+  mutate(across(c('taste1','taste2','crave1','crave2'), round, 2))
+stats
+
+# alc AUD
+stats <- d_rating[2,-1:-2] %>% gather(stat, val) %>%
+  separate(stat, into = c("var", "stat"), sep = "__") %>%
+  spread(stat, val) %>%
+  mutate(across(c('taste1','taste2','crave1','crave2'), round, 2))
+stats
+
+# jui HC
+stats <- d_rating[3,-1:-2] %>% gather(stat, val) %>%
+  separate(stat, into = c("var", "stat"), sep = "__") %>%
+  spread(stat, val) %>%
+  mutate(across(c('taste1','taste2','crave1','crave2'), round, 2))
+stats
+
+# jui AUD
+stats <- d_rating[4,-1:-2] %>% gather(stat, val) %>%
+  separate(stat, into = c("var", "stat"), sep = "__") %>%
+  spread(stat, val) %>%
+  mutate(across(c('taste1','taste2','crave1','crave2'), round, 2))
+stats
+```
+
+## Linear regression
+
+### Difference pre taste ratings
+
+#### AUD group
+
+```{r}
+m_taste <- lm(taste1 ~ 1 + reinforcer_type*aud_group, data=behav_rating)
+
+tab_model(m_taste,
+          dv.labels=c("m_taste"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+#### AUD criteria
+
+```{r}
+m_taste_audsum <- lm(taste1 ~ 1 + reinforcer_type*aud_sum, data=behav_rating)
+
+tab_model(m_taste_audsum,
+          dv.labels=c("m_taste"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+#### AUDIT criteria
+
+```{r}
+m_taste_auditsum <- lm(taste1 ~ 1 + reinforcer_type*audit_sum, data=behav_rating)
+
+tab_model(m_taste_auditsum,
+          dv.labels=c("m_taste"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+### Difference post taste ratings
+
+#### AUD group
+
+```{r}
+m_taste <- lm(taste2 ~ 1 + reinforcer_type*aud_group, data=behav_rating)
+
+tab_model(m_taste,
+          dv.labels=c("m_taste"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+#### AUD criteria
+
+```{r}
+m_taste_audsum <- lm(taste2 ~ 1 + reinforcer_type*aud_sum, data=behav_rating)
+
+tab_model(m_taste_audsum,
+          dv.labels=c("m_taste"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+#### AUDIT criteria
+
+```{r}
+m_taste_auditsum <- lm(taste2 ~ 1 + reinforcer_type*audit_sum, data=behav_rating)
+
+tab_model(m_taste_auditsum,
+          dv.labels=c("m_taste"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+### Difference post-pre taste ratings
+
+#### AUD group
+
+```{r}
+m_taste <- lm(taste_diff ~ 1 + reinforcer_type*aud_group, data=behav_rating)
+
+tab_model(m_taste,
+          dv.labels=c("m_taste"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+#### AUD criteria
+
+```{r}
+m_taste_audsum <- lm(taste_diff ~ 1 + reinforcer_type*aud_sum, data=behav_rating)
+
+tab_model(m_taste_audsum,
+          dv.labels=c("m_taste"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+#### AUDIT criteria
+
+```{r}
+m_taste_auditsum <- lm(taste_diff ~ 1 + reinforcer_type*audit_sum, data=behav_rating)
+
+tab_model(m_taste_auditsum,
+          dv.labels=c("m_taste"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+### Taste ratings per time point
+
+```{r}
+m_taste_time <- lm(value ~ 1 + reinforcer_type*aud_group*ratings, data=behav_rating_long_taste)
+
+tab_model(m_taste_time,
+          dv.labels=c("m_taste_time"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+### Difference pre craving ratings
+
+#### AUD group
+
+```{r}
+m_crave <- lm(crave1 ~ 1 + reinforcer_type*aud_group, data=behav_rating)
+
+tab_model(m_crave,
+          dv.labels=c("m_crave"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+#### AUD criteria
+
+```{r}
+m_crave_audsum <- lm(crave1 ~ 1 + reinforcer_type*aud_sum, data=behav_rating)
+
+tab_model(m_crave_audsum,
+          dv.labels=c("m_crave"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+#### AUDIT criteria
+
+```{r}
+m_crave_auditsum <- lm(crave1 ~ 1 + reinforcer_type*audit_sum, data=behav_rating)
+
+tab_model(m_crave_auditsum,
+          dv.labels=c("m_crave"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+### Difference post craving ratings
+
+#### AUD group
+
+```{r}
+m_crave <- lm(crave2 ~ 1 + reinforcer_type*aud_group, data=behav_rating)
+
+tab_model(m_crave,
+          dv.labels=c("m_crave"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+#### AUD criteria
+
+```{r}
+m_crave_audsum <- lm(crave2 ~ 1 + reinforcer_type*aud_sum, data=behav_rating)
+
+tab_model(m_crave_audsum,
+          dv.labels=c("m_crave"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+#### AUDIT criteria
+
+```{r}
+m_crave_auditsum <- lm(crave2 ~ 1 + reinforcer_type*audit_sum, data=behav_rating)
+
+tab_model(m_crave_auditsum,
+          dv.labels=c("m_crave"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+### Difference post-pre craving ratings
+
+#### AUD group
+
+```{r}
+m_crave <- lm(crave_diff ~ 1 + reinforcer_type*aud_group, data=behav_rating)
+
+tab_model(m_crave,
+          dv.labels=c("m_crave"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+#### AUD criteria
+
+```{r}
+m_crave_audsum <- lm(crave_diff ~ 1 + reinforcer_type*aud_sum, data=behav_rating)
+
+tab_model(m_crave_audsum,
+          dv.labels=c("m_crave"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+#### AUDIT criteria
+
+```{r}
+m_crave_auditsum <- lm(crave_diff ~ 1 + reinforcer_type*audit_sum, data=behav_rating)
+
+tab_model(m_crave_auditsum,
+          dv.labels=c("m_crave"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+### Taste ratings per time point
+
+```{r}
+m_crave_time <- lm(value ~ 1 + reinforcer_type*aud_group*ratings, data=behav_rating_long_crave)
+
+tab_model(m_crave_time,
+          dv.labels=c("m_crave_time"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+## Plotting
+
+### Tasting pre
+
+#### Per group and reinforcer type
+
+```{r}
+fig1 <- ggplot(behav_rating, aes(reinforcer_type, y = taste1, fill=reinforcer_type)) +
+  geom_violin() +
+  geom_boxplot(width=0.1) + 
+  geom_jitter(shape=16, position=position_jitter(0.2)) +
+  facet_wrap(~aud_group, scales="fixed") +
+  scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) +
+  scale_y_continuous("Taste rating pre") +
+  scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) +
+  theme_bw(base_size=12) +
+  theme(legend.position = "none")
+
+fig1
+```
+
+#### Per group
+
+```{r}
+fig1 <- ggplot(behav_rating, aes(aud_group, y = taste1, fill=aud_group)) +
+  geom_violin() +
+  geom_boxplot(width=0.1) + 
+  geom_jitter(shape=16, position=position_jitter(0.2)) +
+  scale_x_discrete("AUD group", labels=c('HC', 'AUD')) +
+  scale_y_continuous("Taste rating pre") +
+  scale_fill_manual("AUD group", values = cbPalette[c(6,8)]) +
+  theme_bw(base_size=12) +
+  theme(legend.position = "none")
+
+fig1
+```
+
+### Tasting post
+
+#### Per group and reinforcer type
+
+```{r}
+fig1 <- ggplot(behav_rating, aes(reinforcer_type, y = taste2, fill=reinforcer_type)) +
+  geom_violin() +
+  geom_boxplot(width=0.1) + 
+  geom_jitter(shape=16, position=position_jitter(0.2)) +
+  facet_wrap(~aud_group, scales="fixed") +
+  scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) +
+  scale_y_continuous("Taste rating post") +
+  scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) +
+  theme_bw(base_size=12) +
+  theme(legend.position = "none")
+
+fig1
+```
+
+#### Per group
+
+```{r}
+fig1 <- ggplot(behav_rating, aes(aud_group, y = taste2, fill=aud_group)) +
+  geom_violin() +
+  geom_boxplot(width=0.1) + 
+  geom_jitter(shape=16, position=position_jitter(0.2)) +
+  scale_x_discrete("AUD group", labels=c('HC', 'AUD')) +
+  scale_y_continuous("Taste rating post") +
+  scale_fill_manual("AUD group", values = cbPalette[c(6,8)]) +
+  theme_bw(base_size=12) +
+  theme(legend.position = "none")
+
+fig1
+```
+
+### Taste difference
+
+#### Per group and reinforcer type
+
+```{r}
+fig1 <- ggplot(behav_rating, aes(reinforcer_type, y = taste_diff, fill=reinforcer_type)) +
+  geom_violin() +
+  geom_boxplot(width=0.1) + 
+  geom_jitter(shape=16, position=position_jitter(0.2)) +
+  facet_wrap(~aud_group, scales="fixed") +
+  scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) +
+  scale_y_continuous("Taste rating post-pre") +
+  scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) +
+  theme_bw(base_size=12) +
+  theme(legend.position = "none")
+
+fig1
+```
+
+#### Per group
+
+```{r}
+fig1 <- ggplot(behav_rating, aes(aud_group, y = taste_diff, fill=aud_group)) +
+  geom_violin() +
+  geom_boxplot(width=0.1) + 
+  geom_jitter(shape=16, position=position_jitter(0.2)) +
+  scale_x_discrete("AUD group", labels=c('HC', 'AUD')) +
+  scale_y_continuous("Taste rating post-pre") +
+  scale_fill_manual("AUD group", values = cbPalette[c(6,8)]) +
+  theme_bw(base_size=12) +
+  theme(legend.position = "none")
+
+fig1
+```
+
+### Craving pre
+
+#### Per group and reinforcer type
+
+```{r}
+fig1 <- ggplot(behav_rating, aes(reinforcer_type, y = crave1, fill=reinforcer_type)) +
+  geom_violin() +
+  geom_boxplot(width=0.1) + 
+  geom_jitter(shape=16, position=position_jitter(0.2)) +
+  facet_wrap(~aud_group, scales="fixed") +
+  scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) +
+  scale_y_continuous("Craving rating pre") +
+  scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) +
+  theme_bw(base_size=12) +
+  theme(legend.position = "none")
+
+fig1
+```
+
+#### Per group
+
+```{r}
+fig1 <- ggplot(behav_rating, aes(aud_group, y = crave1, fill=aud_group)) +
+  geom_violin() +
+  geom_boxplot(width=0.1) + 
+  geom_jitter(shape=16, position=position_jitter(0.2)) +
+  scale_x_discrete("AUD group", labels=c('HC', 'AUD')) +
+  scale_y_continuous("Craving rating pre") +
+  scale_fill_manual("AUD group", values = cbPalette[c(6,8)]) +
+  theme_bw(base_size=12) +
+  theme(legend.position = "none")
+
+fig1
+```
+
+### Craving post
+
+#### Per group and reinforcer type
+
+```{r}
+fig1 <- ggplot(behav_rating, aes(reinforcer_type, y = crave2, fill=reinforcer_type)) +
+  geom_violin() +
+  geom_boxplot(width=0.1) + 
+  geom_jitter(shape=16, position=position_jitter(0.2)) +
+  facet_wrap(~aud_group, scales="fixed") +
+  scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) +
+  scale_y_continuous("Craving rating post") +
+  scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) +
+  theme_bw(base_size=12) +
+  theme(legend.position = "none")
+
+fig1
+```
+
+#### Per group
+
+```{r}
+fig1 <- ggplot(behav_rating, aes(aud_group, y = crave2, fill=aud_group)) +
+  geom_violin() +
+  geom_boxplot(width=0.1) + 
+  geom_jitter(shape=16, position=position_jitter(0.2)) +
+  scale_x_discrete("AUD group", labels=c('HC', 'AUD')) +
+  scale_y_continuous("Craving rating post") +
+  scale_fill_manual("AUD group", values = cbPalette[c(6,8)]) +
+  theme_bw(base_size=12) +
+  theme(legend.position = "none")
+
+fig1
+```
+
+### Craving difference
+
+#### Per group and reinforcer type
+
+```{r}
+fig1 <- ggplot(behav_rating, aes(reinforcer_type, y = crave_diff, fill=reinforcer_type)) +
+  geom_violin() +
+  geom_boxplot(width=0.1) + 
+  geom_jitter(shape=16, position=position_jitter(0.2)) +
+  facet_wrap(~aud_group, scales="fixed") +
+  scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) +
+  scale_y_continuous("Craving rating post-pre") +
+  scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) +
+  theme_bw(base_size=12) +
+  theme(legend.position = "none")
+
+fig1
+```
+
+#### Per group
+
+```{r}
+fig1 <- ggplot(behav_rating, aes(aud_group, y = crave_diff, fill=aud_group)) +
+  geom_violin() +
+  geom_boxplot(width=0.1) + 
+  geom_jitter(shape=16, position=position_jitter(0.2)) +
+  scale_x_discrete("AUD group", labels=c('HC', 'AUD')) +
+  scale_y_continuous("Craving rating post-pre") +
+  scale_fill_manual("AUD group", values = cbPalette[c(6,8)]) +
+  theme_bw(base_size=12) +
+  theme(legend.position = "none")
+
+fig1
+```
+
+# Correct choices
+
+## prepare dfs
+
+```{r}
+# get p correct per subject and block for linear mixed-effects regression
+df_c <- behav_final %>%
+  group_by(ID,reinforcer_type) %>%
+  summarise_at(vars(correct), list(p_correct = mean), na.rm=T)
+df_c_rating <- merge(df_c,behav_rating,by=c("ID","reinforcer_type")) # merge with demographic data for linear mixed-effects regression
+df_c <- merge(df_c,redcap,by="ID") # merge with demographic data for linear mixed-effects regression
+
+# get p correct per block and trial for plotting
+df_c_block_trial <- behav_final %>%
+  group_by(reinforcer_type,trial_block) %>%
+  summarise_at(vars(correct), list(p_correct = mean), na.rm=T)
+
+# get p correct per block and aud group and trial for plotting
+df_c_block_trial_group <- behav_final_redcap %>%
+  group_by(aud_group,reinforcer_type,trial_block) %>%
+  summarise_at(vars(correct), list(p_correct = mean), na.rm=T)
+```
+
+## Descriptive stats
+
+```{r}
+# per group and reinforcer type
+df_c_stats <- behav_final_redcap %>%
+  group_by(reinforcer_type,aud_group) %>%
+  dplyr::summarise(across(c('correct'), .fns=
+                   list('_mean' = mean,
+                        '_sd' = sd,
+                        '_min' = min,
+                        '_max' = max),
+                   na.rm=T))
+df_c_stats
+
+df_c_stats_nan <- behav_final_redcap %>%
+  group_by(reinforcer_type,aud_group) %>%
+  dplyr::summarise(across(c('correct'), .fns=
+                   list('_na' = ~sum(is.na(.)))))
+df_c_stats_nan
+
+# per group
+df_c_stats <- behav_final_redcap %>%
+  group_by(aud_group) %>%
+  dplyr::summarise(across(c('correct'), .fns=
+                   list('_mean' = mean,
+                        '_sd' = sd,
+                        '_min' = min,
+                        '_max' = max),
+                   na.rm=T))
+
+df_c_stats
+
+df_c_stats_nan <- behav_final_redcap %>%
+  group_by(aud_group) %>%
+  dplyr::summarise(across(c('correct'), .fns=
+                   list('_na' = ~sum(is.na(.)))))
+
+df_c_stats_nan
+
+# per reinforcer type
+df_c_stats <- behav_final_redcap %>%
+  group_by(reinforcer_type) %>%
+  dplyr::summarise(across(c('correct'), .fns=
+                   list('_mean' = mean,
+                        '_sd' = sd,
+                        '_min' = min,
+                        '_max' = max),
+                   na.rm=T))
+
+df_c_stats
+
+df_c_stats_nan <- behav_final_redcap %>%
+  group_by(reinforcer_type) %>%
+  dplyr::summarise(across(c('correct'), .fns=
+                   list('_na' = ~sum(is.na(.)))))
+
+df_c_stats_nan
+
+# overall
+df_c_stats <- behav_final_redcap %>%
+  dplyr::summarise(across(c('correct'), .fns=
+                   list('_mean' = mean,
+                        '_sd' = sd,
+                        '_min' = min,
+                        '_max' = max),
+                   na.rm=T))
+
+df_c_stats
+
+df_c_stats_nan <- behav_final_redcap %>%
+  dplyr::summarise(across(c('correct'), .fns=
+                   list('_na' = ~sum(is.na(.)))))
+
+df_c_stats_nan
+
+
+table(behav_final_redcap$correct)
+
+```
+
+## Linear mixed-effects regression
+
+### AUD group
+
+```{r}
+m_correct_1 <- lmer(p_correct ~ 1 + reinforcer_type*aud_group + (1 | ID), data=df_c, control=lmerControl(calc.derivs=FALSE), REML=F)
+#m_correct_2 <- lmer(p_correct ~ 1 + reinforcer_type*aud_group + (1 + reinforcer_type || ID), data=df_c, control=lmerControl(calc.derivs=FALSE), REML=F)
+#m_correct_3 <- lmer(p_correct ~ 1 + reinforcer_type*aud_group + (1 + reinforcer_type | ID), data=df_c, control=lmerControl(calc.derivs=FALSE), REML=F)
+
+#anova(m_correct_1,m_correct_2,m_correct_3)
+
+tab_model(m_correct_1,
+          dv.labels=c("m_correct"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+We cannot include reinforcer type as random effect as the model would be unidentifiable.
+
+We find - n.s. effects.
+
+### AUD criteria
+
+```{r}
+m_correct_1_audsum <- lmer(p_correct ~ 1 + reinforcer_type*aud_sum + (1 | ID), data=df_c, control=lmerControl(calc.derivs=FALSE), REML=F)
+#m_correct_2_audsum <- lmer(p_correct ~ 1 + reinforcer_type*aud_sum + (1 + reinforcer_type || ID), data=df_c, control=lmerControl(calc.derivs=FALSE), REML=F)
+#m_correct_3_audsum <- lmer(p_correct ~ 1 + reinforcer_type*aud_sum + (1 + reinforcer_type | ID), data=df_c, control=lmerControl(calc.derivs=FALSE), REML=F)
+
+#anova(m_correct_1_audsum,m_correct_2_audsum,m_correct_3_audsum)
+
+tab_model(m_correct_1_audsum,
+          dv.labels=c("m_correct"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+We cannot include reinforcer type as random effect as the model would be unidentifiable.
+
+We find - n.s. effects.
+
+### AUDIT criteria
+
+```{r}
+m_correct_1_auditsum <- lmer(p_correct ~ 1 + reinforcer_type*audit_sum + (1 | ID), data=df_c, control=lmerControl(calc.derivs=FALSE), REML=F)
+#m_correct_2_auditsum <- lmer(p_correct ~ 1 + reinforcer_type*audit_sum + (1 + reinforcer_type || ID), data=df_c, control=lmerControl(calc.derivs=FALSE), REML=F)
+#m_correct_3_auditsum <- lmer(p_correct ~ 1 + reinforcer_type*audit_sum + (1 + reinforcer_type | ID), data=df_c, control=lmerControl(calc.derivs=FALSE), REML=F)
+
+#anova(m_correct_1_auditsum,m_correct_2_auditsum,m_correct_3_auditsum)
+
+tab_model(m_correct_1_auditsum,
+          dv.labels=c("m_correct"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+We cannot include reinforcer type as random effect as the model would be unidentifiable.
+
+We find - n.s. effects.
+
+## Exploratory: Logistic mixed-effects regression
+
+### AUD group
+
+```{r}
+m_correct_log_1 <- glmer(correct ~ 1 + reinforcer_type*aud_group + (1 | ID), data=behav_final_redcap, family = binomial, control=glmerControl(calc.derivs=FALSE))
+m_correct_log_2 <- glmer(correct ~ 1 + reinforcer_type*aud_group + (1 + reinforcer_type || ID), data=behav_final_redcap, family = binomial, control=glmerControl(calc.derivs=FALSE))
+m_correct_log_3 <- glmer(correct ~ 1 + reinforcer_type*aud_group + (1 + reinforcer_type | ID), data=behav_final_redcap, family = binomial, control=glmerControl(calc.derivs=FALSE))
+
+anova(m_correct_log_1,m_correct_log_2)
+anova(m_correct_log_2,m_correct_log_3)
+
+tab_model(m_correct_log_2,
+          dv.labels=c("m_correct_log"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+We find - a sig. effect of reinforcer type.
+
+### AUD criteria
+
+```{r}
+m_correct_log_1_audsum <- glmer(correct ~ 1 + reinforcer_type*aud_sum + (1 | ID), data=behav_final_redcap, family = binomial, control=glmerControl(calc.derivs=FALSE))
+m_correct_log_2_audsum <- glmer(correct ~ 1 + reinforcer_type*aud_sum + (1 + reinforcer_type || ID), data=behav_final_redcap, family = binomial, control=glmerControl(calc.derivs=FALSE))
+m_correct_log_3_audsum <- glmer(correct ~ 1 + reinforcer_type*aud_sum + (1 + reinforcer_type | ID), data=behav_final_redcap, family = binomial, control=glmerControl(calc.derivs=FALSE))
+
+anova(m_correct_log_1_audsum,m_correct_log_2_audsum)
+anova(m_correct_log_2_audsum,m_correct_log_3_audsum)
+
+tab_model(m_correct_log_2_audsum,
+          dv.labels=c("m_correct_log"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+We find - n.s. effects.
+
+### AUDIT criteria
+
+```{r}
+m_correct_log_1_auditsum <- glmer(correct ~ 1 + reinforcer_type*audit_sum + (1 | ID), data=behav_final_redcap, family = binomial, control=glmerControl(calc.derivs=FALSE))
+m_correct_log_2_auditsum <- glmer(correct ~ 1 + reinforcer_type*audit_sum + (1 + reinforcer_type || ID), data=behav_final_redcap, family = binomial, control=glmerControl(calc.derivs=FALSE))
+m_correct_log_3_auditsum <- glmer(correct ~ 1 + reinforcer_type*audit_sum + (1 + reinforcer_type | ID), data=behav_final_redcap, family = binomial, control=glmerControl(calc.derivs=FALSE))
+
+anova(m_correct_log_1_auditsum,m_correct_log_2_auditsum)
+anova(m_correct_log_2_auditsum,m_correct_log_3_auditsum)
+
+tab_model(m_correct_log_2_auditsum,
+          dv.labels=c("m_correct_log"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+## Plotting
+
+### Per group and reinforcer type
+
+```{r}
+fig1 <- ggplot(df_c, aes(reinforcer_type, y = p_correct, fill=reinforcer_type)) +
+  geom_violin() +
+  geom_boxplot(width=0.1) + 
+  geom_jitter(shape=16, position=position_jitter(0.2)) +
+  facet_wrap(~aud_group, scales="fixed") +
+  scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) +
+  scale_y_continuous("% correct") +
+  scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) +
+  theme_bw(base_size=12) +
+  theme(legend.position = "none")
+
+fig1
+```
+
+### Per reinforcer type
+
+```{r}
+fig1 <- ggplot(df_c, aes(reinforcer_type, y = p_correct, fill=reinforcer_type)) +
+  geom_violin() +
+  geom_boxplot(width=0.1) + 
+  geom_jitter(shape=16, position=position_jitter(0.2)) +
+  #facet_wrap(~aud_group, scales="fixed") +
+  scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) +
+  scale_y_continuous("% correct") +
+  scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) +
+  theme_bw(base_size=12) +
+  theme(legend.position = "none")
+
+fig1
+```
+
+### Correct choices over course of task
+
+#### Per block
+
+```{r}
+fig2 <- ggplot(df_c_block_trial, aes(x=trial_block, y=p_correct, group=reinforcer_type)) +
+  geom_line(aes(color=reinforcer_type)) +
+  scale_fill_manual("Reinforcer type", values = cbPalette[c(1,2)]) +
+  theme_bw(base_size=12)
+
+fig2
+
+```
+
+-   P correct per block and trial across subjects.
+
+-   Drops most likely due to probabilistic events - same across all subjects, different across versions, but partially overlapping (e.g. 7,8 in version A, 7,8,9 in version B).
+
+-   p_correct quickly rises above 0.5 --\> subjects chose rewarded card more often --\> rewards aren't generally aversive
+
+-   p_correct is generally higher for juice vs. alcohol reward
+
+-   no string ceiling effect, but p_correct rises quickly
+
+#### Per block and aud group
+
+```{r}
+fig3 <- ggplot(df_c_block_trial_group, aes(x=trial_block, y=p_correct, group=reinforcer_type)) +
+  geom_line(aes(color=reinforcer_type)) +
+  scale_fill_manual("Reinforcer type", values = cbPalette[c(1,2)]) +
+  theme_bw(base_size=12) +
+  facet_wrap(~aud_group, scales="free_y")
+
+fig3
+
+```
+
+#### Per ID and trial bin
+
+```{r}
+fig2 <- ggplot(df_c_ID_block_trialbin, aes(x=trial_bin, y=p_correct, group=reinforcer_type)) +
+  geom_line(aes(color=reinforcer_type)) +
+  #scale_fill_manual("Reinforcer type", values = cbPalette[c(1,2)]) +
+  theme_bw(base_size=20) +
+  facet_wrap(~ID, scales="fixed")
+
+fig2
+
+ggsave("C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_CODE/Stan Modeling/test.jpg", width =30, height = 20,limitsize = FALSE)
+```
+
+# Association correct choices & ratings
+
+## Linear mixed-effects regression taste rating
+
+```{r}
+m_c_taste1=lmer(p_correct~taste1 + (1 | ID),
+                data=df_c_rating,
+                control=lmerControl(calc.derivs=FALSE))
+
+tab_model(m_c_taste1,
+          dv.labels=c("m_c_taste1"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+```{r}
+m_c_taste2=lmer(p_correct~taste2 + (1 | ID),
+                data=df_c_rating,
+                control=lmerControl(calc.derivs=FALSE))
+
+tab_model(m_c_taste2,
+          dv.labels=c("m_c_taste2"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+```{r}
+m_c_taste_diff=lmer(p_correct~taste_diff + (1 | ID),
+                data=df_c_rating,
+                control=lmerControl(calc.derivs=FALSE))
+
+tab_model(m_c_taste_diff,
+          dv.labels=c("m_c_taste_diff"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+## Linear mixed-effects regression craving rating
+
+```{r}
+m_c_crave1=lmer(p_correct~crave1 + (1 | ID),
+                data=df_c_rating,
+                control=lmerControl(calc.derivs=FALSE))
+
+tab_model(m_c_crave1,
+          dv.labels=c("m_c_crave1"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+```{r}
+m_c_crave2=lmer(p_correct~crave2 + (1 | ID),
+                data=df_c_rating,
+                control=lmerControl(calc.derivs=FALSE))
+
+tab_model(m_c_crave2,
+          dv.labels=c("m_c_crave2"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+```{r}
+m_c_crave_diff=lmer(p_correct~crave_diff + (1 | ID),
+                data=df_c_rating,
+                control=lmerControl(calc.derivs=FALSE))
+
+tab_model(m_c_crave_diff,
+          dv.labels=c("m_c_crave_diff"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+# Win-Stay behavior: Repeating the same action that was rewarded in previous trial
+
+## Prepare dfs
+
+```{r}
+# get p correct per subject and block for linear mixed-effects regression
+df_win_stay <- behav_final %>%
+  group_by(ID,reinforcer_type,na.rm=T) %>%
+  summarise_at(vars(stay,win_stay), list(p = mean), na.rm=T) %>%
+  na.omit()
+df_win_stay <- merge(df_win_stay,redcap,by="ID") # merge with demographic data for linear mixed-effects 
+
+# get p correct per block and trial for plotting
+df_win_stay_trial <- behav_final %>%
+  group_by(reinforcer_type,trial_block) %>%
+  summarise_at(vars(win_stay), list(p = mean), na.rm=T)
+
+# get p correct per block and aud group and trial for plotting
+df_win_stay_trial_group <- behav_final_redcap %>%
+  group_by(aud_group,reinforcer_type,trial_block) %>%
+  summarise_at(vars(win_stay), list(p = mean), na.rm=T)
+```
+
+## Linear mixed-effects regression win_stay
+
+### AUD group
+
+```{r}
+m_win_stay_1=lmer(win_stay_p~reinforcer_type*aud_group + (1 | ID),
+                data=df_win_stay,
+                control=lmerControl(calc.derivs=FALSE))
+#m_win_stay_2=lmer(win_stay_p~reinforcer_type*aud_group + (1 + reinforcer_type || ID),
+#                data=df_win_stay,
+#                control=lmerControl(calc.derivs=FALSE))
+#m_win_stay_3=lmer(win_stay_p~reinforcer_type*aud_group + (1 + reinforcer_type | ID),
+#                data=df_win_stay,
+#                control=lmerControl(calc.derivs=FALSE))
+#anova(m_win_stay_1,m_win_stay_2,m_win_stay_3)
+
+tab_model(m_win_stay_1,
+          dv.labels=c("m_stay"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+
+```
+
+### AUD criteria
+
+```{r}
+m_win_stay_1_audsum=lmer(win_stay_p~reinforcer_type*aud_sum + (1 | ID),
+                data=df_win_stay,
+                control=lmerControl(calc.derivs=FALSE))
+#m_win_stay_2_audsum=lmer(win_stay_p~reinforcer_type*aud_sum + (1 + reinforcer_type || ID),
+#                data=df_win_stay,
+#                control=lmerControl(calc.derivs=FALSE))
+#m_win_stay_3_audsum=lmer(win_stay_p~reinforcer_type*aud_sum + (1 + reinforcer_type | ID),
+#                data=df_win_stay,
+#                control=lmerControl(calc.derivs=FALSE))
+#anova(m_win_stay_1_audsum,m_win_stay_2_audsum,m_win_stay_3_audsum)
+
+tab_model(m_win_stay_1_audsum,
+          dv.labels=c("m_stay"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+
+```
+
+### AUDIT criteria
+
+```{r}
+m_win_stay_1_auditsum=lmer(win_stay_p~reinforcer_type*audit_sum + (1 | ID),
+                data=df_win_stay,
+                control=lmerControl(calc.derivs=FALSE))
+#m_win_stay_2_auditsum=lmer(win_stay_p~reinforcer_type*audit_sum + (1 + reinforcer_type || ID),
+#                data=df_win_stay,
+#                control=lmerControl(calc.derivs=FALSE))
+#m_win_stay_3_auditsum=lmer(win_stay_p~reinforcer_type*audit_sum + (1 + reinforcer_type | ID),
+#                data=df_win_stay,
+#                control=lmerControl(calc.derivs=FALSE))
+#anova(m_win_stay_1_auditsum,m_win_stay_2_auditsum,m_win_stay_3_auditsum)
+
+tab_model(m_win_stay_1_auditsum,
+          dv.labels=c("m_stay"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+
+```
+
+## Logistic mixed-effects regression
+
+### AUD group
+
+```{r}
+m_win_stay_log_1=lmer(win_stay~reinforcer_type*aud_group + (1 | ID),
+                data=behav_final_redcap,
+                control=lmerControl(calc.derivs=FALSE))
+m_win_stay_log_2=lmer(win_stay~reinforcer_type*aud_group + (1 + reinforcer_type || ID),
+                data=behav_final_redcap,
+                control=lmerControl(calc.derivs=FALSE))
+m_win_stay_log_3=lmer(win_stay~reinforcer_type*aud_group + (1 + reinforcer_type | ID),
+                data=behav_final_redcap,
+                control=lmerControl(calc.derivs=FALSE))
+
+anova(m_win_stay_log_1,m_win_stay_log_2)
+anova(m_win_stay_log_2,m_win_stay_log_3)
+anova(m_win_stay_log_1,m_win_stay_log_3)
+
+tab_model(m_win_stay_log_3,
+          dv.labels=c("m_stay"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+
+```
+
+Model 2 fails to converge. Model 3 is better than model 1.
+
+We find a sig. effect of reinforcer type.
+
+### AUD criteria
+
+```{r}
+m_win_stay_log_1_audsum=lmer(win_stay~reinforcer_type*aud_sum + (1 | ID),
+                data=behav_final_redcap,
+                control=lmerControl(calc.derivs=FALSE))
+m_win_stay_log_2_audsum=lmer(win_stay~reinforcer_type*aud_sum + (1 + reinforcer_type || ID),
+                data=behav_final_redcap,
+                control=lmerControl(calc.derivs=FALSE))
+m_win_stay_log_3_audsum=lmer(win_stay~reinforcer_type*aud_sum + (1 + reinforcer_type | ID),
+                data=behav_final_redcap,
+                control=lmerControl(calc.derivs=FALSE))
+
+anova(m_win_stay_log_1_audsum,m_win_stay_log_2_audsum)
+anova(m_win_stay_log_2_audsum,m_win_stay_log_3_audsum)
+anova(m_win_stay_log_1_audsum,m_win_stay_log_3_audsum)
+
+tab_model(m_win_stay_log_3_audsum,
+          dv.labels=c("m_stay"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+
+```
+
+### AUDIT criteria
+
+```{r}
+m_win_stay_log_1_auditsum=lmer(win_stay~reinforcer_type*audit_sum + (1 | ID),
+                data=behav_final_redcap,
+                control=lmerControl(calc.derivs=FALSE))
+m_win_stay_log_2_auditsum=lmer(win_stay~reinforcer_type*audit_sum + (1 + reinforcer_type || ID),
+                data=behav_final_redcap,
+                control=lmerControl(calc.derivs=FALSE))
+m_win_stay_log_3_auditsum=lmer(win_stay~reinforcer_type*audit_sum + (1 + reinforcer_type | ID),
+                data=behav_final_redcap,
+                control=lmerControl(calc.derivs=FALSE))
+
+anova(m_win_stay_log_1_auditsum,m_win_stay_log_2_auditsum)
+anova(m_win_stay_log_2_auditsum,m_win_stay_log_3_auditsum)
+anova(m_win_stay_log_1_auditsum,m_win_stay_log_3_auditsum)
+
+tab_model(m_win_stay_log_2_auditsum,
+          dv.labels=c("m_stay"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+
+```
+
+## Plotting
+
+### Violin plot per aud group and reinforcer type
+
+```{r}
+fig4 <- ggplot(df_win_stay, aes(reinforcer_type, y = win_stay_p, fill=reinforcer_type)) +
+  geom_violin() +
+  geom_boxplot(width=0.1) + 
+  geom_jitter(shape=16, position=position_jitter(0.2)) +
+  facet_wrap(~ aud_group, scales="fixed") +
+  scale_x_discrete("reinforcer type", labels=c('juice', 'alcohol')) +
+  scale_y_continuous("prob(repeat action rewarded in prev trial)") +
+  scale_fill_manual("reinforcer_type", values = cbPalette[c(6,8)]) +
+  theme_bw(base_size=12) +
+  theme(legend.position = "none")
+
+fig4
+
+```
+
+### Violin plot per AUD group
+
+```{r}
+fig5 <- ggplot(df_win_stay, aes(aud_group, y = win_stay_p, fill=aud_group)) +
+  geom_violin() +
+  geom_boxplot(width=0.1) + 
+  geom_jitter(shape=16, position=position_jitter(0.2)) +
+  scale_x_discrete("AUD group", labels=c('HC', 'AUD')) +
+  scale_y_continuous("prob(repeat action rewarded in prev trial)") +
+  scale_fill_manual("AUD_group", values = cbPalette[c(6,8)]) +
+  theme_bw(base_size=12) +
+  theme(legend.position = "none")
+
+fig5
+```
+
+### Violin plot per reinforcer type
+
+```{r}
+fig6 <- ggplot(df_win_stay, aes(reinforcer_type, y = win_stay_p, fill=reinforcer_type)) +
+  geom_violin() +
+  geom_boxplot(width=0.1) + 
+  geom_jitter(shape=16, position=position_jitter(0.2)) +
+  scale_x_discrete("reinforcer type", labels=c('alcohol', 'juice')) +
+  scale_y_continuous("prob(repeat action rewarded in prev trial)") +
+  scale_fill_manual("reinforcer_type", values = cbPalette[c(6,8)]) +
+  theme_bw(base_size=12) +
+  theme(legend.position = "none")
+
+fig6
+```
+
+### Win-stay behavior over course of task
+
+#### Per block
+
+```{r}
+fig2 <- ggplot(df_win_stay_trial, aes(x=trial_block, y=p, group=reinforcer_type)) +
+  geom_line(aes(color=reinforcer_type)) +
+  scale_fill_manual("Reinforcer type", values = cbPalette[c(1,2)]) +
+  theme_bw(base_size=12)
+
+fig2
+
+```
+
+#### Per block and aud group
+
+```{r}
+fig3 <- ggplot(df_win_stay_trial_group, aes(x=trial_block, y=p, group=reinforcer_type)) +
+  geom_line(aes(color=reinforcer_type)) +
+  scale_fill_manual("Reinforcer type", values = cbPalette[c(1,2)]) +
+  theme_bw(base_size=12) +
+  facet_wrap(~aud_group, scales="fixed")
+
+fig3
+
+```
+
+# No-Win-Switch behavior: Switching the action if it was not rewarded in previous trial
+
+## Prepare dfs
+
+```{r}
+# get p correct per subject and block for linear mixed-effects regression
+df_nowin_switch <- behav_final %>%
+  group_by(ID,reinforcer_type,na.rm=T) %>%
+  summarise_at(vars(stay,nowin_switch), list(p = mean), na.rm=T) %>%
+  na.omit()
+df_nowin_switch <- merge(df_nowin_switch,redcap,by="ID") # merge with demographic data for linear mixed-effects 
+
+# get p correct per block and trial for plotting
+df_nowin_switch_trial <- behav_final %>%
+  group_by(reinforcer_type,trial_block) %>%
+  summarise_at(vars(nowin_switch), list(p = mean), na.rm=T)
+
+# get p correct per block and aud group and trial for plotting
+df_nowin_switch_trial_group <- behav_final_redcap %>%
+  group_by(aud_group,reinforcer_type,trial_block) %>%
+  summarise_at(vars(nowin_switch), list(p = mean), na.rm=T)
+```
+
+## Linear mixed-effects regression
+
+### AUD group
+
+```{r}
+m_nowin_switch_1=lmer(nowin_switch_p~reinforcer_type*aud_group + (1 | ID),
+                data=df_nowin_switch,
+                control=lmerControl(calc.derivs=FALSE))
+#m_nowin_switch_2=lmer(nowin_switch_p~reinforcer_type*aud_group + (1 + reinforcer_type || ID),
+#                data=df_nowin_switch,
+#                control=lmerControl(calc.derivs=FALSE))
+#m_nowin_switch_3=lmer(nowin_switch_p~reinforcer_type*aud_group + (1 + reinforcer_type | ID),
+#                data=df_nowin_switch,
+#                control=lmerControl(calc.derivs=FALSE))
+#anova(m_nowin_switch_1,m_nowin_switch_2,m_nowin_switch_3)
+
+tab_model(m_nowin_switch_1,
+          dv.labels=c("m_switch"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+
+```
+
+### AUD criteria
+
+```{r}
+m_nowin_switch_1_audsum=lmer(nowin_switch_p~reinforcer_type*aud_sum + (1 | ID),
+                data=df_nowin_switch,
+                control=lmerControl(calc.derivs=FALSE))
+#m_win_stay_2_audsum=lmer(win_stay_p~reinforcer_type*aud_sum + (1 + reinforcer_type || ID),
+#                data=df_win_stay,
+#                control=lmerControl(calc.derivs=FALSE))
+#m_win_stay_3_audsum=lmer(win_stay_p~reinforcer_type*aud_sum + (1 + reinforcer_type | ID),
+#                data=df_win_stay,
+#                control=lmerControl(calc.derivs=FALSE))
+#anova(m_win_stay_1_audsum,m_win_stay_2_audsum,m_win_stay_3_audsum)
+
+tab_model(m_nowin_switch_1_audsum,
+          dv.labels=c("m_switch"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+
+```
+
+### AUDIT criteria
+
+```{r}
+m_nowin_switch_1_auditsum=lmer(nowin_switch_p~reinforcer_type*audit_sum + (1 | ID),
+                data=df_nowin_switch,
+                control=lmerControl(calc.derivs=FALSE))
+#m_nowin_switch_2_auditsum=lmer(nowin_switch_p~reinforcer_type*audit_sum + (1 + reinforcer_type || ID),
+#                data=df_nowin_switch,
+#                control=lmerControl(calc.derivs=FALSE))
+#m_nowin_switch_3_auditsum=lmer(nowin_switch_p~reinforcer_type*audit_sum + (1 + reinforcer_type | ID),
+#                data=df_nowin_switch,
+#                control=lmerControl(calc.derivs=FALSE))
+#anova(m_nowin_switch_1_auditsum,m_nowin_switch_2_auditsum,m_nowin_switch_3_auditsum)
+
+tab_model(m_nowin_switch_1_auditsum,
+          dv.labels=c("m_switch"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+
+```
+
+## Logistic mixed-effects regression
+
+### AUD group
+
+```{r}
+m_nowin_switch_log_1=lmer(nowin_switch~reinforcer_type*aud_group + (1 | ID),
+                data=behav_final_redcap,
+                control=lmerControl(calc.derivs=FALSE))
+m_nowin_switch_log_2=lmer(nowin_switch~reinforcer_type*aud_group + (1 + reinforcer_type || ID),
+                data=behav_final_redcap,
+                control=lmerControl(calc.derivs=FALSE))
+m_nowin_switch_log_3=lmer(nowin_switch~reinforcer_type*aud_group + (1 + reinforcer_type | ID),
+                data=behav_final_redcap,
+                control=lmerControl(calc.derivs=FALSE))
+
+anova(m_nowin_switch_log_1,m_nowin_switch_log_2)
+anova(m_nowin_switch_log_2,m_nowin_switch_log_3)
+anova(m_nowin_switch_log_1,m_nowin_switch_log_3)
+
+tab_model(m_nowin_switch_log_3,
+          dv.labels=c("m_switch"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+
+```
+
+Model 2 fails to converge. Model 3 is better than model 1.
+
+We find a sig. effect of reinforcer type.
+
+### AUD criteria
+
+```{r}
+m_nowin_switch_log_1_audsum=lmer(nowin_switch~reinforcer_type*aud_sum + (1 | ID),
+                data=behav_final_redcap,
+                control=lmerControl(calc.derivs=FALSE))
+m_nowin_switch_log_2_audsum=lmer(nowin_switch~reinforcer_type*aud_sum + (1 + reinforcer_type || ID),
+                data=behav_final_redcap,
+                control=lmerControl(calc.derivs=FALSE))
+m_nowin_switch_log_3_audsum=lmer(nowin_switch~reinforcer_type*aud_sum + (1 + reinforcer_type | ID),
+                data=behav_final_redcap,
+                control=lmerControl(calc.derivs=FALSE))
+
+anova(m_nowin_switch_log_1_audsum,m_nowin_switch_log_2_audsum)
+anova(m_nowin_switch_log_2_audsum,m_nowin_switch_log_3_audsum)
+anova(m_nowin_switch_log_1_audsum,m_nowin_switch_log_3_audsum)
+
+tab_model(m_nowin_switch_log_3_audsum,
+          dv.labels=c("m_switch"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+
+```
+
+### AUDIT criteria
+
+```{r}
+m_nowin_switch_log_1_auditsum=lmer(nowin_switch~reinforcer_type*audit_sum + (1 | ID),
+                data=behav_final_redcap,
+                control=lmerControl(calc.derivs=FALSE))
+m_nowin_switch_log_2_auditsum=lmer(nowin_switch~reinforcer_type*audit_sum + (1 + reinforcer_type || ID),
+                data=behav_final_redcap,
+                control=lmerControl(calc.derivs=FALSE))
+m_nowin_switch_log_3_auditsum=lmer(nowin_switch~reinforcer_type*audit_sum + (1 + reinforcer_type | ID),
+                data=behav_final_redcap,
+                control=lmerControl(calc.derivs=FALSE))
+
+anova(m_nowin_switch_log_1_auditsum,m_nowin_switch_log_2_auditsum)
+anova(m_nowin_switch_log_2_auditsum,m_nowin_switch_log_3_auditsum)
+anova(m_nowin_switch_log_1_auditsum,m_nowin_switch_log_3_auditsum)
+
+tab_model(m_nowin_switch_log_2_auditsum,
+          dv.labels=c("m_switch"), digits=3, digits.re=2, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+
+```
+
+## Plotting
+
+### Violin plot per aud group and reinforcer type
+
+```{r}
+fig4 <- ggplot(df_nowin_switch, aes(aud_group, y = nowin_switch_p, fill=aud_group)) +
+  geom_violin() +
+  geom_boxplot(width=0.1) + 
+  geom_jitter(shape=16, position=position_jitter(0.2)) +
+  facet_wrap(~ reinforcer_type, scales="fixed") +
+  scale_x_discrete("AUD group", labels=c('HC', 'AUD')) +
+  scale_y_continuous("prob(switch action if not rewarded in prev trial)") +
+  scale_fill_manual("AUD_group", values = cbPalette[c(6,8)]) +
+  theme_bw(base_size=12) +
+  theme(legend.position = "none")
+
+fig4
+
+```
+
+### Violin plot per AUD group
+
+```{r}
+fig5 <- ggplot(df_nowin_switch, aes(aud_group, y = nowin_switch_p, fill=aud_group)) +
+  geom_violin() +
+  geom_boxplot(width=0.1) + 
+  geom_jitter(shape=16, position=position_jitter(0.2)) +
+  scale_x_discrete("AUD group", labels=c('HC', 'AUD')) +
+  scale_y_continuous("prob(switch action if not rewarded in prev trial)") +
+  scale_fill_manual("AUD_group", values = cbPalette[c(6,8)]) +
+  theme_bw(base_size=12) +
+  theme(legend.position = "none")
+
+fig5
+```
+
+### Violin plot per reinforcer type
+
+```{r}
+fig6 <- ggplot(df_nowin_switch, aes(reinforcer_type, y = nowin_switch_p, fill=reinforcer_type)) +
+  geom_violin() +
+  geom_boxplot(width=0.1) + 
+  geom_jitter(shape=16, position=position_jitter(0.2)) +
+  scale_x_discrete("reinforcer type", labels=c('alcohol', 'juice')) +
+  scale_y_continuous("prob(switch action if not rewarded in prev trial)") +
+  scale_fill_manual("reinforcer_type", values = cbPalette[c(6,8)]) +
+  theme_bw(base_size=12) +
+  theme(legend.position = "none")
+
+fig6
+```
+
+### Win-stay behavior over course of task
+
+#### Per block
+
+```{r}
+fig2 <- ggplot(df_nowin_switch_trial, aes(x=trial_block, y=p, group=reinforcer_type)) +
+  geom_line(aes(color=reinforcer_type)) +
+  scale_fill_manual("Reinforcer type", values = cbPalette[c(1,2)]) +
+  theme_bw(base_size=12)
+
+fig2
+
+```
+
+#### Per block and aud group
+
+```{r}
+fig3 <- ggplot(df_nowin_switch_trial_group, aes(x=trial_block, y=p, group=reinforcer_type)) +
+  geom_line(aes(color=reinforcer_type)) +
+  scale_fill_manual("Reinforcer type", values = cbPalette[c(1,2)]) +
+  theme_bw(base_size=12) +
+  facet_wrap(~aud_group, scales="fixed")
+
+fig3
+
+```

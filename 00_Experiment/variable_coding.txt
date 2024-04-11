@@ -1,0 +1,25 @@
+### ILT variable coding ###
+
+subjn 			- participant ID
+rt 			- reaction time til valid response including NaN
+rt_ohne_nan 		- reaction time til vaid response without NaN
+R 			- reward, 1 = rewarded, -1 = not rewarded (depends on C and rare event (p_u) --> correct 				trials only rewarded if p_u = 0)
+C			- correct (chosing card with 70% win probability), 1 = correct, 0 = incorrect
+A			- choice (chosen card), 1 = card 2, 2 = card 1
+a_side			- choice left / right, 1 = left, 2 = right
+random_lr		- card 1 or 2 on left or right, 1 = card 1 on left, 2 = card 1 on right
+MRI			- number of scanner in Berlin
+vers_ord		- order of card pairs, 1 = A-B, 2 = B-A
+ord			- order of reinforcer type, 1 = S-A, 2 = A-S
+Drink_Type		- alcohol or juice block, A = alcohol, J = juice
+chosen_A		- chosen alcoholic drink, W = white wine, L = limoncello, c = campari orange, R = red wine, f = fruit liquor
+chosen_J		- chosen non-alcoholic drink, A = apple, O = orange, N = pineapple, T = grape, M = multivitamin
+rating.taste1		- taste rating before block
+rating.crave1		- craving rating before block
+rating.taste2		- taste rating before block
+rating.crave2		- craving rating before block
+state 			- determines which card is the better one (but 1 does not mean card 1 is better)
+				--> new_state randomly chosen based on state 
+				--> new_state = Z.state = S
+				--> S = 2: card 1 is better in 70%
+				--> S = 1: card 2 is better in 70%

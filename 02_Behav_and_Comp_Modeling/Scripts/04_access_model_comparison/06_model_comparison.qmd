@@ -1,0 +1,180 @@
+---
+title: "Bayesian model comparison"
+author: "Milena Musial"
+output: html_document
+date: '2024-03-01'
+format: 
+  html:
+    embed-resources: true
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    number-sections: true
+    fig-width: 8
+    fig-height: 6
+    fig-format: svg
+    editor_options: 
+    chunk_output_type: console
+---
+
+# Setup
+
+```{r}
+rm(list=ls())
+libs<-c("rstan", "gdata", "bayesplot", "stringr", "dplyr", "ggplot2", "loo", "hBayesDM", "tidyr")
+sapply(libs, require, character.only=TRUE)
+
+datapath <- '/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/ILT_Stan_Modeling'
+out_path <- '/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/ILT_Stan_Modeling/Output'
+
+cbPalette <- c( "#0072B2", "#D55E00", "#009E73", "#CC79A7",
+                "#F0E442", "#56B4E9", "#999999", "#E69F00")
+
+```
+
+# Step 1: Comparison of random-intercept models
+
+## Load Stan fit files
+```{r}
+fit_file_main <- 'fit_n56_2024-02-28_bandit2arm_delta_PH_withC_estimation1_delta0.9_stepsize0.5.rds'
+fit_file_main_DU <- 'fit_n56_2024-02-29_bandit2arm_delta_main_DU_estimation1_delta0.99_stepsize0.1.rds'
+fit_file_PH_withC <- 'fit_n56_2024-03-01_bandit2arm_delta_PH_withC_estimation1_delta0.99_stepsize0.1.rds'
+fit_file_PH_withC_DU <- 'fit_n56_2024-03-01_bandit2arm_delta_PH_withC_DU_estimation1_delta0.99_stepsize0.1.rds'
+
+fit_main <- readRDS(file.path(out_path, fit_file_main))
+fit_main_DU <- readRDS(file.path(out_path, fit_file_main_DU))
+fit_PH_withC <- readRDS(file.path(out_path, fit_file_PH_withC))
+fit_PH_withC_DU <- readRDS(file.path(out_path, fit_file_PH_withC_DU))
+```
+
+## Extract log likelihood
+```{r}
+# extract log likelihood for each choice
+log_likelihood_main <- extract_log_lik(fit_main, parameter_name = "log_lik", merge_chains = T)
+log_likelihood_main_DU <- extract_log_lik(fit_main_DU, parameter_name = "log_lik", merge_chains = T)
+log_likelihood_PH_withC <- extract_log_lik(fit_PH_withC, parameter_name = "log_lik", merge_chains = T)
+log_likelihood_PH_withC_DU <- extract_log_lik(fit_PH_withC_DU, parameter_name = "log_lik", merge_chains = T)
+
+# exclude missing trials
+log_likelihood_main <- as.matrix(log_likelihood_main[,log_likelihood_main[1,]!=-999])
+log_likelihood_main_DU <- as.matrix(log_likelihood_main_DU[,log_likelihood_main_DU[1,]!=-999])
+log_likelihood_PH_withC <- log_likelihood_PH_withC[,log_likelihood_PH_withC[1,]!=-999]
+log_likelihood_PH_withC_DU <- log_likelihood_PH_withC_DU[,log_likelihood_PH_withC_DU[1,]!=-999]
+```
+
+## Fit per model
+```{r}
+loo_main <- loo(log_likelihood_main)
+print(loo_main)
+plot(loo_main)
+
+if (any(pareto_k_values(loo_main) > 0.7)) {
+  loo_main_clean <- loo(log_likelihood_main, k_threshold = 0.7)
+  print(loo_main_clean)
+  plot(loo_main_clean)
+}
+
+loo_main_DU <- loo(log_likelihood_main_DU)
+print(loo_main_DU)
+plot(loo_main_DU)
+
+if (any(pareto_k_values(loo_main_DU) > 0.7)) {
+  loo_main_DU_clean <- loo(log_likelihood_main_DU, k_threshold = 0.7)
+  print(loo_main_DU_clean)
+  plot(loo_main_DU_clean)
+}
+
+loo_PH_withC <- loo(log_likelihood_PH_withC)
+print(loo_PH_withC)
+plot(loo_PH_withC)
+
+if (any(pareto_k_values(loo_PH_withC) > 0.7)) {
+  loo_PH_withC_clean <- loo(log_likelihood_PH_withC, k_threshold = 0.7)
+  print(loo_PH_withC_clean)
+  plot(loo_PH_withC_clean)
+}
+
+loo_PH_withC_DU <- loo(log_likelihood_PH_withC_DU)
+print(loo_PH_withC_DU)
+plot(loo_PH_withC_DU)
+
+if (any(pareto_k_values(loo_PH_withC_DU) > 0.7)) {
+  loo_PH_withC_DU_clean <- loo(log_likelihood_PH_withC_DU, k_threshold = 0.7)
+  print(loo_PH_withC_DU_clean)
+  plot(loo_PH_withC_DU_clean)
+}
+
+```
+
+## Compare model fit
+```{r}
+comp <- loo_compare(loo_main_clean, loo_main_DU_clean, loo_PH_withC_clean, loo_PH_withC_DU_clean)
+print(comp)
+```
+
+## High pareto k-values: Try 10-fold CV instead
+```{r}
+# Load k_fold CV elpds for different models
+env_main <- new.env()
+elpd_main <- load(file.path(out_path, "elpd_kfold_bandit2arm_delta_main_n56.RData"),env_main)[1]
+env_main_DU <- new.env()
+elpd_main_DU <- load(file.path(out_path, "elpd_kfold_bandit2arm_delta_main_DU_n56.RData"),env_main_DU)[1]
+env_PH_withC <- new.env()
+elpd_PH_withC <- load(file.path(out_path, "elpd_kfold_bandit2arm_delta_PH_withC_n56.RData"),env_PH_withC)[1]
+env_PH_withC_DU <- new.env()
+elpd_PH_withC_DU <- load(file.path(out_path, "elpd_kfold_bandit2arm_delta_PH_withC_DU_n56.RData"),env_PH_withC_DU)[1]
+```
+
+```{r}
+comp2 <- loo_compare(env_main[[elpd_main]], env_main_DU[[elpd_main_DU]], env_PH_withC[[elpd_PH_withC]], env_PH_withC[[elpd_PH_withC_DU]])
+print(comp2)
+```
+
+# Step 2: Compare PH withC with different hierarchical structures
+
+## Load Stan fit file
+```{r}
+fit_file_PH_withC_hierarchical_group <- 'fit_n56_2024-02-29_bandit2arm_delta_PH_withC_hierarchical_group_estimation1_delta0.9_stepsize0.5.rds'
+
+fit_PH_withC_hierarchical_group <- readRDS(file.path(out_path, fit_file_PH_withC_hierarchical_group))
+```
+
+## Extract log likelihood
+```{r}
+# extract log likelihood for each choice
+log_likelihood_PH_withC_hierarchical_group <- extract_log_lik(fit_PH_withC_hierarchical_group, parameter_name = "log_lik", merge_chains = T)
+
+# exclude missing trials
+log_likelihood_PH_withC_hierarchical_group <- log_likelihood_PH_withC_hierarchical_group[,log_likelihood_PH_withC_hierarchical_group[1,]!=-999]
+```
+
+## Fit per model
+```{r}
+loo_PH_withC_hierarchical_group <- loo(log_likelihood_PH_withC_hierarchical_group)
+print(loo_PH_withC_hierarchical_group)
+plot(loo_PH_withC)
+
+if (any(pareto_k_values(loo_PH_withC_hierarchical_group) > 0.7)) {
+  loo_PH_withC_hierarchical_group_clean <- loo(log_likelihood_PH_withC_hierarchical_group, k_threshold = 0.7)
+  print(loo_PH_withC_hierarchical_group_clean)
+  plot(loo_PH_withC_clean)
+}
+```
+
+## Compare model fit
+```{r}
+comp3 <- loo_compare(loo_PH_withC_clean, loo_PH_withC_hierarchical_group_clean)
+print(comp3)
+```
+
+## High pareto k-values: Try 10-fold CV instead
+```{r}
+# Load k_fold CV elpds for different models
+env_PH_withC__hierarchical_group <- new.env()
+elpd_PH_withC_hierarchical_group <- load(file.path(out_path, "elpd_kfold_bandit2arm_delta_PH_withC_hierarchical_group_n56.RData"),env_PH_withC__hierarchical_group)[1]
+```
+
+```{r}
+comp4 <- loo_compare(env_PH_withC[[elpd_PH_withC]], env_PH_withC__hierarchical_group[[elpd_PH_withC_hierarchical_group]])
+print(comp4)
+```

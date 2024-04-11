@@ -1,0 +1,174 @@
+---
+title: "Acces parameter recovery results for PH with C model"
+author: "Milena Musial"
+output: html_document
+date: '2024-01-31'
+format: 
+  html:
+    embed-resources: true
+    toc: true
+    toc-depth: 3
+    code-fold: false
+    number-sections: true
+    fig-width: 8
+    fig-height: 6
+    fig-format: svg
+    editor_options: 
+    chunk_output_type: console
+---
+
+# Setup
+
+```{r}
+rm(list=ls())
+libs<-c("rstan", "gdata", "bayesplot", "stringr", "dplyr", "ggplot2", "PerformanceAnalytics")
+sapply(libs, require, character.only=TRUE)
+
+datapath <- '/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/ILT_Stan_Modeling'
+out_path <- '/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/ILT_Stan_Modeling/Output'
+behavpath <- '/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/ILT_DATA'
+
+# load files containing true parameters used as input for simulation
+orig_file <- 'fit_n56_2024-03-01_bandit2arm_delta_PH_withC_estimation1_delta0.99_stepsize0.1.rds'
+orig_fit <- readRDS(file.path(out_path, orig_file)) # Stan model output
+
+# load simulation outout file containing y_pred and transformed parameters
+sim_file <- 'sim_2024-03-06_bandit2arm_delta_PH_withC_sim.rds'
+sim_fit <- readRDS(file.path(out_path, 'Parameter_Recovery', sim_file)) # Stan model output
+
+# load simulated data fitting results
+recovery_file <- 'recovery_2024-03-06_bandit2arm_delta_PH_withC.rds'
+recovery_fit <- readRDS(file.path(out_path, 'Parameter_Recovery', recovery_file)) # Stan model output
+
+color_scheme_set("mix-blue-pink")
+```
+
+```{r}
+# Load true parameters
+
+## extract posterior means for all parameters to use them as input for simulation
+  
+### posterior means of parameters as input for simulation
+true_mu_pr <- as.vector(summary(orig_fit, pars="mu_pr")$summary[, c("mean")]) 
+true_sigma <- as.vector(summary(orig_fit, pars="sigma")$summary[, c("mean")]) 
+
+true_A_pr <- as.vector(summary(orig_fit, pars="A_pr")$summary[, c("mean")]) 
+true_tau_pr <- as.vector(summary(orig_fit, pars="tau_pr")$summary[, c("mean")]) 
+true_gamma_pr <- as.vector(summary(orig_fit, pars="gamma_pr")$summary[, c("mean")]) 
+true_C_pr <- as.vector(summary(orig_fit, pars="C_pr")$summary[, c("mean")]) 
+
+### transformed parameters saved during simulation
+sim_posterior <- extract(sim_fit)
+
+true_A <- as.vector(sim_posterior$A[1,])
+true_tau <- as.vector(sim_posterior$tau[1,])
+true_gamma <- as.vector(sim_posterior$gamma[1,])
+true_C <- as.vector(sim_posterior$C[1,])
+
+true_mu_A <- as.vector(sim_posterior$mu_A[1])
+true_mu_tau <- as.vector(sim_posterior$mu_tau[1])
+true_mu_gamma <- as.vector(sim_posterior$mu_gamma[1])
+true_mu_C <- as.vector(sim_posterior$mu_C[1])
+
+## extract parameter values based on simulated data
+recovered_mu_pr <- as.matrix(recovery_fit, pars = "mu_pr")
+recovered_sigma <- as.matrix(recovery_fit, pars = "sigma")
+
+recovered_A_pr <- as.matrix(recovery_fit, pars = "A_pr")
+recovered_tau_pr <- as.matrix(recovery_fit, pars = "tau_pr")
+recovered_gamma_pr <- as.matrix(recovery_fit, pars = "gamma_pr")
+recovered_C_pr <- as.matrix(recovery_fit, pars = "C_pr")
+
+recovered_A <- as.matrix(recovery_fit, pars = "A")
+recovered_tau <- as.matrix(recovery_fit, pars = "tau")
+recovered_gamma <- as.matrix(recovery_fit, pars = "gamma")
+recovered_C <- as.matrix(recovery_fit, pars = "C")
+
+recovered_A_mean <- as.vector(summary(recovery_fit, pars="A")$summary[, c("mean")]) 
+recovered_tau_mean <- as.vector(summary(recovery_fit, pars="tau")$summary[, c("mean")]) 
+recovered_gamma_mean <- as.vector(summary(recovery_fit, pars="gamma")$summary[, c("mean")]) 
+recovered_C_mean <- as.vector(summary(recovery_fit, pars="C")$summary[, c("mean")]) 
+
+recovered_mu_A <- as.matrix(recovery_fit, pars = "mu_A")
+recovered_mu_tau <- as.matrix(recovery_fit, pars = "mu_tau")
+recovered_mu_gamma <- as.matrix(recovery_fit, pars = "mu_gamma")
+recovered_mu_C <- as.matrix(recovery_fit, pars = "mu_C")
+
+
+```
+
+# Recovery plots
+
+```{r}
+# mus (raw and transformed)
+mcmc_recover_intervals(recovered_mu_pr, true_mu_pr, prob = 0.5, prob_outer = 0.95)
+
+mcmc_recover_intervals(recovered_mu_A, true_mu_A, prob = 0.5, prob_outer = 0.95)
+mcmc_recover_intervals(recovered_mu_tau, true_mu_tau, prob = 0.5, prob_outer = 0.95)
+mcmc_recover_intervals(recovered_mu_gamma, true_mu_gamma, prob = 0.5, prob_outer = 0.95)
+mcmc_recover_intervals(recovered_mu_C, true_mu_C, prob = 0.5, prob_outer = 0.95)
+
+# sigma
+mcmc_recover_intervals(recovered_sigma, true_sigma, prob = 0.5, prob_outer = 0.95)
+```
+
+
+```{r, fig.width=10, fig.height=20}
+# individual distances from mu
+mcmc_recover_intervals(recovered_A_pr, true_A_pr, prob = 0.5, prob_outer = 0.95, 
+                       batch = c(rep(1,10), rep(2,10), rep(3,10), rep(4,10), rep(5,10),
+                                 rep(6,10), rep(7,10), rep(8,10), rep(9,10),
+                                 rep(10,10), rep(11,10), rep(12,2)),
+                       facet_args = list(ncol = 1))
+
+mcmc_recover_intervals(recovered_tau_pr, true_tau_pr, prob = 0.5, prob_outer = 0.95, 
+                       batch = c(rep(1,10), rep(2,10), rep(3,10), rep(4,10), rep(5,10),
+                                 rep(6,10), rep(7,10), rep(8,10), rep(9,10),
+                                 rep(10,10), rep(11,10), rep(12,2)),
+                       facet_args = list(ncol = 1))
+
+mcmc_recover_intervals(recovered_gamma_pr, true_gamma_pr, prob = 0.5, prob_outer = 0.95, 
+                       batch = c(rep(1,10), rep(2,10), rep(3,10), rep(4,10), rep(5,10),
+                                 rep(6,10), rep(7,10), rep(8,10), rep(9,10),
+                                 rep(10,10), rep(11,10), rep(12,2)),
+                       facet_args = list(ncol = 1))
+
+mcmc_recover_intervals(recovered_C_pr, true_C_pr, prob = 0.5, prob_outer = 0.95, 
+                       batch = c(rep(1,10), rep(2,10), rep(3,10), rep(4,10), rep(5,10),
+                                 rep(6,10), rep(7,10), rep(8,10), rep(9,10),
+                                 rep(10,10), rep(11,10), rep(12,2)),
+                       facet_args = list(ncol = 1))
+
+# transformed individual parameters
+mcmc_recover_intervals(recovered_A, true_A, prob = 0.5, prob_outer = 0.95, 
+                       batch = c(rep(1,10), rep(2,10), rep(3,10), rep(4,10), rep(5,10),
+                                 rep(6,10), rep(7,10), rep(8,10), rep(9,10),
+                                 rep(10,10), rep(11,10), rep(12,2)),
+                       facet_args = list(ncol = 1))
+
+mcmc_recover_intervals(recovered_tau, true_tau, prob = 0.5, prob_outer = 0.95, 
+                       batch = c(rep(1,10), rep(2,10), rep(3,10), rep(4,10), rep(5,10),
+                                 rep(6,10), rep(7,10), rep(8,10), rep(9,10),
+                                 rep(10,10), rep(11,10), rep(12,2)),
+                       facet_args = list(ncol = 1))
+
+mcmc_recover_intervals(recovered_gamma, true_gamma, prob = 0.5, prob_outer = 0.95, 
+                       batch = c(rep(1,10), rep(2,10), rep(3,10), rep(4,10), rep(5,10),
+                                 rep(6,10), rep(7,10), rep(8,10), rep(9,10),
+                                 rep(10,10), rep(11,10), rep(12,2)),
+                       facet_args = list(ncol = 1))
+
+mcmc_recover_intervals(recovered_C, true_C, prob = 0.5, prob_outer = 0.95, 
+                       batch = c(rep(1,10), rep(2,10), rep(3,10), rep(4,10), rep(5,10),
+                                 rep(6,10), rep(7,10), rep(8,10), rep(9,10),
+                                 rep(10,10), rep(11,10), rep(12,2)),
+                       facet_args = list(ncol = 1))
+
+```
+
+# Correlation btw. true and recovered inidivual parameters
+```{r, fig.width=10, fig.height=20}
+param_df <- data.frame(true_A,true_tau,true_gamma,true_C,recovered_A_mean,recovered_tau_mean,recovered_gamma_mean,recovered_C_mean)
+cor(param_df)
+chart.Correlation(param_df, histogram=TRUE, pch=19)
+```

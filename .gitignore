@@ -1,0 +1,13 @@
+#
+# .gitignore
+#
+
+02_Behav_and_Comp_Modeling/Scripts/00_behav_analyses/html/
+02_Behav_and_Comp_Modeling/Scripts/02_access_hierarchical/html/
+02_Behav_and_Comp_Modeling/Scripts/02_access_non-hierarchical/html/
+02_Behav_and_Comp_Modeling/Scripts/03_access_param_recovery/html/
+02_Behav_and_Comp_Modeling/Scripts/04_access_model_comparison/html/
+02_Behav_and_Comp_Modeling/Scripts/05_access_comp_parameters/html/
+02_Behav_and_Comp_Modeling/Scripts/plots/
+Output/
+bih_hpc_commands.txt
