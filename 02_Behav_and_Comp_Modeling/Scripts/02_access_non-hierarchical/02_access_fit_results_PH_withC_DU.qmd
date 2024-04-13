@@ -23,18 +23,18 @@ format:
 
 rm(list=ls())
 
-sample <- "n56" # n71, n53, n50
+sample <- "n58" # n71, n53, n50
 ```
 
 ```{r}
 libs<-c("rstan", "gdata", "bayesplot", "stringr", "dplyr", "ggplot2", "loo", "posterior", "reliabilitydiag")
 sapply(libs, require, character.only=TRUE)
 
-datapath <- '/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/ILT_Stan_Modeling'
-out_path <- '/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/ILT_Stan_Modeling/Output'
+datapath <- '/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/WP2_ILT_CODE/02_Behav_and_Comp_Modeling'
+out_path <- '/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/WP2_ILT_CODE/02_Behav_and_Comp_Modeling/Output'
 behavpath <- '/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/ILT_DATA'
 
-fit_file <- 'fit_n56_2024-03-01_bandit2arm_delta_PH_withC_DU_estimation1_delta0.99_stepsize0.1.rds'
+fit_file <- 'fit_n58_2024-04-12_bandit2arm_delta_PH_withC_DU_estimation1_delta0.99_stepsize0.1.rds'
 
 fit <- readRDS(file.path(out_path, fit_file)) # Stan model output
 
@@ -42,75 +42,18 @@ if (sample == 'n71') {
   load(file.path(behavpath,"Behav/behav_final_redcap_n71.RData")) # Behav and redcap data
   load(file.path(behavpath,"RedCap/redcap_n71.RData")) # redcap data
   input<-read.table(file.path(behavpath, 'Input/Stan_input_n71.txt'), header = T)
-  load(file.path(behavpath,"Input/stan_data_bandit2arm_delta_PH_withC_n71.RData"))
-} else if (sample == 'n63') {
-  load(file.path(behavpath,"Behav/behav_final_redcap_n63.RData")) # Behav and redcap data
-  load(file.path(behavpath,"RedCap/redcap_n63.RData")) # redcap data
-  input<-read.table(file.path(behavpath, 'Input/Stan_input_n63.txt'), header = T)
-  load(file.path(behavpath,"Input/stan_data_bandit2arm_delta_PH_withC_n63.RData"))
-} else if (sample == 'n60') {
-  load(file.path(behavpath,"Behav/behav_final_redcap_n60.RData")) # Behav and redcap data
-  load(file.path(behavpath,"RedCap/redcap_n60.RData")) # redcap data
-  input<-read.table(file.path(behavpath, 'Input/Stan_input_n60.txt'), header = T)
-  load(file.path(behavpath,"Input/stan_data_bandit2arm_delta_PH_withC_n60.RData"))
+  load(file.path(behavpath,"Input/stan_data_bandit2arm_delta_PH_withC_DU_n71.RData"))
+} else if (sample == 'n58') {
+  load(file.path(behavpath,"Behav/behav_final_redcap_n58.RData")) # Behav and redcap data
+  load(file.path(behavpath,"RedCap/redcap_n58.RData")) # redcap data
+  input<-read.table(file.path(behavpath, 'Input/Stan_input_n58.txt'), header = T)
+  load(file.path(behavpath,"Input/stan_data_bandit2arm_delta_PH_withC_DU_n58.RData"))
 } else if (sample == 'n56') {
   load(file.path(behavpath,"Behav/behav_final_redcap_n56.RData")) # Behav and redcap data
   load(file.path(behavpath,"RedCap/redcap_n56.RData")) # redcap data
   input<-read.table(file.path(behavpath, 'Input/Stan_input_n56.txt'), header = T)
-  load(file.path(behavpath,"Input/stan_data_bandit2arm_delta_PH_withC_n56.RData"))
-} else if (sample == 'n53') {
-  load(file.path(behavpath,"Behav/behav_final_redcap_n53.RData")) # Behav and redcap data
-  load(file.path(behavpath,"RedCap/redcap_n53.RData")) # redcap data
-  input<-read.table(file.path(behavpath, 'Input/Stan_input_n53.txt'), header = T)
-  load(file.path(behavpath,"Input/stan_data_bandit2arm_delta_PH_withC_n53.RData"))
-} else if (sample == 'n50') {
-  load(file.path(behavpath,"Behav/behav_final_redcap_n50.RData")) # Behav and redcap data
-  load(file.path(behavpath,"RedCap/redcap_n50.RData")) # redcap data
-  input<-read.table(file.path(behavpath, 'Input/Stan_input_n50.txt'), header = T)
-  load(file.path(behavpath,"Input/stan_data_bandit2arm_delta_PH_withC_n50.RData"))
-} else if (sample == 'n56_aud') {
-  load(file.path(behavpath,"Behav/behav_final_redcap_n56.RData")) # Behav and redcap data
-  behav_final_redcap <- behav_final_redcap[behav_final_redcap$aud_group=='AUD',]
-  load(file.path(behavpath,"RedCap/redcap_n56.RData")) # redcap data
-  redcap <- redcap[redcap$aud_group=='AUD',]
-  input<-read.table(file.path(behavpath, 'Input/Stan_input_aud_n56.txt'), header = T)
-  load(file.path(behavpath,"Input/stan_data_bandit2arm_delta_PH_withC_n56_aud.RData"))
-} else if (sample == 'n56_hc') {
-  load(file.path(behavpath,"Behav/behav_final_redcap_n56.RData")) # Behav and redcap data
-  behav_final_redcap <- behav_final_redcap[behav_final_redcap$aud_group=='HC',]
-  load(file.path(behavpath,"RedCap/redcap_n56.RData")) # redcap data
-  redcap <- redcap[redcap$aud_group=='HC',]
-  input<-read.table(file.path(behavpath, 'Input/Stan_input_hc_n56.txt'), header = T)
-  load(file.path(behavpath,"Input/stan_data_bandit2arm_delta_PH_withC_n56_hc.RData"))
-} else if (sample == 'n56_aud_alc') {
-  load(file.path(behavpath,"Behav/behav_final_redcap_n56.RData")) # Behav and redcap data
-  behav_final_redcap <- behav_final_redcap[behav_final_redcap$aud_group=='AUD'&behav_final_redcap$reinforcer_type=='A',]
-  load(file.path(behavpath,"RedCap/redcap_n56.RData")) # redcap data
-  redcap <- redcap[redcap$aud_group=='AUD'&redcap$reinforcer_type=='A',]
-  input<-read.table(file.path(behavpath, 'Input/Stan_input_alc_aud_n56.txt'), header = T)
-  load(file.path(behavpath,"Input/stan_data_bandit2arm_delta_PH_withC_n56_aud_alc.RData"))
-} else if (sample == 'n56_hc_alc') {
-  load(file.path(behavpath,"Behav/behav_final_redcap_n56.RData")) # Behav and redcap data
-  behav_final_redcap <- behav_final_redcap[behav_final_redcap$aud_group=='HC'&behav_final_redcap$reinforcer_type=='A',]
-  load(file.path(behavpath,"RedCap/redcap_n56.RData")) # redcap data
-  redcap <- redcap[redcap$aud_group=='HC'&redcap$reinforcer_type=='A',]
-  input<-read.table(file.path(behavpath, 'Input/Stan_input_alc_hc_n56.txt'), header = T)
-  load(file.path(behavpath,"Input/stan_data_bandit2arm_delta_PH_withC_n56_hc_alc.RData"))
-} else if (sample == 'n56_aud_jui') {
-  load(file.path(behavpath,"Behav/behav_final_redcap_n56.RData")) # Behav and redcap data
-  behav_final_redcap <- behav_final_redcap[behav_final_redcap$aud_group=='AUD'&behav_final_redcap$reinforcer_type=='J',]
-  load(file.path(behavpath,"RedCap/redcap_n56.RData")) # redcap data
-  redcap <- redcap[redcap$aud_group=='AUD'&redcap$reinforcer_type=='J',]
-  input<-read.table(file.path(behavpath, 'Input/Stan_input_jui_aud_n56.txt'), header = T)
-  load(file.path(behavpath,"Input/stan_data_bandit2arm_delta_PH_withC_n56_aud_jui.RData"))
-} else if (sample == 'n56_hc_jui') {
-  load(file.path(behavpath,"Behav/behav_final_redcap_n56.RData")) # Behav and redcap data
-  behav_final_redcap <- behav_final_redcap[behav_final_redcap$aud_group=='HC'&behav_final_redcap$reinforcer_type=='J',]
-  load(file.path(behavpath,"RedCap/redcap_n56.RData")) # redcap data
-  redcap <- redcap[redcap$aud_group=='HC'&redcap$reinforcer_type=='J',]
-  input<-read.table(file.path(behavpath, 'Input/Stan_input_jui_hc_n56.txt'), header = T)
-  load(file.path(behavpath,"Input/stan_data_bandit2arm_delta_PH_withC_n56_hc_jui.RData"))
-}
+  load(file.path(behavpath,"Input/stan_data_bandit2arm_delta_PH_withC_DU_n56.RData"))
+} 
 
 color_scheme_set("mix-blue-pink")
 ```

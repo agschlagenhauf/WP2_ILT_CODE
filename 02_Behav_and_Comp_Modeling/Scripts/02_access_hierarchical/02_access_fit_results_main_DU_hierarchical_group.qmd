@@ -1,8 +1,8 @@
 ---
-title: "Acces Hierarchical Main Model Results"
+title: "Acces Hierarchical Group Main DU Model Results"
 author: "Milena Musial"
 output: html_document
-date: '2023-09-24'
+date: '2024-04'
 format: 
   html:
     embed-resources: true
@@ -22,7 +22,7 @@ format:
 ```{r}
 rm(list=ls())
 
-sample <- "n56" # n71, n53, n50
+sample <- "n58" # n71, n53, n50
 
 ###### define non-warm-up iterations #####
 
@@ -33,33 +33,24 @@ niterations <- 36000
 libs<-c("rstan", "gdata", "bayesplot", "stringr", "dplyr", "ggplot2", "loo", "posterior", "reliabilitydiag")
 sapply(libs, require, character.only=TRUE)
 
-datapath <- '/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/ILT_Stan_Modeling'
-out_path <- '/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/ILT_Stan_Modeling/Output'
+datapath <- '/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/WP2_ILT_CODE/02_Behav_and_Comp_Modeling'
+out_path <- '/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/WP2_ILT_CODE/02_Behav_and_Comp_Modeling/Output'
 behavpath <- '/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/ILT_DATA'
 
-fit_file <- 'fit_n56_2024-02-29_bandit2arm_delta_main_DU_hierarchical_group_estimation1_delta0.99_stepsize0.1.rds'
+fit_file <- 'fit_n58_2024-04-12_bandit2arm_delta_main_DU_hierarchical_group_estimation1_delta0.99_stepsize0.1.rds'
 
 fit <- readRDS(file.path(out_path, fit_file)) # Stan model output
 
 if (sample == 'n71') {
   load(file.path(behavpath,"Behav/behav_final_redcap_n71.RData")) # Behav and redcap data
-  load(file.path(behavpath,"Input/stan_data_bandit2arm_delta_PH_withC_red_hierarchical_n71.RData")) # stan_data
-} else if (sample == 'n63') {
-  load(file.path(behavpath,"Behav/behav_final_redcap_n63.RData")) # Behav and redcap data
-  load(file.path(behavpath,"Input/stan_data_bandit2arm_delta_PH_withC_red_hierarchical_n63.RData")) # stan_data
-} else if (sample == 'n60') {
-  load(file.path(behavpath,"Behav/behav_final_redcap_n60.RData")) # Behav and redcap data
-  load(file.path(behavpath,"Input/stan_data_bandit2arm_delta_PH_withC_red_hierarchical_n60.RData")) # stan_data
+  load(file.path(behavpath,"Input/stan_data_bandit2arm_delta_DU_main_hierarchical_group_n71.RData")) # stan_data
+} else if (sample == 'n58') {
+  load(file.path(behavpath,"Behav/behav_final_redcap_n58.RData")) # Behav and redcap data
+  load(file.path(behavpath,"Input/stan_data_bandit2arm_delta_main_DU_hierarchical_group_n58.RData")) # stan_data
 } else if (sample == 'n56') {
   load(file.path(behavpath,"Behav/behav_final_redcap_n56.RData")) # Behav and redcap data
   load(file.path(behavpath,"Input/stan_data_bandit2arm_delta_main_DU_hierarchical_group_n56.RData")) # stan_data
-} else if (sample == 'n53') {
-  load(file.path(behavpath,"Behav/behav_final_redcap_n53.RData")) # Behav and redcap data
-  load(file.path(behavpath,"Input/stan_data_bandit2arm_delta_PH_withC_red_hierarchical_n53.RData")) # stan_data
-} else if (sample == 'n50') {
-  load(file.path(behavpath,"Behav/behav_final_redcap_n50.RData")) # Behav and redcap data
-  load(file.path(behavpath,"Input/stan_data_bandit2arm_delta_PH_withC_red_hierarchical_n50.RData")) # stan_data
-} 
+}
 
 color_scheme_set("mix-blue-pink")
 ```

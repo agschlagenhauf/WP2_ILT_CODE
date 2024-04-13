@@ -7,7 +7,7 @@ sapply(libs, require, character.only=TRUE)
 
 ###### define sample #####
 
-sample <- 'n56' # n71, n53, n50
+sample <- 'n58' # n71, n53, n50
 
 ######
 
@@ -18,15 +18,12 @@ rstan_options(auto_write = TRUE)
 # only on windows:
 Sys.setenv(LOCAL_CPPFLAGS = '-march=native')
 
-#datapath<-"C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_CODE/Stan Modeling"
 datapath<-"/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/ILT_DATA"
-filepath<-"/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/ILT_Stan_Modeling"
-#out_path<-'S:/AG/AG-Schlagenhauf_TRR265/Daten/B01/Analysen/WP2_ILT/Stan Output'
+filepath<-"/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/WP2_ILT_CODE/02_Behav_and_Comp_Modeling"
 
 # get model name
 args <- commandArgs(trailingOnly = TRUE)
 model_name <- args[1]
-#model_name <- 'bandit2arm_delta_main_hierarchical'
 
 ## Prior predictive checks or fitting?
 estimation = 1 # 0 = prior predictive check because likelihood is not evaluated; 1 = model fitting to real data
@@ -34,33 +31,12 @@ estimation = 1 # 0 = prior predictive check because likelihood is not evaluated;
 ##### Read input #####
 if (sample == 'n71') {
   input<-read.table(file.path(datapath, 'Input/Stan_input_n71.txt'), header = T)
-} else if (sample == 'n63') {
-  input<-read.table(file.path(datapath, 'Input/Stan_input_n63.txt'), header = T)
-} else if (sample == 'n60') {
-  input<-read.table(file.path(datapath, 'Input/Stan_input_n60.txt'), header = T)
 } else if (sample == 'n56') {
   input<-read.table(file.path(datapath, 'Input/Stan_input_n56.txt'), header = T)
   fold<-read.table(file.path(datapath, 'Input/fold_for_CV_n56.txt'), header = F)
-} else if (sample == 'n53') {
-  input<-read.table(file.path(datapath, 'Input/Stan_input_n53.txt'), header = T)
-} else if (sample == 'n50') {
-  input<-read.table(file.path(datapath, 'Input/Stan_input_n50.txt'), header = T)
-} else if (sample == 'n60_aud') {
-  input<-read.table(file.path(datapath, 'Input/Stan_input_aud_n60.txt'), header = T)
-} else if (sample == 'n60_hc') {
-  input<-read.table(file.path(datapath, 'Input/Stan_input_hc_n60.txt'), header = T)
-} else if (sample == 'n56_aud') {
-  input<-read.table(file.path(datapath, 'Input/Stan_input_aud_n56.txt'), header = T)
-} else if (sample == 'n56_hc') {
-  input<-read.table(file.path(datapath, 'Input/Stan_input_hc_n56.txt'), header = T)
-} else if (sample == 'n56_aud_jui') {
-  input<-read.table(file.path(datapath, 'Input/Stan_input_jui_aud_n56.txt'), header = T)
-} else if (sample == 'n56_hc_jui') {
-  input<-read.table(file.path(datapath, 'Input/Stan_input_jui_hc_n56.txt'), header = T)
-} else if (sample == 'n56_aud_alc') {
-  input<-read.table(file.path(datapath, 'Input/Stan_input_alc_aud_n56.txt'), header = T)
-} else if (sample == 'n56_hc_alc') {
-  input<-read.table(file.path(datapath, 'Input/Stan_input_alc_hc_n56.txt'), header = T)
+} else if (sample == 'n58') {
+  input<-read.table(file.path(datapath, 'Input/Stan_input_n58.txt'), header = T)
+  fold<-read.table(file.path(datapath, 'Input/fold_for_CV_n58.txt'), header = F)
 }
 
 ##### split data into 10 folds #####
@@ -180,10 +156,14 @@ for (k in 1:10) {
   stan_model <- stan_model(file = file.path(filepath, "Models", model_filename))
   #stanc(stan_model)
   
-  # Options
-  s <- list(adapt_delta=0.99, stepsize=0.1)
-  
-  ##### Fit Model on Train Data #####
+  ##### Fit Model on Train Data ######
+
+  # Sampling Options
+  if (model_name == 'bandit2arm_delta_main') {
+    s <- list(adapt_delta=0.9, stepsize=0.5)
+  } else {
+    s <- list(adapt_delta=0.99, stepsize=0.1)
+  }
 
   fit <- sampling(stan_model, data = stan_data_train, warmup = 1000, iter = 10000, chains = 4, verbose=TRUE, control=s)
   gen_test <- gqs(stan_model, draws = as.matrix(fit), data= stan_data_test)

@@ -13,7 +13,10 @@ rstan_options(auto_write = TRUE)
 Sys.setenv(LOCAL_CPPFLAGS = '-march=native')
 
 datapath<-"/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/ILT_DATA"
-out_path <- '/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/ILT_Stan_Modeling'
+out_path <- '/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/WP2_ILT_CODE/02_Behav_and_Comp_Modeling'
+
+#########
+sample <- 'n58'
 
 # set estimation for stan data 
 estimation <- 1
@@ -32,9 +35,9 @@ fit <- readRDS(file.path(out_path, 'Output/Parameter_Recovery', input_fit_rds))
 
 # load real input
 if (model_name == 'bandit2arm_delta_PH_withC') {
-  load(file.path(datapath,"Input/stan_data_bandit2arm_delta_PH_withC_n56.RData")) # Behav and redcap data
+  load(file.path(datapath,"Input/stan_data_bandit2arm_delta_PH_withC_n58.RData")) # Behav and redcap data
 } else if (model_name == 'bandit2arm_delta_PH_withC_hierarchical_group') {
-  load(file.path(datapath,"Input/stan_data_bandit2arm_delta_PH_withC_hierarchical_group_n56.RData")) # Behav and redcap data
+  load(file.path(datapath,"Input/stan_data_bandit2arm_delta_PH_withC_hierarchical_group_n58.RData")) # Behav and redcap data
 }
 
 # extract posterior draws for all parameters
@@ -84,6 +87,6 @@ stanc(stan_model)
   
   # Save fitted object as RDS
   
-  output_filename <- paste("recovery_", Sys.Date(), '_', model_name, ".rds", sep="")
+  output_filename <- paste("recovery_", Sys.Date(), '_', model_name, "_", sample, ".rds", sep="")
   saveRDS(fit, file=file.path(out_path, "Output/Parameter_Recovery", output_filename))
   

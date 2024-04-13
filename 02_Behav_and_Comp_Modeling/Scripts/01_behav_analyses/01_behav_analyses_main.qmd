@@ -1,5 +1,5 @@
 ---
-title: "02_behav_&_parameter_analyses"
+title: "02_Behavioral_Analyses"
 author: "Milena Musial"
 format:
   html:
@@ -18,7 +18,7 @@ format:
 
 rm(list=ls())
 
-sample <- "n56" # n71, n53, n56, n63, n50
+sample <- "n58" # n71, n53, n56, n63, n50
 ```
 
 ```{r}
@@ -45,6 +45,10 @@ if (sample == 'n71') {
   load(file.path(data_path,"WP2_ILT_DATA/Behav/behav_final_n60.RData"))
   load(file.path(data_path,"WP2_ILT_DATA/RedCap/redcap_n60.RData"))
   load(file.path(data_path,"WP2_ILT_DATA/Behav/behav_final_redcap_n60.RData")) 
+} else if (sample == 'n58') {
+  load(file.path(data_path,"WP2_ILT_DATA/Behav/behav_final_n58.RData"))
+  load(file.path(data_path,"WP2_ILT_DATA/RedCap/redcap_n58.RData"))
+  load(file.path(data_path,"WP2_ILT_DATA/Behav/behav_final_redcap_n58.RData")) 
 } else if (sample == 'n56') {
   load(file.path(data_path,"WP2_ILT_DATA/Behav/behav_final_n56.RData"))
   load(file.path(data_path,"WP2_ILT_DATA/RedCap/redcap_n56.RData"))
@@ -144,7 +148,7 @@ behav_rating_jui <- behav_rating[behav_rating$reinforcer_type=='J',]
 ```
 
 ```{r}
-# behav_rating_lowest <- behav_rating[behav_rating$taste1 < quantile(behav_rating$taste1, 0.05),]
+behav_rating_lowest <- behav_rating[behav_rating$taste1 < quantile(behav_rating$taste1, 0.05),]
 # 
 # # add IDs to optionally excluded IDs
 # ID_excl <- append(ID_excl,c(behav_rating_lowest$ID))
@@ -156,36 +160,31 @@ behav_rating_jui <- behav_rating[behav_rating$reinforcer_type=='J',]
 # Post-hoc performance-based exclusion criteria
 
 ```{r}
-# # get p correct per ID and block and trial
-# df_c_ID_block_trialbin <- behav_final_redcap %>%
-#   mutate(trial_bin = ntile(trial_block, n=5)) %>%
-#   group_by(ID,reinforcer_type,trial_bin) %>%
-#   summarise_at(vars(correct), list(p_correct = mean), na.rm=T) %>%
-#   mutate(trial_bin = as.factor(trial_bin))
-# 
-# df_c_ID_block_trialbin_wide <- pivot_wider(df_c_ID_block_trialbin, id_cols="ID", names_from = c(reinforcer_type, trial_bin), values_from = c(p_correct))
-# 
-# df_c_ID_block_trialbin_wide <- df_c_ID_block_trialbin_wide %>%
-#   mutate(A_diff = A_5 - A_1,
-#          J_diff = J_5 - J_1)
-# 
-# df_c_ID_block_trialbin_excl <- df_c_ID_block_trialbin[df_c_ID_block_trialbin$trial_bin==5&df_c_ID_block_trialbin$p_correct<=0.6,] # less than 50% correct in last 5 trials
-# 
-# #df_c_ID_block_trialbin_wide_excl <- df_c_ID_block_trialbin_wide[df_c_ID_block_trialbin_wide$A_diff<(-0.2)|df_c_ID_block_trialbin_wide$J_diff<(-0.2),] # 20% less correct in last 5 compared to first 5 trials
-# 
-# #ID_excl_c <- unique(append(c(unique(df_c_ID_block_trialbin_excl$ID)),c(df_c_ID_block_trialbin_wide_excl$ID)))
-# ID_excl_c <- c(unique(df_c_ID_block_trialbin_excl$ID))
-# 
-# length(ID_excl_c)
-# ID_excl_c
+# get p correct per ID and block and trial
+df_c_ID_block_trialbin <- behav_final_redcap %>%
+  mutate(trial_bin = ntile(trial_block, n=5)) %>%
+  group_by(ID,reinforcer_type,trial_bin) %>%
+  summarise_at(vars(correct), list(p_correct = mean), na.rm=T) %>%
+  mutate(trial_bin = as.factor(trial_bin))
+
+df_c_ID_block_trialbin_wide <- pivot_wider(df_c_ID_block_trialbin, id_cols="ID", names_from = c(reinforcer_type, trial_bin), values_from = c(p_correct))
+
+df_c_ID_block_trialbin_excl <- df_c_ID_block_trialbin[df_c_ID_block_trialbin$trial_bin==5&df_c_ID_block_trialbin$p_correct<=0.6,] # less than 50% correct in last 5 trials
+
+ID_excl_c <- c(unique(df_c_ID_block_trialbin_excl$ID))
+
+length(ID_excl_c)
+ID_excl_c
 ```
 
-```{r}
-# save excluded IDs
-#ID_excluded <- unique(append(ID_excl,ID_excl_c))
-#length(ID_excluded)
+Only use this block if you're running the previous part of the script to create the initial sample used for behavioral analyses. If you want to analyse behavioral data of the final sample, uncomment this block.
 
-#write.table(ID_excluded, file='C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_DATA/Behav/ID_excluded_n60.txt', append = FALSE, sep = " ", dec = ".", row.names = F, col.names = F)
+```{r}
+# # save excluded IDs
+# ID_excluded <- unique(append(ID_excl,ID_excl_c))
+# length(ID_excluded)
+
+# write.table(ID_excl_c, file=file.path(data_path, paste('WP2_ILT_DATA/Behav/ID_excluded_n', 71-length(ID_excl_c), '.txt', sep="")), append = FALSE, sep = " ", dec = ".", row.names = F, col.names = F)
 
 ```
 
@@ -210,7 +209,6 @@ contrasts(behav_rating_long_taste$ratings) <- contr.treatment(2)
 behav_rating_long_crave$ratings <- factor(behav_rating_long_crave$ratings)
 contrasts(behav_rating_long_crave$ratings) <- contr.treatment(2)
 ```
-
 
 ## Descriptive stats
 

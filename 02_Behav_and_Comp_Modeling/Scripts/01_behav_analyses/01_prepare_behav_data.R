@@ -14,13 +14,14 @@ sapply(libs, require, character.only=TRUE)
 redcap_path <- 'C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_DATA/RedCap/'
 data_path<-'C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_DATA/Behav/raw/FilesReport_ILTdata_2023-05-24_1718/documents/'
 behav_path <- 'C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_DATA/Behav/'
+input_path <- 'C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_DATA/Input'
 
 # load redcap file to get final IDs
 load(file.path(redcap_path,"redcap_n71.RData"))
 
 ###### define sample #####
 
-sample <- "n56" # n71, n53, n56, n63, n50
+sample <- "n58" # n71, n53, n56, n63, n50
 
 ###### define files #####
 
@@ -130,6 +131,9 @@ if (sample == "n50") {
 } else if (sample == 'n56') {
   ID_excl <- as.vector(read.table(file.path(behav_path, 'ID_excluded_n56.txt'), header = F)$V1)
   behav_final <- filter(behav_final, !(ID %in% ID_excl))
+} else if (sample == 'n58') {
+  ID_excl <- as.vector(read.table(file.path(behav_path, 'ID_excluded_n58.txt'), header = F)$V1)
+  behav_final <- filter(behav_final, !(ID %in% ID_excl))
 } else if (sample == 'n60') {
   ID_excl <- as.vector(read.table(file.path(behav_path, 'ID_excluded_n60.txt'), header = F)$V1)
   behav_final <- filter(behav_final, !(ID %in% ID_excl))
@@ -153,7 +157,7 @@ write.table(behav_final, file=file.path(behav_path, paste("behav_final_n", n, ".
             row.names = F, col.names = T)
 
 save(file=file.path(behav_path, paste("behav_final_redcap_n", n, ".RData", sep="")), behav_final_redcap)
-write.table(behav_final_redcap, file=file.path(behav_path, paste("behav_final_n", n, ".txt", sep="")), append = FALSE, sep = " ", dec = ".",
+write.table(behav_final_redcap, file=file.path(behav_path, paste("behav_final_redcap_n", n, ".txt", sep="")), append = FALSE, sep = " ", dec = ".",
             row.names = F, col.names = T)
 
 ##### Stan dfs #####################################################################################################################
@@ -238,152 +242,64 @@ stan_input_jui_hc <- behav_final_redcap[behav_final_redcap$reinforcer_type=='J'&
   select(ID_block,trial_block,correct,outcome) #%>%
   #mutate(ID_block = as.numeric(ID_block))
 
-### outcome modulated by taste ratings ###
-
-# get df with taste and craving ratings per subject and block
-behav_rating <- behav_final_redcap %>%
-  group_by(ID,reinforcer_type) %>%
-  select(ID,reinforcer_type,ID_block,taste1, taste2, crave1, crave2) %>%
-  distinct()
-
-# create continuous vector from taste1 to taste2
-taste_continuous <- c()
-ID_block_taste <- c()
-
-for (s in 1:length(behav_rating$ID)) {
-  temp_taste <- seq(behav_rating$taste1[s], behav_rating$taste2[s], length.out = 50)
-  temp_id_taste <- rep(behav_rating$ID_block[s], times=50)
-  taste_continuous <- append(taste_continuous,temp_taste)
-  ID_block_taste <- append(ID_block_taste,temp_id_taste)
-}
-
-# append continuous vector to final df
-behav_final_redcap$taste_continuous <- taste_continuous
-
-# create outcome weigthed by continuous taste rating
-behav_final_redcap$outcome_taste_cont <- behav_final_redcap$taste_continuous*behav_final_redcap$outcome
-
-#check if ID_block_taste created in loop and ID_block from final df are identical (so that taste_continuous values are put to the right place)
-table(behav_final_redcap$ID_block == ID_block_taste)
-
-# create outcome weighted by initial taste rating
-behav_final_redcap$outcome_taste1 <- behav_final_redcap$taste1*behav_final_redcap$outcome
-
-# create stan inputs
-stan_input_taste_cont <- behav_final_redcap %>%
-  select(ID_block,trial_block,correct,outcome_taste_cont) #%>%
-  #mutate(ID_block = as.numeric(ID_block))
-
-stan_input_taste1 <- behav_final_redcap %>%
-  select(ID_block,trial_block,correct,outcome_taste1) #%>%
-  #mutate(ID_block = as.numeric(ID_block))
-
-### outcome modulated by craving ratings ###
-
-# create continuous vector from taste1 to taste2
-crave_continuous <- c()
-ID_block_crave <- c()
-
-for (s in 1:length(behav_rating$ID)) {
-  temp_crave <- seq(behav_rating$crave1[s], behav_rating$crave2[s], length.out = 50)
-  temp_id_crave <- rep(behav_rating$ID_block[s], times=50)
-  crave_continuous <- append(crave_continuous,temp_crave)
-  ID_block_crave <- append(ID_block_crave,temp_id_crave)
-}
-
-# append continuous vector to final df
-behav_final_redcap$crave_continuous <- crave_continuous
-
-# create outcome weigthed by continuous crave rating
-behav_final_redcap$outcome_crave_cont <- behav_final_redcap$crave_continuous*behav_final_redcap$outcome
-
-#check if ID_block_taste created in loop and ID_block from final df are identical (so that taste_continuous values are put to the right place)
-table(behav_final_redcap$ID_block == ID_block_crave)
-
-# create outcome weighted by initial crave rating
-behav_final_redcap$outcome_crave1 <- behav_final_redcap$crave1*behav_final_redcap$outcome
-
-# create Stan inputs
-stan_input_crave_cont <- behav_final_redcap %>%
-  select(ID_block,trial_block,correct,outcome_crave_cont) #%>%
-  #mutate(ID_block = as.numeric(ID_block))
-
-stan_input_crave1 <- behav_final_redcap %>%
-  select(ID_block,trial_block,correct,outcome_crave1) #%>%
-  #mutate(ID_block = as.numeric(ID_block))
-
 ###### save stan_input ###################################################################################################################
 
 # variable called choice in stan dfs is = correct from behav df
 
 ### main ###
 
-write.table(stan_input, file=paste('C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_CODE/Stan Modeling/Input/Stan_input_n', n, '.txt', sep=""), append = FALSE, sep = " ", dec = ".",
+write.table(stan_input, file=file.path(input_path, paste('Stan_input_n', n, '.txt', sep="")), append = FALSE, sep = " ", dec = ".",
             row.names = F, col.names = c("subjID","trial","choice","outcome"))
 
-write.table(stan_input_nona, file=paste('C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_CODE/Stan Modeling/Input/Stan_input_nona_n', n, '.txt', sep=""), append = FALSE, sep = " ", dec = ".",
+write.table(stan_input_nona, file=file.path(input_path, paste('Stan_input_nona_n', n, '.txt', sep="")), append = FALSE, sep = " ", dec = ".",
             row.names = F, col.names = c("subjID","trial","choice","outcome"))
 
 ### hierarchical ###
 
-write.table(stan_input_hie, file=paste('C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_CODE/Stan Modeling/Input/Stan_input_hierarchical_n', n, '.txt', sep=""), append = FALSE, sep = " ", dec = ".",
+write.table(stan_input_hie, file=file.path(input_path, paste('Stan_input_hierarchical_n', n, '.txt', sep="")), append = FALSE, sep = " ", dec = ".",
             row.names = F, col.names = c("subjID","trial","group","condition","choice","outcome"))
 
-write.table(stan_input_hie_nona, file=paste('C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_CODE/Stan Modeling/Input/Stan_input_hierarchical_nona_n', n, '.txt', sep=""), append = FALSE, sep = " ", dec = ".",
+write.table(stan_input_hie_nona, file=file.path(input_path, paste('Stan_input_hierarchical_nona_n', n, '.txt', sep="")), append = FALSE, sep = " ", dec = ".",
             row.names = F, col.names = c("subjID","trial","group","condition","choice","outcome"))
 
 ### exploratory ###
 
 # separate per aud group and reinforcer type
 
-write.table(stan_input_alc, file=paste('C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_CODE/Stan Modeling/Input/Stan_input_alc_n', n, '.txt', sep=""), append = FALSE, sep = " ", dec = ".",
+write.table(stan_input_alc, file=file.path(input_path, paste('Stan_input_alc_n', n, '.txt', sep="")), append = FALSE, sep = " ", dec = ".",
             row.names = F, col.names = c("subjID","trial","choice","outcome"))
 
-write.table(stan_input_jui, file=paste('C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_CODE/Stan Modeling/Input/Stan_input_jui_n', n, '.txt', sep=""), append = FALSE, sep = " ", dec = ".",
+write.table(stan_input_jui, file=file.path(input_path, paste('Stan_input_jui_n', n, '.txt', sep="")), append = FALSE, sep = " ", dec = ".",
             row.names = F, col.names = c("subjID","trial","choice","outcome"))
 
-write.table(stan_input_alc_hie, file=paste('C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_CODE/Stan Modeling/Input/Stan_input_alc_hie_n', n, '.txt', sep=""), append = FALSE, sep = " ", dec = ".",
+write.table(stan_input_alc_hie, file=file.path(input_path, paste('Stan_input_alc_hie_n', n, '.txt', sep="")), append = FALSE, sep = " ", dec = ".",
             row.names = F, col.names = c("subjID","trial","group","choice","outcome"))
 
-write.table(stan_input_jui_hie, file=paste('C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_CODE/Stan Modeling/Input/Stan_input_jui_hie_n', n, '.txt', sep=""), append = FALSE, sep = " ", dec = ".",
+write.table(stan_input_jui_hie, file=file.path(input_path, paste('Stan_input_jui_hie_n', n, '.txt', sep="")), append = FALSE, sep = " ", dec = ".",
             row.names = F, col.names = c("subjID","trial","group","choice","outcome"))
 
 
-write.table(stan_input_aud, file=paste('C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_CODE/Stan Modeling/Input/Stan_input_aud_n', n, '.txt', sep=""), append = FALSE, sep = " ", dec = ".",
+write.table(stan_input_aud, file=file.path(input_path, paste('Stan_input_aud_n', n, '.txt', sep="")), append = FALSE, sep = " ", dec = ".",
             row.names = F, col.names = c("subjID","trial","choice","outcome"))
 
-write.table(stan_input_hc, file=paste('C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_CODE/Stan Modeling/Input/Stan_input_hc_n', n, '.txt', sep=""), append = FALSE, sep = " ", dec = ".",
+write.table(stan_input_hc, file=file.path(input_path, paste('Stan_input_hc_n', n, '.txt', sep="")), append = FALSE, sep = " ", dec = ".",
             row.names = F, col.names = c("subjID","trial","choice","outcome"))
 
-write.table(stan_input_aud_hie, file=paste('C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_CODE/Stan Modeling/Input/Stan_input_aud_hie_n', n, '.txt', sep=""), append = FALSE, sep = " ", dec = ".",
+write.table(stan_input_aud_hie, file=file.path(input_path, paste('Stan_input_aud_hie_n', n, '.txt', sep="")), append = FALSE, sep = " ", dec = ".",
             row.names = F, col.names = c("subjID","trial","condition", "choice","outcome"))
 
-write.table(stan_input_hc_hie, file=paste('C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_CODE/Stan Modeling/Input/Stan_input_hc_hie_n', n, '.txt', sep=""), append = FALSE, sep = " ", dec = ".",
+write.table(stan_input_hc_hie, file=file.path(input_path, paste('Stan_input_hc_hie_n', n, '.txt', sep="")), append = FALSE, sep = " ", dec = ".",
             row.names = F, col.names = c("subjID","trial","condition", "choice","outcome"))
 
 
-write.table(stan_input_alc_aud, file=paste('C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_CODE/Stan Modeling/Input/Stan_input_alc_aud_n', n, '.txt', sep=""), append = FALSE, sep = " ", dec = ".",
+write.table(stan_input_alc_aud, file=file.path(input_path, paste('Stan_input_alc_aud_n', n, '.txt', sep="")), append = FALSE, sep = " ", dec = ".",
             row.names = F, col.names = c("subjID","trial","choice","outcome"))
 
-write.table(stan_input_alc_hc, file=paste('C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_CODE/Stan Modeling/Input/Stan_input_alc_hc_n', n, '.txt', sep=""), append = FALSE, sep = " ", dec = ".",
+write.table(stan_input_alc_hc, file=file.path(input_path, paste('Stan_input_alc_hc_n', n, '.txt', sep="")), append = FALSE, sep = " ", dec = ".",
             row.names = F, col.names = c("subjID","trial","choice","outcome"))
 
-write.table(stan_input_jui_aud, file=paste('C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_CODE/Stan Modeling/Input/Stan_input_jui_aud_n', n, '.txt', sep=""), append = FALSE, sep = " ", dec = ".",
+write.table(stan_input_jui_aud, file=file.path(input_path, paste('Stan_input_jui_aud_n', n, '.txt', sep="")), append = FALSE, sep = " ", dec = ".",
             row.names = F, col.names = c("subjID","trial","choice","outcome"))
 
-write.table(stan_input_jui_hc, file=paste('C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_CODE/Stan Modeling/Input/Stan_input_jui_hc_n', n, '.txt', sep=""), append = FALSE, sep = " ", dec = ".",
-            row.names = F, col.names = c("subjID","trial","choice","outcome"))
-
-# with outcome modulated by continuous taste rating
-
-write.table(stan_input_taste_cont, file='C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_CODE/Stan Modeling/Input/Stan_input_taste_cont.txt', append = FALSE, sep = " ", dec = ".",
-            row.names = F, col.names = c("subjID","trial","choice","outcome"))
-
-write.table(stan_input_taste1, file='C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_CODE/Stan Modeling/Input/Stan_input_taste1.txt', append = FALSE, sep = " ", dec = ".",
-            row.names = F, col.names = c("subjID","trial","choice","outcome"))
-
-write.table(stan_input_crave_cont, file='C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_CODE/Stan Modeling/Input/Stan_input_crave_cont.txt', append = FALSE, sep = " ", dec = ".",
-            row.names = F, col.names = c("subjID","trial","choice","outcome"))
-
-write.table(stan_input_crave1, file='C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_CODE/Stan Modeling/Input/Stan_input_crave1.txt', append = FALSE, sep = " ", dec = ".",
+write.table(stan_input_jui_hc, file=file.path(input_path, paste('Stan_input_jui_hc_n', n, '.txt', sep="")), append = FALSE, sep = " ", dec = ".",
             row.names = F, col.names = c("subjID","trial","choice","outcome"))

@@ -7,7 +7,7 @@ sapply(libs, require, character.only=TRUE)
 
 ###### define sample #####
 
-sample <- 'n56' # n71, n53, n50
+sample <- 'n58' # n71, n53, n50
 
 ######
 
@@ -34,26 +34,13 @@ estimation = 1 # 0 = prior predictive check because likelihood is not evaluated;
 ##### Read input #####
 if (sample == 'n71') {
   input<-read.table(file.path(datapath, 'Input/Stan_input_hierarchical_n71.txt'), header = T)
-} else if (sample == 'n63') {
-  input<-read.table(file.path(datapath, 'Input/Stan_input_hierarchical_n63.txt'), header = T)
-} else if (sample == 'n60') {
-  input<-read.table(file.path(datapath, 'Input/Stan_input_hierarchical_n60.txt'), header = T)
 } else if (sample == 'n56') {
   input<-read.table(file.path(datapath, 'Input/Stan_input_hierarchical_n56.txt'), header = T)
   fold<-read.table(file.path(datapath, 'Input/fold_for_CV_n56.txt'), header = F)
-} else if (sample == 'n53') {
-  input<-read.table(file.path(datapath, 'Input/Stan_input_hierarchical_n53.txt'), header = T)
-} else if (sample == 'n50') {
-  input<-read.table(file.path(datapath, 'Input/Stan_input_hierarchical_n50.txt'), header = T)
-} else if (sample == 'n60_aud') {
-  input<-read.table(file.path(datapath, 'Input/Stan_input_aud_hie_n60.txt'), header = T)
-} else if (sample == 'n60_hc') {
-  input<-read.table(file.path(datapath, 'Input/Stan_input_hc_hie_n60.txt'), header = T)
-} else if (sample == 'n56_aud') {
-  input<-read.table(file.path(datapath, 'Input/Stan_input_aud_hie_n56.txt'), header = T)
-} else if (sample == 'n56_hc') {
-  input<-read.table(file.path(datapath, 'Input/Stan_input_hc_hie_n56.txt'), header = T)
-} 
+} else if (sample == 'n58') {
+  input<-read.table(file.path(datapath, 'Input/Stan_input_hierarchical_n58.txt'), header = T)
+  fold<-read.table(file.path(datapath, 'Input/fold_for_CV_n58.txt'), header = F)
+}
 
 ##### split data into 10 folds #####
 input$fold <- fold
@@ -319,16 +306,17 @@ for (k in 1:10) {
   stan_model <- stan_model(file = file.path(filepath, "Models", model_filename))
   #stanc(stan_model)
   
+  ##### Fit Model on Train Data #####
+  
   # Options
   s <- list(adapt_delta=0.9, stepsize=0.5)
   
-  ##### Fit Model on Train Data #####
 
   fit <- sampling(stan_model, data = stan_data_train, warmup = 1000, iter = 10000, chains = 4, verbose=TRUE, control=s)
   gen_test <- gqs(stan_model, draws = as.matrix(fit), data= stan_data_test)
   log_pd_kfold[, input$fold == k] <- extract_log_lik(gen_test, parameter_name = "log_lik")
   
-}
+} # fold
 
 elpd_kfold <- elpd(log_pd_kfold)
 

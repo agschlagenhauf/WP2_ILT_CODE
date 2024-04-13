@@ -7,7 +7,7 @@ sapply(libs, require, character.only=TRUE)
 
 ###### define sample #####
 
-sample <- 'n56' # n71, n53, n50
+sample <- 'n58' # n71, n53, n50
 
 ## Prior predictive checks or fitting?
 estimation = 1 # 0 = prior predictive check because likelihood is not evaluated; 1 = model fitting to real data
@@ -23,7 +23,7 @@ Sys.setenv(LOCAL_CPPFLAGS = '-march=native')
 
 #datapath<-"C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_CODE/Stan Modeling"
 datapath<-"/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/ILT_DATA"
-filepath<-"/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/ILT_Stan_Modeling"
+filepath<-"/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/WP2_ILT_CODE/02_Behav_and_Comp_Modeling"
 #out_path<-'S:/AG/AG-Schlagenhauf_TRR265/Daten/B01/Analysen/WP2_ILT/Stan Output'
 
 # get model name
@@ -38,6 +38,8 @@ if (sample == 'n71') {
   input<-read.table(file.path(datapath, 'Input/Stan_input_hierarchical_n63.txt'), header = T)
 } else if (sample == 'n60') {
   input<-read.table(file.path(datapath, 'Input/Stan_input_hierarchical_n60.txt'), header = T)
+} else if (sample == 'n58') {
+  input<-read.table(file.path(datapath, 'Input/Stan_input_hierarchical_n58.txt'), header = T)
 } else if (sample == 'n56') {
   input<-read.table(file.path(datapath, 'Input/Stan_input_hierarchical_n56.txt'), header = T)
 } else if (sample == 'n53') {
@@ -187,7 +189,6 @@ if (sample == 'n60_aud' || sample == 'n60_hc' || sample == 'n56_hc' || sample ==
                   visit_vars = reinforcer_type,
                   run_estimation = estimation)
 }
- # 0 = prior predictive check because likelihood is not evaluated; 1 = model fitting to real data
 
 input_filename <- paste("stan_data_", model_name, "_", sample, ".RData", sep="")
 save(file=file.path(datapath, "Input", input_filename), stan_data)
