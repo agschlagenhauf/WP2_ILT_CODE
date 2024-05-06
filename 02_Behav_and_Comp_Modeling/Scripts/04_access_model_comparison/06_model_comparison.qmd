@@ -24,8 +24,8 @@ rm(list=ls())
 libs<-c("rstan", "gdata", "bayesplot", "stringr", "dplyr", "ggplot2", "loo", "hBayesDM", "tidyr")
 sapply(libs, require, character.only=TRUE)
 
-datapath <- '/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/ILT_Stan_Modeling'
-out_path <- '/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/ILT_Stan_Modeling/Output'
+datapath <- '/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/WP2_ILT_CODE/02_Behav_and_Comp_Modeling'
+out_path <- '/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/WP2_ILT_CODE/02_Behav_and_Comp_Modeling/Output'
 
 cbPalette <- c( "#0072B2", "#D55E00", "#009E73", "#CC79A7",
                 "#F0E442", "#56B4E9", "#999999", "#E69F00")
@@ -36,10 +36,10 @@ cbPalette <- c( "#0072B2", "#D55E00", "#009E73", "#CC79A7",
 
 ## Load Stan fit files
 ```{r}
-fit_file_main <- 'fit_n56_2024-02-28_bandit2arm_delta_PH_withC_estimation1_delta0.9_stepsize0.5.rds'
-fit_file_main_DU <- 'fit_n56_2024-02-29_bandit2arm_delta_main_DU_estimation1_delta0.99_stepsize0.1.rds'
-fit_file_PH_withC <- 'fit_n56_2024-03-01_bandit2arm_delta_PH_withC_estimation1_delta0.99_stepsize0.1.rds'
-fit_file_PH_withC_DU <- 'fit_n56_2024-03-01_bandit2arm_delta_PH_withC_DU_estimation1_delta0.99_stepsize0.1.rds'
+fit_file_main <- 'fit_n58_2024-04-12_bandit2arm_delta_main_estimation1_delta0.9_stepsize0.5.rds'
+fit_file_main_DU <- 'fit_n58_2024-04-12_bandit2arm_delta_main_DU_estimation1_delta0.99_stepsize0.1.rds'
+fit_file_PH_withC <- 'fit_n58_2024-04-12_bandit2arm_delta_PH_withC_estimation1_delta0.99_stepsize0.1.rds'
+fit_file_PH_withC_DU <- 'fit_n58_2024-04-12_bandit2arm_delta_PH_withC_DU_estimation1_delta0.99_stepsize0.1.rds'
 
 fit_main <- readRDS(file.path(out_path, fit_file_main))
 fit_main_DU <- readRDS(file.path(out_path, fit_file_main_DU))
@@ -116,13 +116,13 @@ print(comp)
 ```{r}
 # Load k_fold CV elpds for different models
 env_main <- new.env()
-elpd_main <- load(file.path(out_path, "elpd_kfold_bandit2arm_delta_main_n56.RData"),env_main)[1]
+elpd_main <- load(file.path(out_path, "elpd_kfold_bandit2arm_delta_main_n58.RData"),env_main)[1]
 env_main_DU <- new.env()
-elpd_main_DU <- load(file.path(out_path, "elpd_kfold_bandit2arm_delta_main_DU_n56.RData"),env_main_DU)[1]
+elpd_main_DU <- load(file.path(out_path, "elpd_kfold_bandit2arm_delta_main_DU_n58.RData"),env_main_DU)[1]
 env_PH_withC <- new.env()
-elpd_PH_withC <- load(file.path(out_path, "elpd_kfold_bandit2arm_delta_PH_withC_n56.RData"),env_PH_withC)[1]
+elpd_PH_withC <- load(file.path(out_path, "elpd_kfold_bandit2arm_delta_PH_withC_n58.RData"),env_PH_withC)[1]
 env_PH_withC_DU <- new.env()
-elpd_PH_withC_DU <- load(file.path(out_path, "elpd_kfold_bandit2arm_delta_PH_withC_DU_n56.RData"),env_PH_withC_DU)[1]
+elpd_PH_withC_DU <- load(file.path(out_path, "elpd_kfold_bandit2arm_delta_PH_withC_DU_n58.RData"),env_PH_withC_DU)[1]
 ```
 
 ```{r}
@@ -134,7 +134,7 @@ print(comp2)
 
 ## Load Stan fit file
 ```{r}
-fit_file_PH_withC_hierarchical_group <- 'fit_n56_2024-02-29_bandit2arm_delta_PH_withC_hierarchical_group_estimation1_delta0.9_stepsize0.5.rds'
+fit_file_PH_withC_hierarchical_group <- 'fit_n58_2024-04-12_bandit2arm_delta_PH_withC_hierarchical_group_estimation1_delta0.9_stepsize0.5.rds'
 
 fit_PH_withC_hierarchical_group <- readRDS(file.path(out_path, fit_file_PH_withC_hierarchical_group))
 ```
@@ -171,7 +171,7 @@ print(comp3)
 ```{r}
 # Load k_fold CV elpds for different models
 env_PH_withC__hierarchical_group <- new.env()
-elpd_PH_withC_hierarchical_group <- load(file.path(out_path, "elpd_kfold_bandit2arm_delta_PH_withC_hierarchical_group_n56.RData"),env_PH_withC__hierarchical_group)[1]
+elpd_PH_withC_hierarchical_group <- load(file.path(out_path, "elpd_kfold_bandit2arm_delta_PH_withC_hierarchical_group_n58.RData"),env_PH_withC__hierarchical_group)[1]
 ```
 
 ```{r}

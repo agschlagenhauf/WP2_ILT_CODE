@@ -22,7 +22,7 @@ if strcmp(session,'Training')
     doinstr = 1;
 else 
     doinstr = 0;
-end      
+end 
 
 % code juice / alc order into simple 1/2 variable
 if strcmp(Reihenfolge,'S-A'); ord=1; else ord=2; end
@@ -35,6 +35,7 @@ if mod(str2num(subjn),2)==0
 else
     vers_ord=2; % B-A
 end  
+
 
 % set total session number 
 if doinstr==1 
@@ -59,17 +60,17 @@ if doscanner == 0
        screenNumber  = 0;
        MirrorDisplay = 0; 
 elseif doscanner == 1
-    if MRI == 1
+    if whichscanner == 1
         screenNumber  = 0; % 0: enlarged screen
                            % 1: laptop / PC display only
                            % 2: MRI monitor only
         MirrorDisplay = 1; % horizontal mirroring 
         upsideDown = 0;    % vertical mirroring 
-    elseif MRI == 2
+    elseif whichscanner == 2
         screenNumber  = 0; % 0: enlarged screen
                            % 1: laptop / PC display only
                            % 2: MRI monitor only
-        MirrorDisplay = 1; % horizontal mirroring
+        MirrorDisplay = 0; % horizontal mirroring
         upsideDown = 0;    % vertical mirroring
     end
 end

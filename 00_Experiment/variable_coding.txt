@@ -3,7 +3,7 @@
 subjn 			- participant ID
 rt 			- reaction time til valid response including NaN
 rt_ohne_nan 		- reaction time til vaid response without NaN
-R 			- reward, 1 = rewarded, -1 = not rewarded (depends on C and rare event (p_u) --> correct 				trials only rewarded if p_u = 0)
+R 			- reward, 1 = rewarded, -1 = not rewarded (depends on C and rare event (p_u) --> correct trials only rewarded if p_u = 0)
 C			- correct (chosing card with 70% win probability), 1 = correct, 0 = incorrect
 A			- choice (chosen card), 1 = card 2, 2 = card 1
 a_side			- choice left / right, 1 = left, 2 = right

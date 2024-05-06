@@ -1,0 +1,11 @@
+***********VARIABLE INFO INSTRUMENTAL LEARNING TASK***************
+
+- state = determines which card is the better one (but 1 does not mean card 1 is better)
+	
+	--> new_state randomly chosen based on state 
+	--> new_state = Z.state = S
+	--> S = 2: card 1 is better in 70%
+	--> S = 1: card 2 is better in 70%
+- A = which card was chosen (1 for card 2, 2 for card 1)
+- C (correct) depends on whether chosen card = randomly chosen state
+- R (rewarded) depends on C and rare event (p_u) --> correct trials only rewarded if p_u = 0

@@ -5,9 +5,6 @@
                % 1: inside the scanner 
                
 %%ONLY relevant if doscanner == 1%%               
-MRI = 1;       % 0: outside scanner
-               % 1: BCAN MRT1
-               % 2: BCAN MRT2
                
 pump = 1;      % 1: pump is connected 
                % 0: pump is not connected 
