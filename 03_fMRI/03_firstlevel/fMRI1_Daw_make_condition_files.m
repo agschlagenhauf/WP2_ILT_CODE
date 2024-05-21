@@ -1,6 +1,6 @@
 % generate condition file
 % loads parametric modulators from script fMRI0_gen_parametric_mod.m
-% MM 06-02-2024
+% MM 02-2024
 
 close all; clear all
 addpath('C:\spm12')

@@ -1,6 +1,6 @@
 %%%     SAVE PARAMETRIC MODULATORS FROM STAN AS MAT FILE PER SUBJECT AND
 %%%     RUN 
-%%%     MM 02/2024
+%%%     MM 02-2024
 
 close all; clear all;
 addpath('C:\spm12')
