@@ -2,16 +2,15 @@
 % loads parametric modulators from script fMRI0_gen_parametric_mod.m
 % MM 02-2024close all;
 
-
 clear;
 clc;
+addpath('C:\spm12')
 addpath('S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\Analysen\WP2_ILT_CODE\03_fMRI\functs')
-
 
 % define parameters
 reg = 1;
 TR = 0.869;
-MR = 40; % Should be consistent with value in 1st level batch 
+MR = 60; % Microtime resolution = number of slices (Schichten) in MR protocol
 bin = TR/MR;
 
 % define output path
@@ -82,7 +81,9 @@ for n = 1:length(ids)
     load(fullfile(sub_stats_path, ['sub-', ids{n}, '_pmods_ilt1.mat']));
     load(fullfile(sub_stats_path, ['sub-', ids{n}, '_pmods_ilt2.mat']));
 
-    for block = 1:2
+    blocks = {'1', '2'};
+    
+    for block = 1:length(blocks)
         
         % select behavioral data and pmods for respective block
         if block == 1
@@ -120,8 +121,16 @@ for n = 1:length(ids)
         regs          = [PEs{n,block} PCs{n,block}];
 
         %% get onsets & set bins
+        
         names           = {'trial', 'missings'};
         durations       = {0 0};
+        
+        % set taste and swallow onsets to zero for trials with no reward
+        % (implemented in experiment, except for last trial; if this step
+        % is not done, taste and swallow onsets might contain only 49
+        % elements if last trial was not rewarded)
+        D_sub.T.onset_taste(D_sub.R==-1) = 0;
+        D_sub.T.onset_swallow(D_sub.R==-1) = 0;
         
         onsets_cue      = D_sub.T.trial_onset'-D_sub.T.baseline_start;
         onsets_feedback = D_sub.T.onset_fb'-D_sub.T.baseline_start;
@@ -140,7 +149,7 @@ for n = 1:length(ids)
         R=D_sub.R(~isnan(D_sub.A)); % reward
         
         % trial and feedback length
-        for trial = 1:50
+        for trial = 1:length(onsets_cue)
             if onsets_taste(trial,1) < 0 % if NO taste & swallow in this trial
                 trial_length(trial,1) = onsets_trialend(trial,1)-onsets_cue(trial,1); % trial length
                 feedback_length(trial,1) = onsets_trialend(trial,1)-onsets_feedback(trial,1);  % feedback length
@@ -241,7 +250,7 @@ for n = 1:length(ids)
         % save multiple condition files
         if ~exist(sub_stats_path,'dir'); mkdir(sub_stats_path); end
 
-        save([sub_stats_path '/conditions_' ids{n} '.mat'],'onsets','durations', 'names', 'pmod','orth', 'regs');
+        save([sub_stats_path '/sub-' ids{n} '_conditions_ilt' blocks{block} '.mat'],'onsets','durations', 'names', 'pmod', 'orth');
         clear regs pmod onsets names durations onsets_cue onsets_feedback onsets_taste onsets_swallow onsets_trialend onsets_missings orth ons PE_modulator PC_modulator trial_length feedback_length cue_length
         
     end % block
