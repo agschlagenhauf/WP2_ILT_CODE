@@ -130,16 +130,29 @@ if (estimation==1) {
 
 ## Posterior densities & histograms
 
-```{r}
-stan_hist(fit, pars=c("mu_pr[1]", "mu_A", "sigma[1]", "A_pr[20]", "A[20]", 
-                      "mu_pr[2]", "mu_tau", "sigma[2]", "tau_pr[20]", "tau[20]"))
+### Directly estimated parameters
+
+```{r, fig.width=10, fig.height=20}
+stan_hist(fit, pars=c("mu_pr[1]", "sigma[1]", "A_pr[1]", "A_pr[2]", "A_pr[3]", "A_pr[4]", "A_pr[5]", "A_pr[6]", "A_pr[7]", "A_pr[8]", "A_pr[9]", "A_pr[10]", "A_pr[11]", "A_pr[12]", "A_pr[13]", "A_pr[14]", "A_pr[15]", "A_pr[16]", "A_pr[17]", "A_pr[18]", "A_pr[19]", "A_pr[20]", "A_pr[21]", "A_pr[22]", "A_pr[23]", "A_pr[24]", "A_pr[25]", "A_pr[21]", "A_pr[22]", "A_pr[23]", "A_pr[24]", "A_pr[25]", "A_pr[26]", "A_pr[27]", "A_pr[28]", "A_pr[29]", "A_pr[30]", "A_pr[31]", "A_pr[32]", "A_pr[33]", "A_pr[34]", "A_pr[35]", "A_pr[36]", "A_pr[37]", "A_pr[38]", "A_pr[39]", "A_pr[40]", "A_pr[41]", "A_pr[42]", "A_pr[43]", "A_pr[44]", "A_pr[45]", "A_pr[46]", "A_pr[47]", "A_pr[48]", "A_pr[49]", "A_pr[50]", "A_pr[51]", "A_pr[52]", "A_pr[53]", "A_pr[54]", "A_pr[55]", "A_pr[56]", "A_pr[57]", "A_pr[58]", "A_pr[59]", "A_pr[60]", "A_pr[61]", "A_pr[62]", "A_pr[63]", "A_pr[64]", "A_pr[65]", "A_pr[66]", "A_pr[67]", "A_pr[68]", "A_pr[69]", "A_pr[70]", "A_pr[71]", "A_pr[72]", "A_pr[73]", "A_pr[74]", "A_pr[75]", "A_pr[76]", "A_pr[77]", "A_pr[78]", "A_pr[79]", "A_pr[80]", "A_pr[81]", "A_pr[82]", "A_pr[83]", "A_pr[84]", "A_pr[85]", "A_pr[86]", "A_pr[87]", "A_pr[88]", "A_pr[89]", "A_pr[90]", "A_pr[91]", "A_pr[92]", "A_pr[93]", "A_pr[94]", "A_pr[95]", "A_pr[96]", "A_pr[97]", "A_pr[98]", "A_pr[99]", "A_pr[100]", "A_pr[101]", "A_pr[102]", "A_pr[103]", "A_pr[104]", "A_pr[105]", "A_pr[106]", "A_pr[107]", "A_pr[108]", "A_pr[109]", "A_pr[110]", "A_pr[111]", "A_pr[112]", "A_pr[113]", "A_pr[114]", "A_pr[115]", "A_pr[116]"))
+          
+stan_hist(fit, pars=c("mu_pr[2]", "sigma[2]",  "tau_pr[1]", "tau_pr[2]", "tau_pr[3]", "tau_pr[4]", "tau_pr[5]", "tau_pr[6]", "tau_pr[7]", "tau_pr[8]", "tau_pr[9]", "tau_pr[10]", "tau_pr[11]", "tau_pr[12]", "tau_pr[13]", "tau_pr[14]", "tau_pr[15]", "tau_pr[16]", "tau_pr[17]", "tau_pr[18]", "tau_pr[19]", "tau_pr[20]", "tau_pr[21]", "tau_pr[22]", "tau_pr[23]", "tau_pr[24]", "tau_pr[25]", "tau_pr[21]", "tau_pr[22]", "tau_pr[23]", "tau_pr[24]", "tau_pr[25]", "tau_pr[26]", "tau_pr[27]", "tau_pr[28]", "tau_pr[29]", "tau_pr[30]", "tau_pr[31]", "tau_pr[32]", "tau_pr[33]", "tau_pr[34]", "tau_pr[35]", "tau_pr[36]", "tau_pr[37]", "tau_pr[38]", "tau_pr[39]", "tau_pr[40]", "tau_pr[41]", "tau_pr[42]", "tau_pr[43]", "tau_pr[44]", "tau_pr[45]", "tau_pr[46]", "tau_pr[47]", "tau_pr[48]", "tau_pr[49]", "tau_pr[50]", "tau_pr[51]", "tau_pr[52]", "tau_pr[53]", "tau_pr[54]", "tau_pr[55]", "tau_pr[56]", "tau_pr[57]", "tau_pr[58]", "tau_pr[59]", "tau_pr[60]", "tau_pr[61]", "tau_pr[62]", "tau_pr[63]", "tau_pr[64]", "tau_pr[65]", "tau_pr[66]", "tau_pr[67]", "tau_pr[68]", "tau_pr[69]", "tau_pr[70]", "tau_pr[71]", "tau_pr[72]", "tau_pr[73]", "tau_pr[74]", "tau_pr[75]", "tau_pr[76]", "tau_pr[77]", "tau_pr[78]", "tau_pr[79]", "tau_pr[80]", "tau_pr[81]", "tau_pr[82]", "tau_pr[83]", "tau_pr[84]", "tau_pr[85]", "tau_pr[86]", "tau_pr[87]", "tau_pr[88]", "tau_pr[89]", "tau_pr[90]", "tau_pr[91]", "tau_pr[92]", "tau_pr[93]", "tau_pr[94]", "tau_pr[95]", "tau_pr[96]", "tau_pr[97]", "tau_pr[98]", "tau_pr[99]", "tau_pr[100]", "tau_pr[101]", "tau_pr[102]", "tau_pr[103]", "tau_pr[104]", "tau_pr[105]", "tau_pr[106]", "tau_pr[107]", "tau_pr[108]", "tau_pr[109]", "tau_pr[110]", "tau_pr[111]", "tau_pr[112]", "tau_pr[113]", "tau_pr[114]", "tau_pr[115]", "tau_pr[116]"))
+          
+```
+
+### Transformed parameters
+
+```{r, fig.width=10, fig.height=20}
+stan_hist(fit, pars=c("mu_A", "A[1]", "A[2]", "A[3]", "A[4]", "A[5]", "A[6]", "A[7]", "A[8]", "A[9]", "A[10]", "A[11]", "A[12]", "A[13]", "A[14]", "A[15]", "A[16]", "A[17]", "A[18]", "A[19]", "A[20]", "A[21]", "A[22]", "A[23]", "A[24]", "A[25]", "A[21]", "A[22]", "A[23]", "A[24]", "A[25]", "A[26]", "A[27]", "A[28]", "A[29]", "A[30]", "A[31]", "A[32]", "A[33]", "A[34]", "A[35]", "A[36]", "A[37]", "A[38]", "A[39]", "A[40]", "A[41]", "A[42]", "A[43]", "A[44]", "A[45]", "A[46]", "A[47]", "A[48]", "A[49]", "A[50]", "A[51]", "A[52]", "A[53]", "A[54]", "A[55]", "A[56]", "A[57]", "A[58]", "A[59]", "A[60]", "A[61]", "A[62]", "A[63]", "A[64]", "A[65]", "A[66]", "A[67]", "A[68]", "A[69]", "A[70]", "A[71]", "A[72]", "A[73]", "A[74]", "A[75]", "A[76]", "A[77]", "A[78]", "A[79]", "A[80]", "A[81]", "A[82]", "A[83]", "A[84]", "A[85]", "A[86]", "A[87]", "A[88]", "A[89]", "A[90]", "A[91]", "A[92]", "A[93]", "A[94]", "A[95]", "A[96]", "A[97]", "A[98]", "A[99]", "A[100]", "A[101]", "A[102]", "A[103]", "A[104]", "A[105]", "A[106]", "A[107]", "A[108]", "A[109]", "A[110]", "A[111]", "A[112]", "A[113]", "A[114]", "A[115]", "A[116]"))
+          
+stan_hist(fit, pars=c("mu_tau", "tau[1]", "tau[2]", "tau[3]", "tau[4]", "tau[5]", "tau[6]", "tau[7]", "tau[8]", "tau[9]", "tau[10]", "tau[11]", "tau[12]", "tau[13]", "tau[14]", "tau[15]", "tau[16]", "tau[17]", "tau[18]", "tau[19]", "tau[20]", "tau[21]", "tau[22]", "tau[23]", "tau[24]", "tau[25]", "tau[21]", "tau[22]", "tau[23]", "tau[24]", "tau[25]", "tau[26]", "tau[27]", "tau[28]", "tau[29]", "tau[30]", "tau[31]", "tau[32]", "tau[33]", "tau[34]", "tau[35]", "tau[36]", "tau[37]", "tau[38]", "tau[39]", "tau[40]", "tau[41]", "tau[42]", "tau[43]", "tau[44]", "tau[45]", "tau[46]", "tau[47]", "tau[48]", "tau[49]", "tau[50]", "tau[51]", "tau[52]", "tau[53]", "tau[54]", "tau[55]", "tau[56]", "tau[57]", "tau[58]", "tau[59]", "tau[60]", "tau[61]", "tau[62]", "tau[63]", "tau[64]", "tau[65]", "tau[66]", "tau[67]", "tau[68]", "tau[69]", "tau[70]", "tau[71]", "tau[72]", "tau[73]", "tau[74]", "tau[75]", "tau[76]", "tau[77]", "tau[78]", "tau[79]", "tau[80]", "tau[81]", "tau[82]", "tau[83]", "tau[84]", "tau[85]", "tau[86]", "tau[87]", "tau[88]", "tau[89]", "tau[90]", "tau[91]", "tau[92]", "tau[93]", "tau[94]", "tau[95]", "tau[96]", "tau[97]", "tau[98]", "tau[99]", "tau[100]", "tau[101]", "tau[102]", "tau[103]", "tau[104]", "tau[105]", "tau[106]", "tau[107]", "tau[108]", "tau[109]", "tau[110]", "tau[111]", "tau[112]", "tau[113]", "tau[114]", "tau[115]", "tau[116]"))
+          
 ```
 
 ## Mean parameter estimates and credible intervals
 
 ```{r}
-plot(fit, pars=c("mu_pr[1]", "mu_A", "sigma[1]", "A_pr[20]", "A[20]", 
-                 "mu_pr[2]", "mu_tau", "sigma[2]", "tau_pr[20]", "tau[20]"), 
+plot(fit, pars=c("mu_pr[1]", "mu_A", "sigma[1]",
+                 "mu_pr[2]", "mu_tau", "sigma[2]"), 
      show_density = FALSE, ci_level = 0.5, outer_level = 0.95, fill_color = "salmon")
 ```
 

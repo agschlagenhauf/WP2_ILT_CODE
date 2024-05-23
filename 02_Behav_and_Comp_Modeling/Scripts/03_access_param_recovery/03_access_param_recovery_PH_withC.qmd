@@ -29,15 +29,15 @@ out_path <- '/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/WP2_ILT_CODE/02_Behav
 behavpath <- '/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/ILT_DATA'
 
 # load files containing true parameters used as input for simulation
-orig_file <- 'fit_n58_2024-04-12_bandit2arm_delta_PH_withC_estimation1_delta0.99_stepsize0.1.rds'
+orig_file <- 'fit_n58_2024-05-07_bandit2arm_delta_PH_withC_DU_estimation1_delta0.999_stepsize0.1_treedepth12.rds'
 orig_fit <- readRDS(file.path(out_path, orig_file)) # Stan model output
 
 # load simulation output file containing y_pred and transformed parameters
-sim_file <- 'sim_2024-04-13_bandit2arm_delta_PH_withC_sim_n58.rds'
+sim_file <- 'sim_2024-05-07_bandit2arm_delta_PH_withC_sim_n58.rds'
 sim_fit <- readRDS(file.path(out_path, 'Parameter_Recovery', sim_file)) # Stan model output
 
 # load simulated data fitting results
-recovery_file <- 'recovery_2024-04-13_bandit2arm_delta_PH_withC_n58.rds'
+recovery_file <- 'recovery_2024-05-10_bandit2arm_delta_PH_withC_n58.rds'
 recovery_fit <- readRDS(file.path(out_path, 'Parameter_Recovery', recovery_file)) # Stan model output
 
 color_scheme_set("mix-blue-pink")

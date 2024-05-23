@@ -187,7 +187,6 @@ if (estimation==1) {
 
 ## Per block
 
-
 ```{r}
 if (estimation==1) {
   # extract log likelihood for each choice
@@ -230,45 +229,44 @@ if (estimation==1) {
 
 ## Posterior densities & histograms
 
-```{r}
-stan_hist(fit, pars=c("mu[1]", "A_sub_m[1]", "A_subj_s", "A_subj_raw[20]",
-                      "A[20,1]", "A[20,2]", "A_normal[20,1]", "A_normal[20,2]",
-                      "A_vars[20]", "mu_A"))
+### Directly estimated parameters
 
-stan_hist(fit, pars=c("mu[2]", "tau_sub_m[1]", "tau_subj_s", "tau_subj_raw[20]",
-                      "tau[20,1]", "tau[20,2]", "tau_normal[20,1]", "tau_normal[20,2]",
-                      "tau_vars[20]", "mu_tau"))
+```{r, fig.width=10, fig.height=20}
+stan_hist(fit, pars=c("mu[1]", "A_sub_m[1]", "A_subj_s", "A_subj_raw[1]", "A_subj_raw[2]", "A_subj_raw[3]", "A_subj_raw[4]", "A_subj_raw[5]", "A_subj_raw[6]", "A_subj_raw[7]", "A_subj_raw[8]", "A_subj_raw[9]", "A_subj_raw[10]", "A_subj_raw[11]", "A_subj_raw[12]", "A_subj_raw[13]", "A_subj_raw[14]", "A_subj_raw[15]", "A_subj_raw[16]", "A_subj_raw[17]", "A_subj_raw[18]", "A_subj_raw[19]", "A_subj_raw[20]", "A_subj_raw[21]", "A_subj_raw[22]", "A_subj_raw[23]", "A_subj_raw[24]", "A_subj_raw[25]", "A_subj_raw[26]", "A_subj_raw[27]", "A_subj_raw[28]", "A_subj_raw[29]", "A_subj_raw[30]", "A_subj_raw[31]", "A_subj_raw[32]", "A_subj_raw[33]", "A_subj_raw[34]", "A_subj_raw[35]", "A_subj_raw[36]", "A_subj_raw[37]", "A_subj_raw[38]", "A_subj_raw[39]", "A_subj_raw[40]", "A_subj_raw[41]", "A_subj_raw[42]", "A_subj_raw[43]", "A_subj_raw[44]", "A_subj_raw[45]", "A_subj_raw[46]", "A_subj_raw[47]", "A_subj_raw[48]", "A_subj_raw[49]", "A_subj_raw[50]", "A_subj_raw[51]", "A_subj_raw[52]", "A_subj_raw[53]", "A_subj_raw[54]", "A_subj_raw[55]", "A_subj_raw[56]", "A_subj_raw[57]", "A_subj_raw[58]"))
 
-stan_hist(fit, pars=c("mu[3]", "gamma_sub_m[1]", "gamma_subj_s", "gamma_subj_raw[20]",
-                      "gamma[20,1]", "gamma[20,2]", "gamma_normal[20,1]", "gamma_normal[20,2]",
-                      "gamma_vars[20]", "mu_gamma"))
+stan_hist(fit, pars=c("mu[2]", "tau_sub_m[1]", "tau_subj_s", "tau_subj_raw[1]", "tau_subj_raw[2]", "tau_subj_raw[3]", "tau_subj_raw[4]", "tau_subj_raw[5]", "tau_subj_raw[6]", "tau_subj_raw[7]", "tau_subj_raw[8]", "tau_subj_raw[9]", "tau_subj_raw[10]", "tau_subj_raw[11]", "tau_subj_raw[12]", "tau_subj_raw[13]", "tau_subj_raw[14]", "tau_subj_raw[15]", "tau_subj_raw[16]", "tau_subj_raw[17]", "tau_subj_raw[18]", "tau_subj_raw[19]", "tau_subj_raw[20]", "tau_subj_raw[21]", "tau_subj_raw[22]", "tau_subj_raw[23]", "tau_subj_raw[24]", "tau_subj_raw[25]", "tau_subj_raw[26]", "tau_subj_raw[27]", "tau_subj_raw[28]", "tau_subj_raw[29]", "tau_subj_raw[30]", "tau_subj_raw[31]", "tau_subj_raw[32]", "tau_subj_raw[33]", "tau_subj_raw[34]", "tau_subj_raw[35]", "tau_subj_raw[36]", "tau_subj_raw[37]", "tau_subj_raw[38]", "tau_subj_raw[39]", "tau_subj_raw[40]", "tau_subj_raw[41]", "tau_subj_raw[42]", "tau_subj_raw[43]", "tau_subj_raw[44]", "tau_subj_raw[45]", "tau_subj_raw[46]", "tau_subj_raw[47]", "tau_subj_raw[48]", "tau_subj_raw[49]", "tau_subj_raw[50]", "tau_subj_raw[51]", "tau_subj_raw[52]", "tau_subj_raw[53]", "tau_subj_raw[54]", "tau_subj_raw[55]", "tau_subj_raw[56]", "tau_subj_raw[57]", "tau_subj_raw[58]"))
+
+stan_hist(fit, pars=c("mu[3]", "gamma_sub_m[1]", "gamma_subj_s", "gamma_subj_raw[1]", "gamma_subj_raw[2]", "gamma_subj_raw[3]", "gamma_subj_raw[4]", "gamma_subj_raw[5]", "gamma_subj_raw[6]", "gamma_subj_raw[7]", "gamma_subj_raw[8]", "gamma_subj_raw[9]", "gamma_subj_raw[10]", "gamma_subj_raw[11]", "gamma_subj_raw[12]", "gamma_subj_raw[13]", "gamma_subj_raw[14]", "gamma_subj_raw[15]", "gamma_subj_raw[16]", "gamma_subj_raw[17]", "gamma_subj_raw[18]", "gamma_subj_raw[19]", "gamma_subj_raw[20]", "gamma_subj_raw[21]", "gamma_subj_raw[22]", "gamma_subj_raw[23]", "gamma_subj_raw[24]", "gamma_subj_raw[25]", "gamma_subj_raw[26]", "gamma_subj_raw[27]", "gamma_subj_raw[28]", "gamma_subj_raw[29]", "gamma_subj_raw[30]", "gamma_subj_raw[31]", "gamma_subj_raw[32]", "gamma_subj_raw[33]", "gamma_subj_raw[34]", "gamma_subj_raw[35]", "gamma_subj_raw[36]", "gamma_subj_raw[37]", "gamma_subj_raw[38]", "gamma_subj_raw[39]", "gamma_subj_raw[40]", "gamma_subj_raw[41]", "gamma_subj_raw[42]", "gamma_subj_raw[43]", "gamma_subj_raw[44]", "gamma_subj_raw[45]", "gamma_subj_raw[46]", "gamma_subj_raw[47]", "gamma_subj_raw[48]", "gamma_subj_raw[49]", "gamma_subj_raw[50]", "gamma_subj_raw[51]", "gamma_subj_raw[52]", "gamma_subj_raw[53]", "gamma_subj_raw[54]", "gamma_subj_raw[55]", "gamma_subj_raw[56]", "gamma_subj_raw[57]", "gamma_subj_raw[58]"))
           
-stan_hist(fit, pars=c("mu[4]", "C_sub_m[1]", "C_subj_s", "C_subj_raw[20]",
-                      "C_const[20,1]", "C_const[20,2]", "C_normal[20,1]", "C_normal[20,2]",
-                      "C_vars[20]", "mu_C"))
+stan_hist(fit, pars=c("mu[4]", "C_sub_m[1]", "C_subj_s", "C_subj_raw[1]", "C_subj_raw[2]", "C_subj_raw[3]", "C_subj_raw[4]", "C_subj_raw[5]", "C_subj_raw[6]", "C_subj_raw[7]", "C_subj_raw[8]", "C_subj_raw[9]", "C_subj_raw[10]", "C_subj_raw[11]", "C_subj_raw[12]", "C_subj_raw[13]", "C_subj_raw[14]", "C_subj_raw[15]", "C_subj_raw[16]", "C_subj_raw[17]", "C_subj_raw[18]", "C_subj_raw[19]", "C_subj_raw[20]", "C_subj_raw[21]", "C_subj_raw[22]", "C_subj_raw[23]", "C_subj_raw[24]", "C_subj_raw[25]", "C_subj_raw[26]", "C_subj_raw[27]", "C_subj_raw[28]", "C_subj_raw[29]", "C_subj_raw[30]", "C_subj_raw[31]", "C_subj_raw[32]", "C_subj_raw[33]", "C_subj_raw[34]", "C_subj_raw[35]", "C_subj_raw[36]", "C_subj_raw[37]", "C_subj_raw[38]", "C_subj_raw[39]", "C_subj_raw[40]", "C_subj_raw[41]", "C_subj_raw[42]", "C_subj_raw[43]", "C_subj_raw[44]", "C_subj_raw[45]", "C_subj_raw[46]", "C_subj_raw[47]", "C_subj_raw[48]", "C_subj_raw[49]", "C_subj_raw[50]", "C_subj_raw[51]", "C_subj_raw[52]", "C_subj_raw[53]", "C_subj_raw[54]", "C_subj_raw[55]", "C_subj_raw[56]", "C_subj_raw[57]", "C_subj_raw[58]"))
+
+```
+
+### Transformed parameters
+
+```{r, fig.width=10, fig.height=20}
+stan_hist(fit, pars=c("mu_A", "A[1,1]", "A[1,2]", "A[2,1]", "A[2,2]", "A[3,1]", "A[3,2]", "A[4,1]", "A[4,2]", "A[5,1]", "A[5,2]", "A[6,1]", "A[6,2]", "A[7,1]", "A[7,2]", "A[8,1]", "A[8,2]", "A[9,1]", "A[9,2]", "A[10,1]", "A[10,2]", "A[11,1]", "A[11,2]", "A[12,1]", "A[12,2]", "A[13,1]", "A[13,2]", "A[14,1]", "A[14,2]", "A[15,1]", "A[15,2]", "A[16,1]", "A[16,2]", "A[17,1]", "A[17,2]", "A[18,1]", "A[18,2]", "A[19,1]", "A[19,2]", "A[20,1]", "A[20,2]", "A[21,1]", "A[21,2]", "A[22,1]", "A[22,2]", "A[23,1]", "A[23,2]", "A[24,1]", "A[24,2]", "A[25,1]", "A[25,2]", "A[26,1]", "A[26,2]", "A[27,1]", "A[27,2]", "A[28,1]", "A[28,2]", "A[29,1]", "A[29,2]", "A[30,1]", "A[30,2]", "A[31,1]", "A[31,2]", "A[32,1]", "A[32,2]", "A[33,1]", "A[33,2]", "A[34,1]", "A[34,2]", "A[35,1]", "A[35,2]", "A[36,1]", "A[36,2]", "A[37,1]", "A[37,2]", "A[38,1]", "A[38,2]", "A[39,1]", "A[39,2]", "A[40,1]", "A[40,2]", "A[41,1]", "A[41,2]", "A[42,1]", "A[42,2]", "A[43,1]", "A[43,2]", "A[44,1]", "A[44,2]", "A[45,1]", "A[45,2]", "A[46,1]", "A[46,2]", "A[47,1]", "A[47,2]", "A[48,1]", "A[48,2]", "A[49,1]", "A[49,2]", "A[50,1]", "A[50,2]", "A[51,1]", "A[51,2]", "A[52,1]", "A[52,2]", "A[53,1]", "A[53,2]", "A[54,1]", "A[54,2]", "A[55,1]", "A[55,2]", "A[56,1]", "A[56,2]", "A[57,1]", "A[57,2]", "A[58,1]", "A[58,2]"))
+          
+stan_hist(fit, pars=c("mu_tau", "tau[1,1]", "tau[1,2]", "tau[2,1]", "tau[2,2]", "tau[3,1]", "tau[3,2]", "tau[4,1]", "tau[4,2]", "tau[5,1]", "tau[5,2]", "tau[6,1]", "tau[6,2]", "tau[7,1]", "tau[7,2]", "tau[8,1]", "tau[8,2]", "tau[9,1]", "tau[9,2]", "tau[10,1]", "tau[10,2]", "tau[11,1]", "tau[11,2]", "tau[12,1]", "tau[12,2]", "tau[13,1]", "tau[13,2]", "tau[14,1]", "tau[14,2]", "tau[15,1]", "tau[15,2]", "tau[16,1]", "tau[16,2]", "tau[17,1]", "tau[17,2]", "tau[18,1]", "tau[18,2]", "tau[19,1]", "tau[19,2]", "tau[20,1]", "tau[20,2]", "tau[21,1]", "tau[21,2]", "tau[22,1]", "tau[22,2]", "tau[23,1]", "tau[23,2]", "tau[24,1]", "tau[24,2]", "tau[25,1]", "tau[25,2]", "tau[26,1]", "tau[26,2]", "tau[27,1]", "tau[27,2]", "tau[28,1]", "tau[28,2]", "tau[29,1]", "tau[29,2]", "tau[30,1]", "tau[30,2]", "tau[31,1]", "tau[31,2]", "tau[32,1]", "tau[32,2]", "tau[33,1]", "tau[33,2]", "tau[34,1]", "tau[34,2]", "tau[35,1]", "tau[35,2]", "tau[36,1]", "tau[36,2]", "tau[37,1]", "tau[37,2]", "tau[38,1]", "tau[38,2]", "tau[39,1]", "tau[39,2]", "tau[40,1]", "tau[40,2]", "tau[41,1]", "tau[41,2]", "tau[42,1]", "tau[42,2]", "tau[43,1]", "tau[43,2]", "tau[44,1]", "tau[44,2]", "tau[45,1]", "tau[45,2]", "tau[46,1]", "tau[46,2]", "tau[47,1]", "tau[47,2]", "tau[48,1]", "tau[48,2]", "tau[49,1]", "tau[49,2]", "tau[50,1]", "tau[50,2]", "tau[51,1]", "tau[51,2]", "tau[52,1]", "tau[52,2]", "tau[53,1]", "tau[53,2]", "tau[54,1]", "tau[54,2]", "tau[55,1]", "tau[55,2]", "tau[56,1]", "tau[56,2]", "tau[57,1]", "tau[57,2]", "tau[58,1]", "tau[58,2]"))
+
+stan_hist(fit, pars=c("mu_gamma", "gamma[1,1]", "gamma[1,2]", "gamma[2,1]", "gamma[2,2]", "gamma[3,1]", "gamma[3,2]", "gamma[4,1]", "gamma[4,2]", "gamma[5,1]", "gamma[5,2]", "gamma[6,1]", "gamma[6,2]", "gamma[7,1]", "gamma[7,2]", "gamma[8,1]", "gamma[8,2]", "gamma[9,1]", "gamma[9,2]", "gamma[10,1]", "gamma[10,2]", "gamma[11,1]", "gamma[11,2]", "gamma[12,1]", "gamma[12,2]", "gamma[13,1]", "gamma[13,2]", "gamma[14,1]", "gamma[14,2]", "gamma[15,1]", "gamma[15,2]", "gamma[16,1]", "gamma[16,2]", "gamma[17,1]", "gamma[17,2]", "gamma[18,1]", "gamma[18,2]", "gamma[19,1]", "gamma[19,2]", "gamma[20,1]", "gamma[20,2]", "gamma[21,1]", "gamma[21,2]", "gamma[22,1]", "gamma[22,2]", "gamma[23,1]", "gamma[23,2]", "gamma[24,1]", "gamma[24,2]", "gamma[25,1]", "gamma[25,2]", "gamma[26,1]", "gamma[26,2]", "gamma[27,1]", "gamma[27,2]", "gamma[28,1]", "gamma[28,2]", "gamma[29,1]", "gamma[29,2]", "gamma[30,1]", "gamma[30,2]", "gamma[31,1]", "gamma[31,2]", "gamma[32,1]", "gamma[32,2]", "gamma[33,1]", "gamma[33,2]", "gamma[34,1]", "gamma[34,2]", "gamma[35,1]", "gamma[35,2]", "gamma[36,1]", "gamma[36,2]", "gamma[37,1]", "gamma[37,2]", "gamma[38,1]", "gamma[38,2]", "gamma[39,1]", "gamma[39,2]", "gamma[40,1]", "gamma[40,2]", "gamma[41,1]", "gamma[41,2]", "gamma[42,1]", "gamma[42,2]", "gamma[43,1]", "gamma[43,2]", "gamma[44,1]", "gamma[44,2]", "gamma[45,1]", "gamma[45,2]", "gamma[46,1]", "gamma[46,2]", "gamma[47,1]", "gamma[47,2]", "gamma[48,1]", "gamma[48,2]", "gamma[49,1]", "gamma[49,2]", "gamma[50,1]", "gamma[50,2]", "gamma[51,1]", "gamma[51,2]", "gamma[52,1]", "gamma[52,2]", "gamma[53,1]", "gamma[53,2]", "gamma[54,1]", "gamma[54,2]", "gamma[55,1]", "gamma[55,2]", "gamma[56,1]", "gamma[56,2]", "gamma[57,1]", "gamma[57,2]", "gamma[58,1]", "gamma[58,2]"))
+
+stan_hist(fit, pars=c("mu_C", "C_const[1,1]", "C_const[1,2]", "C_const[2,1]", "C_const[2,2]", "C_const[3,1]", "C_const[3,2]", "C_const[4,1]", "C_const[4,2]", "C_const[5,1]", "C_const[5,2]", "C_const[6,1]", "C_const[6,2]", "C_const[7,1]", "C_const[7,2]", "C_const[8,1]", "C_const[8,2]", "C_const[9,1]", "C_const[9,2]", "C_const[10,1]", "C_const[10,2]", "C_const[11,1]", "C_const[11,2]", "C_const[12,1]", "C_const[12,2]", "C_const[13,1]", "C_const[13,2]", "C_const[14,1]", "C_const[14,2]", "C_const[15,1]", "C_const[15,2]", "C_const[16,1]", "C_const[16,2]", "C_const[17,1]", "C_const[17,2]", "C_const[18,1]", "C_const[18,2]", "C_const[19,1]", "C_const[19,2]", "C_const[20,1]", "C_const[20,2]", "C_const[21,1]", "C_const[21,2]", "C_const[22,1]", "C_const[22,2]", "C_const[23,1]", "C_const[23,2]", "C_const[24,1]", "C_const[24,2]", "C_const[25,1]", "C_const[25,2]", "C_const[26,1]", "C_const[26,2]", "C_const[27,1]", "C_const[27,2]", "C_const[28,1]", "C_const[28,2]", "C_const[29,1]", "C_const[29,2]", "C_const[30,1]", "C_const[30,2]", "C_const[31,1]", "C_const[31,2]", "C_const[32,1]", "C_const[32,2]", "C_const[33,1]", "C_const[33,2]", "C_const[34,1]", "C_const[34,2]", "C_const[35,1]", "C_const[35,2]", "C_const[36,1]", "C_const[36,2]", "C_const[37,1]", "C_const[37,2]", "C_const[38,1]", "C_const[38,2]", "C_const[39,1]", "C_const[39,2]", "C_const[40,1]", "C_const[40,2]", "C_const[41,1]", "C_const[41,2]", "C_const[42,1]", "C_const[42,2]", "C_const[43,1]", "C_const[43,2]", "C_const[44,1]", "C_const[44,2]", "C_const[45,1]", "C_const[45,2]", "C_const[46,1]", "C_const[46,2]", "C_const[47,1]", "C_const[47,2]", "C_const[48,1]", "C_const[48,2]", "C_const[49,1]", "C_const[49,2]", "C_const[50,1]", "C_const[50,2]", "C_const[51,1]", "C_const[51,2]", "C_const[52,1]", "C_const[52,2]", "C_const[53,1]", "C_const[53,2]", "C_const[54,1]", "C_const[54,2]", "C_const[55,1]", "C_const[55,2]", "C_const[56,1]", "C_const[56,2]", "C_const[57,1]", "C_const[57,2]", "C_const[58,1]", "C_const[58,2]"))
 ```
 
 ## Mean parameter estimates and credible intervals
 
 ```{r}
-plot(fit, pars=c("mu[1]", "A_sub_m[1]", "A_subj_s", "A_subj_raw[20]",
-                      "A[20,1]", "A[20,2]", "A_normal[20,1]", "A_normal[20,2]",
-                      "A_vars[20]", "mu_A"),
+plot(fit, pars=c("mu[1]", "A_sub_m[1]", "A_subj_s", "mu_A"),
      show_density = FALSE, ci_level = 0.5, outer_level = 0.95, fill_color = "salmon")
 
-plot(fit, pars=c("mu[2]", "tau_sub_m[1]", "tau_subj_s", "tau_subj_raw[20]",
-                      "tau[20,1]", "tau[20,2]", "tau_normal[20,1]", "tau_normal[20,2]",
-                      "tau_vars[20]", "mu_tau"),
+plot(fit, pars=c("mu[2]", "tau_sub_m[1]", "tau_subj_s", "mu_tau"),
      show_density = FALSE, ci_level = 0.5, outer_level = 0.95, fill_color = "salmon")
 
-plot(fit, pars=c("mu[3]", "gamma_sub_m[1]", "gamma_subj_s", "gamma_subj_raw[20]",
-                      "gamma[20,1]", "gamma[20,2]", "gamma_normal[20,1]", "gamma_normal[20,2]",
-                      "gamma_vars[20]", "mu_gamma"),
+plot(fit, pars=c("mu[3]", "gamma_sub_m[1]", "gamma_subj_s", "mu_gamma"),
      show_density = FALSE, ci_level = 0.5, outer_level = 0.95, fill_color = "salmon")
 
-plot(fit, pars=c("mu[4]", "C_sub_m[1]", "C_subj_s", "C_subj_raw[20]",
-                      "C_const[20,1]", "C_const[20,2]", "C_normal[20,1]", "C_normal[20,2]",
-                      "C_vars[20]", "mu_C"),
+plot(fit, pars=c("mu[4]", "C_sub_m[1]", "C_subj_s", "mu_C"),
      show_density = FALSE, ci_level = 0.5, outer_level = 0.95, fill_color = "salmon")
 ```
 

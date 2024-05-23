@@ -161,16 +161,18 @@ for (k in 1:10) {
   # Sampling Options
   if (model_name == 'bandit2arm_delta_main') {
     s <- list(adapt_delta=0.9, stepsize=0.5)
-  } else {
+  } else if (model_name == 'bandit2arm_delta_main_DU') {
     s <- list(adapt_delta=0.99, stepsize=0.1)
+  } else if (model_name == 'bandit2arm_delta_PH_withC') {
+    s <- list(adapt_delta=0.999, stepsize=0.1, max_treedepth=12)
   }
 
   fit <- sampling(stan_model, data = stan_data_train, warmup = 1000, iter = 10000, chains = 4, verbose=TRUE, control=s)
   gen_test <- gqs(stan_model, draws = as.matrix(fit), data= stan_data_test)
   log_pd_kfold[, input$fold == k] <- extract_log_lik(gen_test, parameter_name = "log_lik")
   
-}
+} # fold
 
-elpd_kfold <- elpd(log_pd_kfold)
+#elpd_kfold <- elpd(log_pd_kfold)
 
-save(file=file.path(filepath, 'Output', paste("elpd_kfold_", model_name, "_", sample, ".RData", sep="")), elpd_kfold)
+saveRDS(log_pd_kfold, file=file.path(filepath, 'Output', paste("log_pd_kfold_", model_name, "_", sample, ".rds", sep="")))

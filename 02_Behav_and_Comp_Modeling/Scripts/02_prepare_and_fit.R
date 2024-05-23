@@ -123,13 +123,14 @@ stanc(stan_model)
 ##### Fit Model #####
 
 # Options
-s <- list(adapt_delta=0.999, stepsize=0.1)
+s <- list(adapt_delta=0.999, stepsize=0.1, max_treedepth = 12)
 
 # Fit
 fit <- stan(file = stan_model, data = stan_data, warmup =1000, iter = 10000, chains = 4, verbose=TRUE, control=s)
 
 
 ##### Save fitted object as RDS #####
-output_filename <- paste("fit_", sample ,'_', Sys.Date(), '_', model_name, '_estimation', estimation, '_delta', s$adapt_delta, '_stepsize', s$stepsize, ".rds", sep="")
+output_filename <- paste("fit_", sample ,'_', Sys.Date(), '_', model_name, '_estimation', estimation, '_delta', s$adapt_delta, '_stepsize', s$stepsize, '_treedepth', s$max_treedepth, ".rds", sep="")
 saveRDS(fit, file=file.path(filepath, "Output", output_filename))
+
 

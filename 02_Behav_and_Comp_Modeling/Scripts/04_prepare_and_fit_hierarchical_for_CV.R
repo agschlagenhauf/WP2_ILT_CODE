@@ -318,6 +318,6 @@ for (k in 1:10) {
   
 } # fold
 
-elpd_kfold <- elpd(log_pd_kfold)
+#elpd_kfold <- elpd(log_pd_kfold)
 
-save(file=file.path(filepath, 'Output', paste("elpd_kfold_", model_name, "_", sample, ".RData", sep="")), elpd_kfold)
+saveRDS(log_pd_kfold, file=file.path(filepath, 'Output', paste("log_pd_kfold_", model_name, "_", sample, ".rds", sep="")))

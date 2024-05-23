@@ -114,7 +114,7 @@ if (model_name == 'bandit2arm_delta_PH_withC_sim') {
 
 # Options
 if (model_name == 'bandit2arm_delta_PH_withC_sim') {
-  s <- list(adapt_delta=0.99, stepsize=0.1)
+  s <- list(adapt_delta=0.999, stepsize=0.1, max_treedepth=12)
 } else if (model_name == 'bandit2arm_delta_PH_withC_hierarchical_group_sim') {
   s <- list(adapt_delta=0.9, stepsize=0.5)
 }  

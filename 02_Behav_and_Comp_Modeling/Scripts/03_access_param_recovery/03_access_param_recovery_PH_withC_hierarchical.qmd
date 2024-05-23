@@ -102,10 +102,18 @@ recovered_tau <- as.matrix(recovery_fit, pars = "tau")
 recovered_gamma <- as.matrix(recovery_fit, pars = "gamma")
 recovered_C <- as.matrix(recovery_fit, pars = "C_const")
 
-recovered_A_mean <- as.vector(summary(recovery_fit, pars="A")$summary[, c("mean")]) 
-recovered_tau_mean <- as.vector(summary(recovery_fit, pars="tau")$summary[, c("mean")]) 
-recovered_gamma_mean <- as.vector(summary(recovery_fit, pars="gamma")$summary[, c("mean")]) 
-recovered_C_mean <- as.vector(summary(recovery_fit, pars="C_const")$summary[, c("mean")]) 
+recovered_A_mean_jui <- summary(recovery_fit, pars="A")$summary[, c("mean")][c(TRUE,rep(FALSE,1))] # mean of parameter values based on simulated data, ordered as true data
+recovered_A_mean_alc <- summary(recovery_fit, pars="A")$summary[, c("mean")][c(rep(FALSE,1),TRUE)]
+recovered_A_mean <- c(recovered_A_mean_jui,recovered_A_mean_alc)
+recovered_tau_mean_jui <- summary(recovery_fit, pars="tau")$summary[, c("mean")][c(TRUE,rep(FALSE,1))]
+recovered_tau_mean_alc <- summary(recovery_fit, pars="tau")$summary[, c("mean")][c(rep(FALSE,1),TRUE)]
+recovered_tau_mean <- c(recovered_tau_mean_jui,recovered_tau_mean_alc)
+recovered_gamma_mean_jui <- summary(recovery_fit, pars="gamma")$summary[, c("mean")][c(TRUE,rep(FALSE,1))]
+recovered_gamma_mean_alc <- summary(recovery_fit, pars="gamma")$summary[, c("mean")][c(rep(FALSE,1),TRUE)]
+recovered_gamma_mean <- c(recovered_gamma_mean_jui,recovered_gamma_mean_alc)
+recovered_C_mean_jui <- summary(recovery_fit, pars="C_const")$summary[, c("mean")][c(TRUE,rep(FALSE,1))]
+recovered_C_mean_alc <- summary(recovery_fit, pars="C_const")$summary[, c("mean")][c(rep(FALSE,1),TRUE)]
+recovered_C_mean <- c(recovered_C_mean_jui,recovered_C_mean_alc)
 
 recovered_mu_A <- as.matrix(recovery_fit, pars = "mu_A")
 recovered_mu_tau <- as.matrix(recovery_fit, pars = "mu_tau")
