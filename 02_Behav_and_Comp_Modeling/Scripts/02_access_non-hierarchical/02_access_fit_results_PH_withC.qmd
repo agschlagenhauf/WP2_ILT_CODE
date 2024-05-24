@@ -151,7 +151,7 @@ if (estimation==1) {
   log_likelihood <- log_likelihood[,log_likelihood[1,]!=-999]
 
   # save for model comparison
-  write.table(log_likelihood, file=file.path(out_path, 'log_lik_PH_withC.txt'), append = FALSE, sep = " ", dec = ".", row.names = F, col.names = F)
+  #write.table(log_likelihood, file=file.path(out_path, 'log_lik_PH_withC.txt'), append = FALSE, sep = " ", dec = ".", row.names = F, col.names = F)
   
   # print and plot loo
   loo1 <- loo(log_likelihood)

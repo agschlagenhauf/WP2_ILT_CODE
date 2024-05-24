@@ -31,6 +31,12 @@ behavpath <- '/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/ILT_DATA'
 cbPalette <- c( "#0072B2", "#D55E00", "#009E73", "#CC79A7",
                 "#F0E442", "#56B4E9", "#999999", "#E69F00")
 
+loadRData <- function(fileName){
+#loads an RData file, and returns it
+    load(fileName)
+    get(ls()[ls() != "fileName"])
+}
+
 ```
 
 # Step 1: Comparison of random-intercept models
@@ -38,10 +44,10 @@ cbPalette <- c( "#0072B2", "#D55E00", "#009E73", "#CC79A7",
 ## Load Stan fit files
 ```{r}
 # stan input non-hierarchical
-stan_data <- load(file.path(behavpath,"Input/stan_data_bandit2arm_delta_PH_withC_n58.RData"))
+stan_data <- loadRData(file.path(behavpath,"Input/stan_data_bandit2arm_delta_PH_withC_n58.RData"))
 
 # stan input hierarchical
-stan_data_hierarchical <- load(file.path(behavpath,"Input/stan_data_bandit2arm_delta_PH_withC_hierarchical_group_n58.RData"))
+stan_data_hierarchical <- loadRData(file.path(behavpath,"Input/stan_data_bandit2arm_delta_PH_withC_hierarchical_group_n58.RData"))
 
 fit_file_main <- 'fit_n58_2024-04-12_bandit2arm_delta_main_estimation1_delta0.9_stepsize0.5.rds'
 fit_file_main_DU <- 'fit_n58_2024-04-12_bandit2arm_delta_main_DU_estimation1_delta0.99_stepsize0.1.rds'
@@ -186,9 +192,9 @@ fit_PH_withC_hierarchical_group <- readRDS(file.path(out_path, fit_file_PH_withC
 log_likelihood_PH_withC_hierarchical_group <- extract_log_lik(fit_PH_withC_hierarchical_group, parameter_name = "log_lik", merge_chains = T)
 
 # create logical vector coding if a column should be included in log_likelihood
-x <- logical(stan_data$T) # create vector containing total number of trials * FALSE
-a <- c(stan_data$N+1:(stan_data$N*49)) 
-b <- c(stan_data$N*50+stan_data$N+1:(stan_data$N*49))
+x <- logical(stan_data_hierarchical$T) # create vector containing total number of trials * FALSE
+a <- c(stan_data_hierarchical$N+1:(stan_data_hierarchical$N*49)) 
+b <- c(stan_data_hierarchical$N*50+stan_data_hierarchical$N+1:(stan_data_hierarchical$N*49))
 c <- c(a,b) # concatenate both number vectors
 x[c] <- TRUE # set logical value to TRUE if index in c
 
@@ -237,6 +243,6 @@ elpd_kfold_PH_withC_hierarchical_group <- elpd(log_pd_PH_withC_hierarchical_grou
 
 ### Model comparison
 ```{r}
-comp4 <- loo_compare(elpd_PH_withC, elpd_PH_withC_hierarchical_group)
+comp4 <- loo_compare(elpd_kfold_PH_withC, elpd_kfold_PH_withC_hierarchical_group)
 print(comp4, digits = 3)
 ```
