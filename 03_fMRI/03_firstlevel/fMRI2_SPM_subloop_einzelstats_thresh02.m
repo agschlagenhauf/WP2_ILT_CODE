@@ -6,11 +6,15 @@
 % cfg_basicio BasicIO - Unknown
 %-----------------------------------------------------------------------
 
-clc; clear;warning off;
+clc; 
+clear;
+warning off;
+addpath('C:\spm12')
+addpath('C:\Users\musialm\OneDrive - Charité - Universitätsmedizin Berlin\PhD\04_B01\ILT\WP2_ILT_CODE\03_fMRI\functs')
 
 % define paths
 paMeta_epi = 'S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\01_fmriprep_v23.2.1';
-einzelstatspath= 'S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\02_spm12_1st_level\PH_withC_n58';
+einzelstatspath= 'S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\02_spm12_1st_level\PH_withC_group_n58';
 
 TR=0.869; % in sec
 
@@ -40,14 +44,14 @@ for pb = 1:length(names)%subjects to run
     epi_run2 = epis(2,:);
     
     % get RP file
-    rpfiles = spm_select('FPList', epifolder, '^RP.*ilt.*.mat'); % please adapt
+    rpfiles = spm_select('FPList', epifolder, '^RP.*ilt.*.mat');
     rp_run1 = load(rpfiles(1,:));
     n_volumes_of_interest_run1 = length(rp_run1.R);
     rp_run2 = load(rpfiles(2,:));
     n_volumes_of_interest_run2 = length(rp_run2.R);
 
     % use binary brain mask for explicit masking
-    mask_path = fullfile(paMeta_epi, subject, 'anat', [subject_id '_space-MNI152NLin2009cAsym_desc-brain_mask.nii']);
+    mask_path = fullfile(paMeta_epi, subject, 'anat', [subject '_space-MNI152NLin2009cAsym_desc-brain_mask.nii']);
 
     %% matlabbatch
     matlabbatch{1}.spm.util.exp_frames.files = {epi_run1};
