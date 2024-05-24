@@ -114,6 +114,14 @@ if (estimation==1) {
   # extract log likelihood for each choice
   log_likelihood <- extract_log_lik(fit, parameter_name = "log_lik", merge_chains = TRUE)
 
+  # create logical vector coding if a column should be included in log_likelihood
+  x <- logical(stan_data$T) # create vector containing total number of trials * FALSE
+  a <- c(stan_data$N+1:(stan_data$N*49)) # vector with number from 2 to 58 subjects * 49 trials 
+  x[a] <- TRUE # set logical value to TRUE if index in c
+  
+  # exclude 1st trial per subject as likelihood is identical and hinders loo estimation (causes Inf pareto k values)
+  log_likelihood <- log_likelihood[,x] # include only trials 1:44 for each subject and reinforcer_type
+
   # exclude missing trials
   log_likelihood <- log_likelihood[,log_likelihood[1,]!=-999]
 
