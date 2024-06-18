@@ -14,7 +14,7 @@ addpath('C:\Users\musialm\OneDrive - Charité - Universitätsmedizin Berlin\PhD\
 
 % define paths
 paMeta_epi = 'S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\01_fmriprep_v23.2.1';
-einzelstatspath= 'S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\02_spm12_1st_level\PH_withC_group_n58';
+einzelstatspath= 'S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\02_spm12_1st_level\PH_withC_group_n58_constant_feedback';
 
 TR=0.869; % in sec
 

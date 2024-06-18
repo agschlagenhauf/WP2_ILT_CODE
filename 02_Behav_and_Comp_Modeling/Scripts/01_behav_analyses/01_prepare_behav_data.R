@@ -6,7 +6,7 @@
 # clear
 rm(list=ls())
 
-# install.packages('tidyverse', 'stringr')
+#install.packages('tidyverse', 'plyr')
 libs<-c("tidyverse", "R.matlab", "stringr", "plyr", "dplyr")
 sapply(libs, require, character.only=TRUE)
 

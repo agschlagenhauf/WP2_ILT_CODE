@@ -7,7 +7,7 @@ addpath('C:\spm12')
 addpath('C:\Users\musialm\OneDrive - Charité - Universitätsmedizin Berlin\PhD\04_B01\ILT\WP2_ILT_CODE\03_fMRI\functs')
 
 %main_path='S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\02_spm12_1st_level\PH_withC_n58';
-main_path='S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\02_spm12_1st_level\PH_withC_group_n58';
+main_path='S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\02_spm12_1st_level\PH_withC_group_n58_constant_feedback';
 
 % load parametric modulators
 %PEs = readtable(fullfile(main_path, 'fmri_PEs_PH_withC_init05_n58.txt'));

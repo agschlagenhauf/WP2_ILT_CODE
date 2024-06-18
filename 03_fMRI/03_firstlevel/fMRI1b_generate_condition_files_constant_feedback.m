@@ -15,7 +15,7 @@ bin = TR/MR;
 
 % define output path
 %stats_path = 'S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\02_spm12_1st_level\PH_withC_n58'; % folder for single stats of this specific model, add names of pmods
-stats_path = 'S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\02_spm12_1st_level\PH_withC_group_n58_prolonged_feedback'; % folder for single stats of this specific model, add names of pmods
+stats_path = 'S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\02_spm12_1st_level\PH_withC_group_n58_constant_feedback'; % folder for single stats of this specific model, add names of pmods
 
 % define behavioral data files
 behav_path   = 'C:\Users\musialm\OneDrive - Charité - Universitätsmedizin Berlin\PhD\04_B01\ILT\WP2_ILT_DATA\Behav\raw\FilesReport_ILTdata_2023-05-24_1718\documents'; % raw behavioral data path
@@ -160,8 +160,8 @@ for n = 1:length(ids)
                 trial_length(trial,1) = onsets_trialend(trial,1)-onsets_cue(trial,1); % trial length
                 feedback_length(trial,1) = onsets_trialend(trial,1)-onsets_feedback(trial,1);  % feedback length
             else % if taste & swallow in this trial
-                trial_length(trial,1) = onsets_swallow(trial,1)-onsets_cue(trial,1); % trial length
-                feedback_length(trial,1) = onsets_swallow(trial,1)-onsets_feedback(trial,1);  % feedback length
+                trial_length(trial,1) = onsets_taste(trial,1)-onsets_cue(trial,1); % trial length
+                feedback_length(trial,1) = onsets_taste(trial,1)-onsets_feedback(trial,1);  % feedback length
                 swallow_length(trial,1) = onsets_trialend(trial,1)-onsets_swallow(trial,1); % swallow length
             end
         end

@@ -18,9 +18,10 @@ behav_path <- 'C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berli
 
 ##########################RedCap infos######################
 
-##### create redcap df #####
-redcap.file<-list.files(file.path(data_path))
-redcap<-read.csv(file.path(data_path, redcap.file[length(redcap.file)], na.strings=""))
+##### load dfs #####
+redcap<-read.csv(file.path(data_path, "TRR265ProjectB01WP2I-DataForWP2Analysis_DATA_2024-06-18_1751.csv", na.strings=""))
+redcap_BA<-read.csv(file.path(data_path, "TRR265BasicAssessmen-B01WP2DemoVars_DATA_2024-06-18_1753.csv", na.strings=""))
+behav <- load(file.path(behav_path, "behav_final_n58.RData", na.strings=""))
 
 ## extract subject with valid data
 
@@ -28,28 +29,13 @@ redcap<-read.csv(file.path(data_path, redcap.file[length(redcap.file)], na.strin
 redcap <- redcap[ !(redcap$participant_id %in% c(815,12240,12355,12390,12438,12564,12653,12885,12900,12956,12992,13065)), ]
 
 # exlcude subjects due to head movement & behav exclusion criteria
-if (sample == "n50") {
-  # exclude subjects based on performance
-  ID_excl <- as.vector(read.table(file.path(behav_path, 'ID_excl_pcorrect.txt'), header = F)$V1)
-  redcap <- dplyr::filter(redcap, !(participant_id %in% ID_excl))
-} else if (sample == 'n53') {
-  ID_excl <- as.vector(read.table(file.path(behav_path, 'ID_excluded_n53.txt'), header = F)$V1)
-  redcap <- dplyr::filter(redcap, !(participant_id %in% ID_excl))
-} else if (sample == 'n56') {
-  ID_excl <- as.vector(read.table(file.path(behav_path, 'ID_excluded_n56.txt'), header = F)$V1)
-  redcap <- dplyr::filter(redcap, !(participant_id %in% ID_excl))
-} else if (sample == 'n60') {
-  ID_excl <- as.vector(read.table(file.path(behav_path, 'ID_excluded_n60.txt'), header = F)$V1)
-  redcap <- dplyr::filter(redcap, !(participant_id %in% ID_excl))
-} else if (sample == 'n63') {
-  ID_excl <- as.vector(read.table(file.path(behav_path, 'ID_excluded_n63.txt'), header = F)$V1)
-  redcap <- dplyr::filter(redcap, !(participant_id %in% ID_excl))
-}
 
+# exclude subjects based on performance
+ID_excl <- as.vector(read.table(file.path(behav_path, 'ID_excluded_n58.txt'), header = F)$V1)
+redcap <- dplyr::filter(redcap, !(participant_id %in% ID_excl))
 
 # reformat and extract only relevant columns
 redcap<-select(redcap, all_of(c('participant_id', 'b01_age', 'bx_sozio_gender', 'bx_aud_aud', 'bx_aud_sum', 'bx_audit_sum', 'bx_qsu_smoking', 'bx_sozio_graduat', 'bx_scid_sub1_sum')))
-
 
 redcap <- redcap %>%
   
@@ -82,6 +68,12 @@ redcap <- redcap %>%
   mutate(aud_group = replace(aud_group, is.na(aud_group), "HC"),
          aud_sum= replace(aud_sum, is.na(aud_sum), 0),
          smoker = replace(smoker, is.na(smoker), "yes"))
+
+# add infos from BA
+redcap_BA <- redcap_BA %>%
+  rename(ID = participant_id) %>%
+  filter(redcap_event_name == "erhebungszeitpunkt_arm_1")
+redcap_new <- merge.data.frame(redcap, redcap_BA, by = "ID", all.x = T)
 
 # num of subjs
 nsub<-length(redcap$ID)
