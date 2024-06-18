@@ -18,8 +18,8 @@ einzelstatspath= 'S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\02
 
 TR=0.869; % in sec
 
-gui=1 %open GUI
-[subject fold2, names] = p_getSubFolder(paMeta_epi, [],gui  ,'sep');
+gui=1; %open GUI
+[subject, fold2, names] = p_getSubFolder(paMeta_epi, [],gui  ,'sep');
 
 chktabl={};    
 
@@ -33,34 +33,55 @@ for pb = 1:length(names)%subjects to run
     condfilepath = fullfile(einzelstatspath, subject);
 
     %get CONDTION-MATFILE
-    [condfiles, dum] = spm_select('FPList', condfilepath , '_cond.*\mat');
-    condfile_run1 = condfiles(1,:);
-    condfile_run2 = condfiles(2,:);
-
+    [condfile_A, ~] = spm_select('FPList', condfilepath , '.*reinforcer_A.*\mat');
+    [condfile_J, ~] = spm_select('FPList', condfilepath , '.*reinforcer_J.*\mat');
+    % get block per condition
+    block_A_string = split(condfile_A, ["A_", "."]);
+    block_A = block_A_string{2};
+    block_J_string = split(condfile_J, ["J_", "."]);
+    block_J = block_J_string{2};
+    
     %get EPIs
     epifolder = fullfile(paMeta_epi, subject, 'func');
     epis = spm_select('FPList', epifolder, '^smoothed8mm.*ilt.*.nii');
     epi_run1 = epis(1,:);
     epi_run2 = epis(2,:);
+    if block_A == "block_1"
+        epi_A = epi_run1;
+        epi_J = epi_run2;
+    elseif block_A == "block_2"
+        epi_A = epi_run2;
+        epi_J = epi_run1;
+    end
+    clear epi_run1 epi_run2
     
     % get RP file
-    rpfiles = spm_select('FPList', epifolder, '^RP.*ilt.*.mat');
-    rp_file_run1 = rpfiles(1,:);
-    rp_run1 = load(rp_file_run1);
-    n_volumes_of_interest_run1 = length(rp_run1.R);
-    rp_file_run2 = rpfiles(2,:);
-    rp_run2 = load(rp_file_run2);
-    n_volumes_of_interest_run2 = length(rp_run2.R);
+    rp_file_run1 = spm_select('FPList', epifolder, '^RP.*ilt_run-1.mat');
+    rp_file_run2 = spm_select('FPList', epifolder, '^RP.*ilt_run-2.mat');
+    if block_A == "block_1"
+        rp_file_A = rp_file_run1;
+        rp_file_J = rp_file_run2;
+    elseif block_A == "block_2"
+        rp_file_A = rp_file_run2;
+        rp_file_J = rp_file_run1;
+    end 
+    clear rp_file_run1 rp_file_run2
+    
+    % get volumes of interest length
+    rp_A = load(rp_file_A);
+    n_volumes_of_interest_A = length(rp_A.R);
+    rp_J = load(rp_file_J);
+    n_volumes_of_interest_J = length(rp_J.R);
 
     % use binary brain mask for explicit masking
     mask_path = fullfile(paMeta_epi, subject, 'anat', [subject '_space-MNI152NLin2009cAsym_desc-brain_mask.nii']);
 
     %% matlabbatch
-    matlabbatch{1}.spm.util.exp_frames.files = {epi_run1};
-    matlabbatch{1}.spm.util.exp_frames.frames = [1:n_volumes_of_interest_run1];
+    matlabbatch{1}.spm.util.exp_frames.files = {epi_A};
+    matlabbatch{1}.spm.util.exp_frames.frames = [1:n_volumes_of_interest_A];
 
-    matlabbatch{2}.spm.util.exp_frames.files = {epi_run2};
-    matlabbatch{2}.spm.util.exp_frames.frames = [1:n_volumes_of_interest_run2];
+    matlabbatch{2}.spm.util.exp_frames.files = {epi_J};
+    matlabbatch{2}.spm.util.exp_frames.frames = [1:n_volumes_of_interest_J];
 
     matlabbatch{3}.spm.stats.fmri_spec.dir = {condfilepath};
     matlabbatch{3}.spm.stats.fmri_spec.timing.units = 'secs';
@@ -70,16 +91,16 @@ for pb = 1:length(names)%subjects to run
 
     matlabbatch{3}.spm.stats.fmri_spec.sess(1).scans(1) = cfg_dep('Expand image frames: Expanded filename list.', substruct('.','val', '{}',{1}, '.','val', '{}',{1}, '.','val', '{}',{1}), substruct('.','files'));
     matlabbatch{3}.spm.stats.fmri_spec.sess(1).cond = struct('name', {}, 'onset', {}, 'duration', {}, 'tmod', {}, 'pmod', {}, 'orth', {});
-    matlabbatch{3}.spm.stats.fmri_spec.sess(1).multi = {condfile_run1};
+    matlabbatch{3}.spm.stats.fmri_spec.sess(1).multi = {condfile_A};
     matlabbatch{3}.spm.stats.fmri_spec.sess(1).regress = struct('name', {}, 'val', {});
-    matlabbatch{3}.spm.stats.fmri_spec.sess(1).multi_reg = {rp_file_run1};
+    matlabbatch{3}.spm.stats.fmri_spec.sess(1).multi_reg = {rp_file_A};
     matlabbatch{3}.spm.stats.fmri_spec.sess(1).hpf = 128;
 
     matlabbatch{3}.spm.stats.fmri_spec.sess(2).scans(1) = cfg_dep('Expand image frames: Expanded filename list.', substruct('.','val', '{}',{2}, '.','val', '{}',{1}, '.','val', '{}',{1}), substruct('.','files'));
     matlabbatch{3}.spm.stats.fmri_spec.sess(2).cond = struct('name', {}, 'onset', {}, 'duration', {}, 'tmod', {}, 'pmod', {}, 'orth', {});
-    matlabbatch{3}.spm.stats.fmri_spec.sess(2).multi = {condfile_run2};
+    matlabbatch{3}.spm.stats.fmri_spec.sess(2).multi = {condfile_J};
     matlabbatch{3}.spm.stats.fmri_spec.sess(2).regress = struct('name', {}, 'val', {});
-    matlabbatch{3}.spm.stats.fmri_spec.sess(2).multi_reg = {rp_file_run2};
+    matlabbatch{3}.spm.stats.fmri_spec.sess(2).multi_reg = {rp_file_J};
     matlabbatch{3}.spm.stats.fmri_spec.sess(2).hpf = 128;
 
     matlabbatch{3}.spm.stats.fmri_spec.fact = struct('name', {}, 'levels', {});

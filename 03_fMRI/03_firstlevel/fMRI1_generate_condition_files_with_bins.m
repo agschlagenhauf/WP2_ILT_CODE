@@ -321,7 +321,7 @@ for n = 1:length(ids)
         % save multiple condition files
         if ~exist(sub_stats_path,'dir'); mkdir(sub_stats_path); end
 
-        save([sub_stats_path '/sub-' ids{n} '_conditions_ilt' blocks{block} '.mat'], 'names', 'onsets','durations', 'pmod', 'orth');
+        save([sub_stats_path '/sub-' ids{n} '_conditions_ilt_reinforcer_' D_sub.Drink_Type '_block_' blocks{block} '.mat'], 'names', 'onsets','durations', 'pmod', 'orth');
         clear regs pmod onsets names durations onsets_cue onsets_cue_missings onsets_feedback onsets_feedback_missings onsets_taste onsets_swallow onsets_trialend onsets_trialend_missings orth ons ons_m ons_s PE_modulator PC_modulator trial_length feedback_length cue_length swallow_length missing_trial_length
         
     end % block
