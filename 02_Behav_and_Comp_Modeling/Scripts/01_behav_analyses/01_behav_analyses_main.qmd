@@ -20,7 +20,7 @@ editor_options:
 
 rm(list=ls())
 
-sample <- "n58" # n71, n53, n56, n63, n50
+sample <- "n71" # n71, n53, n56, n63, n50
 ```
 
 ```{r}
