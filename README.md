@@ -1,4 +1,4 @@
-# Reduced SR in AUD
+# Learning from drug reinforcers in AUD
 
 Code repository for study 'Learning from primary alcohol versus non-alcohol reinforcers: alterations in Alcohol Use Disorder?' (TRR265 B01 WP2).
 
