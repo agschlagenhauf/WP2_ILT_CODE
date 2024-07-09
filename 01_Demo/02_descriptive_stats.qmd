@@ -1,0 +1,170 @@
+---
+title: "Demographic data"
+author: "Milena Musial"
+format:
+  html:
+    embed-resources: true
+    editor: visual
+    toc: true
+    toc-depth: 4
+    number-sections: true
+    number-depth: 4
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+rm(list=ls())
+
+libs<-c("tidyverse", "stringr", "plyr", "dplyr", "lme4", "lmerTest","kableExtra", "gmodels", "sjPlot")
+sapply(libs, require, character.only=TRUE)
+
+data_path<-'C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_DATA'
+
+load(file.path(data_path,"RedCap/redcap_n58.RData"))
+```
+
+# Categorical variables
+
+## Gender
+
+```{r}
+gender_summary <- redcap_new %>%
+  select(aud_group, gender) %>%
+  group_by(aud_group) %>%
+  count()
+gender_summary
+```
+
+```{r}
+chisq.test(redcap_new$aud_group, redcap_new$gender)
+```
+
+```{r}
+smoker_summary <- redcap_new %>%
+  select(aud_group, smoker) %>%
+  group_by(aud_group) %>%
+  count()
+smoker_summary
+```
+
+```{r}
+chisq.test(redcap_new$aud_group, redcap_new$smoker)
+```
+
+```{r}
+graduat_summary <- redcap_new %>%
+  select(aud_group, graduat) %>%
+  group_by(aud_group) %>%
+  count()
+graduat_summary
+```
+
+```{r}
+chisq.test(redcap_new$aud_group, redcap_new$graduat)
+```
+
+```{r}
+MRI_summary <- redcap_new %>%
+  select(aud_group, MRI) %>%
+  group_by(aud_group) %>%
+  count()
+MRI_summary
+```
+
+```{r}
+chisq.test(redcap_new$aud_group, redcap_new$MRI)
+```
+
+## Continuous variables
+
+```{r}
+age_summary <- redcap_new %>%
+  select(aud_group, age) %>%
+  group_by(aud_group) %>%
+  dplyr::summarise(mean = mean(age, na.rm = TRUE),
+            min = min(age, na.rm = TRUE),
+            max = max(age, na.rm = TRUE),
+            ci_l = ci(age, na.rm = TRUE)[2],
+            ci_u = ci(age, na.rm = TRUE)[3])
+age_summary
+```
+
+```{r}
+t.test(redcap_new$age ~ redcap_new$aud_group)
+```
+
+```{r}
+smoking_days_summary <- redcap_new %>%
+  select(aud_group, smoking_days) %>%
+  group_by(aud_group) %>%
+  dplyr::summarise(mean = mean(smoking_days, na.rm = TRUE),
+            min = min(smoking_days, na.rm = TRUE),
+            max = max(smoking_days, na.rm = TRUE),
+            ci_l = ci(smoking_days, na.rm = TRUE)[2],
+            ci_u = ci(smoking_days, na.rm = TRUE)[3])
+smoking_days_summary
+```
+
+```{r}
+t.test(redcap_new$smoking_days ~ redcap_new$aud_group)
+```
+
+```{r}
+aud_summary <- redcap_new %>%
+  select(aud_group, aud_sum) %>%
+  group_by(aud_group) %>%
+  dplyr::summarise(mean = mean(aud_sum, na.rm = TRUE),
+            min = min(aud_sum, na.rm = TRUE),
+            max = max(aud_sum, na.rm = TRUE),
+            ci_l = ci(aud_sum, na.rm = TRUE)[2],
+            ci_u = ci(aud_sum, na.rm = TRUE)[3])
+aud_summary
+```
+
+```{r}
+t.test(redcap_new$aud_sum ~ redcap_new$aud_group)
+```
+
+```{r}
+fig_aud_crit <- ggplot(redcap_new[redcap_new$aud_group=="AUD",], aes(x=as.factor(aud_sum))) +
+  xlab("AUD criteria") +
+  geom_bar(fill = "#7fc97f") +
+  theme_light(base_size = 18)
+
+png("C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/Manuscript/Figures/aud_crit_distribution.png", width = 10, height = 10, units='cm', res = 600)
+fig_aud_crit
+dev.off()
+```
+
+```{r}
+audit_summary <- redcap_new %>%
+  select(aud_group, audit_sum) %>%
+  group_by(aud_group) %>%
+  dplyr::summarise(mean = mean(audit_sum, na.rm = TRUE),
+            min = min(audit_sum, na.rm = TRUE),
+            max = max(audit_sum, na.rm = TRUE),
+            ci_l = ci(audit_sum, na.rm = TRUE)[2],
+            ci_u = ci(audit_sum, na.rm = TRUE)[3])
+audit_summary
+```
+
+```{r}
+t.test(redcap_new$audit_sum ~ redcap_new$aud_group)
+```
+
+```{r}
+can_summary <- redcap_new %>%
+  select(aud_group, can_sum) %>%
+  group_by(aud_group) %>%
+  dplyr::summarise(mean = mean(can_sum, na.rm = TRUE),
+            min = min(can_sum, na.rm = TRUE),
+            max = max(can_sum, na.rm = TRUE),
+            ci_l = ci(can_sum, na.rm = TRUE)[2],
+            ci_u = ci(can_sum, na.rm = TRUE)[3])
+can_summary
+```
+
+```{r}
+t.test(redcap_new$can_sum ~ redcap_new$aud_group)
+```

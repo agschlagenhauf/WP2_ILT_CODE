@@ -9,6 +9,8 @@ format:
     toc-depth: 4
     number-sections: true
     number-depth: 4
+editor_options: 
+  chunk_output_type: console
 ---
 
 # Preps
@@ -24,7 +26,7 @@ sample <- "n58" # n71, n53, n56, n63, n50
 ```{r}
 # install.packages('tidyverse', 'stringr')
 libs<-c("tidyverse", "stringr", "plyr", "dplyr", "lme4", "robustlmm", "lmerTest",
-        "sjPlot", "remef")
+        "sjPlot", "remef", "ggpubr")
 sapply(libs, require, character.only=TRUE)
 
 cbPalette <- c( "#0072B2", "#D55E00", "#009E73", "#CC79A7",
@@ -37,14 +39,6 @@ if (sample == 'n71') {
   load(file.path(data_path,"WP2_ILT_DATA/Behav/behav_final_n71.RData"))
   load(file.path(data_path,"WP2_ILT_DATA/RedCap/redcap_n71.RData"))
   load(file.path(data_path,"WP2_ILT_DATA/Behav/behav_final_redcap_n71.RData")) 
-} else if (sample == 'n63') {
-  load(file.path(data_path,"WP2_ILT_DATA/Behav/behav_final_n63.RData"))
-  load(file.path(data_path,"WP2_ILT_DATA/RedCap/redcap_n63.RData"))
-  load(file.path(data_path,"WP2_ILT_DATA/Behav/behav_final_redcap_n63.RData")) 
-} else if (sample == 'n60') {
-  load(file.path(data_path,"WP2_ILT_DATA/Behav/behav_final_n60.RData"))
-  load(file.path(data_path,"WP2_ILT_DATA/RedCap/redcap_n60.RData"))
-  load(file.path(data_path,"WP2_ILT_DATA/Behav/behav_final_redcap_n60.RData")) 
 } else if (sample == 'n58') {
   load(file.path(data_path,"WP2_ILT_DATA/Behav/behav_final_n58.RData"))
   load(file.path(data_path,"WP2_ILT_DATA/RedCap/redcap_n58.RData"))
@@ -53,15 +47,9 @@ if (sample == 'n71') {
   load(file.path(data_path,"WP2_ILT_DATA/Behav/behav_final_n56.RData"))
   load(file.path(data_path,"WP2_ILT_DATA/RedCap/redcap_n56.RData"))
   load(file.path(data_path,"WP2_ILT_DATA/Behav/behav_final_redcap_n56.RData")) 
-} else if (sample == 'n53') {
-  load(file.path(data_path,"WP2_ILT_DATA/Behav/behav_final_n53.RData"))
-  load(file.path(data_path,"WP2_ILT_DATA/RedCap/redcap_n53.RData"))
-  load(file.path(data_path,"WP2_ILT_DATA/Behav/behav_final_redcap_n53.RData")) 
-} else if (sample == 'n50') {
-  load(file.path(data_path,"WP2_ILT_DATA/Behav/behav_final_n50.RData"))
-  load(file.path(data_path,"WP2_ILT_DATA/RedCap/redcap_n50.RData"))
-  load(file.path(data_path,"WP2_ILT_DATA/Behav/behav_final_redcap_n50.RData")) 
 }
+
+redcap <- redcap_new
 
 # create outcome as predictor for stay switch analyses
 behav_final$outcome_pred <- factor(behav_final$outcome)
@@ -469,7 +457,7 @@ tab_model(m_crave_auditsum,
           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
 ```
 
-### Taste ratings per time point
+### Craving ratings per time point
 
 ```{r}
 m_crave_time <- lm(value ~ 1 + reinforcer_type*aud_group*ratings, data=behav_rating_long_crave)
@@ -494,7 +482,7 @@ fig1 <- ggplot(behav_rating, aes(reinforcer_type, y = taste1, fill=reinforcer_ty
   scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) +
   scale_y_continuous("Taste rating pre") +
   scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) +
-  theme_bw(base_size=12) +
+  theme_bw(base_size=18) +
   theme(legend.position = "none")
 
 fig1
@@ -584,6 +572,26 @@ fig1 <- ggplot(behav_rating, aes(aud_group, y = taste_diff, fill=aud_group)) +
   theme(legend.position = "none")
 
 fig1
+```
+
+### Taste per time point, group, reinforcer type
+
+```{r}
+fig_taste <- ggplot(behav_rating_long_taste, aes(x = ratings, y = value, fill = reinforcer_type)) +
+  geom_violin() +
+  geom_boxplot(aes(group=interaction(ratings,reinforcer_type)), 
+               width=0.1, position=position_dodge(width = 0.9),
+               size=0.8) + 
+  facet_wrap(~aud_group, scales="fixed") +
+  scale_x_discrete("Timepoint", labels=c('pre', 'post')) +
+  scale_y_continuous("Taste rating") +
+  theme_light(base_size=18) +
+  theme(legend.position = "top") +
+  scale_fill_brewer(name="Reinforcer type", 
+                    labels=c("alcohol", "juice"),
+                    palette = "Accent")
+
+fig_taste
 ```
 
 ### Craving pre
@@ -689,6 +697,38 @@ fig1 <- ggplot(behav_rating, aes(aud_group, y = crave_diff, fill=aud_group)) +
   theme(legend.position = "none")
 
 fig1
+```
+
+### Craving per time point, group, reinforcer type
+
+```{r}
+fig_crave <- ggplot(behav_rating_long_crave, aes(x = ratings, y = value, fill = reinforcer_type)) +
+  geom_violin() +
+  geom_boxplot(aes(group=interaction(ratings,reinforcer_type)), 
+               width=0.1, position=position_dodge(width = 0.9),
+               size=0.8) + 
+  facet_wrap(~aud_group, scales="fixed") +
+  scale_x_discrete("Timepoint", labels=c('pre', 'post')) +
+  scale_y_continuous("Craving rating") +
+  theme_light(base_size=18) +
+  theme(legend.position = "top") +
+  scale_fill_brewer(name="Reinforcer type", 
+                  labels=c("alcohol", "juice"),
+                  palette = "Accent")
+
+fig_crave
+```
+
+```{r}
+# save combined plot
+fig_taste_crave <- ggarrange(fig_taste, fig_crave,
+          labels = c("A", "B"),
+          ncol = 2, nrow = 1,
+          common.legend = TRUE, legend="bottom")
+
+png("taste_crave.png", width = 22, height = 10, units='cm', res = 600)
+fig_taste_crave
+dev.off()
 ```
 
 # Correct choices
@@ -859,10 +899,9 @@ m_correct_log_1 <- glmer(correct ~ 1 + reinforcer_type*aud_group + (1 | ID), dat
 m_correct_log_2 <- glmer(correct ~ 1 + reinforcer_type*aud_group + (1 + reinforcer_type || ID), data=behav_final_redcap, family = binomial, control=glmerControl(calc.derivs=FALSE))
 m_correct_log_3 <- glmer(correct ~ 1 + reinforcer_type*aud_group + (1 + reinforcer_type | ID), data=behav_final_redcap, family = binomial, control=glmerControl(calc.derivs=FALSE))
 
-anova(m_correct_log_1,m_correct_log_2)
-anova(m_correct_log_2,m_correct_log_3)
+anova(m_correct_log_1,m_correct_log_2,m_correct_log_3)
 
-tab_model(m_correct_log_2,
+tab_model(m_correct_log_3,
           dv.labels=c("m_correct_log"), digits=3, digits.re=2, 
           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
 ```
@@ -906,18 +945,20 @@ tab_model(m_correct_log_2_auditsum,
 ### Per group and reinforcer type
 
 ```{r}
-fig1 <- ggplot(df_c, aes(reinforcer_type, y = p_correct, fill=reinforcer_type)) +
+fig_correct <- ggplot(df_c, aes(reinforcer_type, y = p_correct, fill=reinforcer_type)) +
   geom_violin() +
-  geom_boxplot(width=0.1) + 
-  geom_jitter(shape=16, position=position_jitter(0.2)) +
+  geom_boxplot(width=0.1, size=0.8) + 
   facet_wrap(~aud_group, scales="fixed") +
-  scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) +
-  scale_y_continuous("% correct") +
-  scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) +
-  theme_bw(base_size=12) +
-  theme(legend.position = "none")
-
-fig1
+  scale_y_continuous("% Correct choices", limits = c(0,1)) +
+  theme_light(base_size=18) +
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        legend.position = "bottom") +
+  scale_fill_brewer(name="Reinforcer type", 
+                  labels=c("alcohol", "juice"),
+                  palette = "Accent")
+fig_correct
 ```
 
 ### Per reinforcer type
@@ -985,7 +1026,7 @@ fig2 <- ggplot(df_c_ID_block_trialbin, aes(x=trial_bin, y=p_correct, group=reinf
 
 fig2
 
-ggsave("C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_CODE/Stan Modeling/test.jpg", width =30, height = 20,limitsize = FALSE)
+#ggsave("C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_CODE/Stan Modeling/test.jpg", width =30, height = 20,limitsize = FALSE)
 ```
 
 # Association correct choices & ratings
@@ -1154,11 +1195,9 @@ m_win_stay_log_3=lmer(win_stay~reinforcer_type*aud_group + (1 + reinforcer_type 
                 data=behav_final_redcap,
                 control=lmerControl(calc.derivs=FALSE))
 
-anova(m_win_stay_log_1,m_win_stay_log_2)
-anova(m_win_stay_log_2,m_win_stay_log_3)
-anova(m_win_stay_log_1,m_win_stay_log_3)
+anova(m_win_stay_log_1,m_win_stay_log_2,m_win_stay_log_3)
 
-tab_model(m_win_stay_log_3,
+tab_model(m_win_stay_log_1,
           dv.labels=c("m_stay"), digits=3, digits.re=2, 
           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
 
@@ -1219,19 +1258,35 @@ tab_model(m_win_stay_log_2_auditsum,
 ### Violin plot per aud group and reinforcer type
 
 ```{r}
-fig4 <- ggplot(df_win_stay, aes(reinforcer_type, y = win_stay_p, fill=reinforcer_type)) +
+fig_win_stay <- ggplot(df_win_stay, aes(reinforcer_type, y = win_stay_p, fill=reinforcer_type)) +
   geom_violin() +
-  geom_boxplot(width=0.1) + 
-  geom_jitter(shape=16, position=position_jitter(0.2)) +
+  geom_boxplot(width=0.1, size=0.8) + 
   facet_wrap(~ aud_group, scales="fixed") +
-  scale_x_discrete("reinforcer type", labels=c('juice', 'alcohol')) +
-  scale_y_continuous("prob(repeat action rewarded in prev trial)") +
-  scale_fill_manual("reinforcer_type", values = cbPalette[c(6,8)]) +
-  theme_bw(base_size=12) +
-  theme(legend.position = "none")
+  scale_y_continuous("Win-stay probability", limits = c(0,1)) +
+  theme_light(base_size=18) +
+  theme(axis.title.x=element_blank(),
+      axis.text.x=element_blank(),
+      axis.ticks.x=element_blank(),
+      legend.position = "bottom") +
+  scale_fill_brewer(name="Reinforcer type", 
+                  labels=c("alcohol", "juice"),
+                  palette = "Accent")
 
-fig4
+fig_win_stay
 
+```
+
+```{r}
+# save combined plot
+fig_correct_win_stay <- ggarrange(fig_correct, fig_win_stay,
+          labels = c("A", "B"),
+          ncol = 2, nrow = 1,
+          common.legend = TRUE, legend="bottom")
+fig_correct_win_stay
+
+png("correct_win_stay.png", width = 16, height = 10, units='cm', res = 600)
+fig_correct_win_stay
+dev.off()
 ```
 
 ### Violin plot per AUD group
@@ -1393,9 +1448,8 @@ m_nowin_switch_log_3=lmer(nowin_switch~reinforcer_type*aud_group + (1 + reinforc
                 data=behav_final_redcap,
                 control=lmerControl(calc.derivs=FALSE))
 
-anova(m_nowin_switch_log_1,m_nowin_switch_log_2)
-anova(m_nowin_switch_log_2,m_nowin_switch_log_3)
-anova(m_nowin_switch_log_1,m_nowin_switch_log_3)
+anova(m_nowin_switch_log_1,m_nowin_switch_log_2,m_nowin_switch_log_3)
+
 
 tab_model(m_nowin_switch_log_3,
           dv.labels=c("m_switch"), digits=3, digits.re=2, 

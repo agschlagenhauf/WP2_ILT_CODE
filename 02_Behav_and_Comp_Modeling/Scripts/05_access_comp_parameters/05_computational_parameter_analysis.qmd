@@ -25,26 +25,15 @@ libs<-c("rstan", "gdata", "bayesplot", "stringr", "dplyr", "ggplot2", "loo", "hB
 sapply(libs, require, character.only=TRUE)
 
 #datapath <- '/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/ILT_Stan_Modeling'
-datapath <- 'C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_CODE/Stan Modeling'
+datapath <- 'C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_CODE/02_Behav_and_Comp_Modeling'
 #out_path <- '/fast/work/groups/ag_schlagenhauf/B01_FP1_WP2/ILT_Stan_Modeling/Output'
-out_path <- 'C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_CODE/Stan Modeling/Output'
+out_path <- 'C:/Users/musialm/OneDrive - Charité - Universitätsmedizin Berlin/PhD/04_B01/ILT/WP2_ILT_DATA/Stan_Output/PH_withC_hierarchical_group'
 
 #fit_file <- 'fit_n_71_2024-01-02_bandit2arm_delta_PH_withC_hierarchical_estimation1_delta0.9_stepsize0.5.rds'
 
 #fit <- readRDS(file.path(out_path, fit_file)) # Stan model output
 
-params_PH_withC <- read.table(file.path(out_path, 'Params_PH_withC_n56.txt'), header = T)
-params_PH_withC_aud <- read.table(file.path(out_path, 'Params_PH_withC_n56_aud.txt'), header = T)
-params_PH_withC_hc <- read.table(file.path(out_path, 'Params_PH_withC_n56_hc.txt'), header = T)
-params_PH_withC_aud_alc <- read.table(file.path(out_path, 'Params_PH_withC_n56_aud_alc.txt'), header = T)
-params_PH_withC_aud_jui <- read.table(file.path(out_path, 'Params_PH_withC_n56_aud_jui.txt'), header = T)
-params_PH_withC_hc_alc <- read.table(file.path(out_path, 'Params_PH_withC_n56_hc_alc.txt'), header = T)
-params_PH_withC_hc_jui <- read.table(file.path(out_path, 'Params_PH_withC_n56_hc_jui.txt'), header = T)
-#params_PH_withC_red_hie <- read.table(file.path(out_path, 'Params_PH_withC_red_hierarchical_n60.txt'), header = T)
-#params_PH_withC_red_hie_concat_hc <- read.table(file.path(out_path, 'Params_PH_withC_red_hierarchical_concat_n60_hc.txt'), header = T)
-#params_PH_withC_red_hie_concat_aud <- read.table(file.path(out_path, 'Params_PH_withC_red_hierarchical_concat_n60_aud.txt'), header = T)
-
-#params <- params_PH_withC_red_hie
+params <- read.table(file.path(out_path, 'Params_PH_withC_red_hierarchical_nortype_n58.txt'), header = T)
 
 # set contrasts
 #params$reinforcer_type <- as.factor(params$reinforcer_type)
@@ -53,98 +42,16 @@ params_PH_withC_hc_jui <- read.table(file.path(out_path, 'Params_PH_withC_n56_hc
 #contrasts(params$reinforcer_type) <- contr.treatment(2)
 #contrasts(params$aud_group) <- contr.treatment(2)
 
-
-cbPalette <- c( "#0072B2", "#D55E00", "#009E73", "#CC79A7",
-                "#F0E442", "#56B4E9", "#999999", "#E69F00")
-
 ```
 
 ```{r}
-# Prepare data from concat models
-
-params_PH_withC_red_hie_concat_hc_jui <- params_PH_withC_red_hie_concat_hc %>%
-  select(ID_block, alpha_jui, tau_jui, gamma_jui, C_jui) %>%
-  rename(ID = ID_block,
-         alpha = alpha_jui,
-         tau = tau_jui,
-         gamma = gamma_jui,
-         C = C_jui) %>%
-  mutate(reinforcer_type = "J")
-
-params_PH_withC_red_hie_concat_hc_alc <- params_PH_withC_red_hie_concat_hc %>%
-  select(ID_block, alpha_alc, tau_alc, gamma_alc, C_alc) %>%
-  rename(ID = ID_block,
-         alpha = alpha_alc,
-         tau = tau_alc,
-         gamma = gamma_alc,
-         C = C_alc) %>%
-  mutate(reinforcer_type = "A")
-
-params_PH_withC_red_hie_concat_hc_juialc <- rbind(params_PH_withC_red_hie_concat_hc_jui,params_PH_withC_red_hie_concat_hc_alc)
-tmp <- params_PH_withC %>%
-  select(ID, reinforcer_type, aud_group, block)
-params_PH_withC_red_hie_concat_hc_final <- merge(tmp, params_PH_withC_red_hie_concat_hc_juialc, by=c("ID","reinforcer_type"))
-
-params_PH_withC_red_hie_concat_aud_jui <- params_PH_withC_red_hie_concat_aud %>%
-  select(ID_block, alpha_jui, tau_jui, gamma_jui, C_jui) %>%
-  rename(ID = ID_block,
-         alpha = alpha_jui,
-         tau = tau_jui,
-         gamma = gamma_jui,
-         C = C_jui) %>%
-  mutate(reinforcer_type = "J")
-
-params_PH_withC_red_hie_concat_aud_alc <- params_PH_withC_red_hie_concat_aud %>%
-  select(ID_block, alpha_alc, tau_alc, gamma_alc, C_alc) %>%
-  rename(ID = ID_block,
-         alpha = alpha_alc,
-         tau = tau_alc,
-         gamma = gamma_alc,
-         C = C_alc) %>%
-  mutate(reinforcer_type = "A")
-
-params_PH_withC_red_hie_concat_aud_juialc <- rbind(params_PH_withC_red_hie_concat_aud_jui,params_PH_withC_red_hie_concat_aud_alc)
-params_PH_withC_red_hie_concat_aud_final <- merge(tmp, params_PH_withC_red_hie_concat_aud_juialc, by=c("ID","reinforcer_type"))
-
-params_PH_withC_red_hie_concat <- rbind(params_PH_withC_red_hie_concat_hc_final,params_PH_withC_red_hie_concat_aud_final)
-```
-
-```{r}
-# prepare data from separately fitted non-hierarchical models
-params_PH_withC_aud_hc <- rbind(params_PH_withC_aud,params_PH_withC_hc)
-
-params_PH_withC_aud_hc_alc_jui <- rbind(params_PH_withC_aud_alc,params_PH_withC_aud_jui,params_PH_withC_hc_alc,params_PH_withC_hc_jui)
-```
-
-# Bayesian model comparison
-
-## Preps
-
-```{r}
-# load log likelihood per model
-log_lik_main <- read.table(file.path(outpath, 'log_lik_main_hierarchical.txt'), header = F)
-r_eff_main <- relative_eff(exp(log_lik_main))
-log_lik_PH_withC <- read.table(file.path(outpath, 'log_lik_PH_withC_hierarchical.txt'), header = F)
-r_eff_PH_withC <- relative_eff(exp(log_lik_PH_withC))
-```
-
-## Fit per model
-
-```{r}
-loo_main <- loo(log_lik_main, r_eff=r_eff_main)
-print(loo_main)
-plot(loo_main)
-
-loo_PH_withC <- loo(log_lik_PH_withC, r_eff=r_eff_PH_withC)
-print(loo_PH_withC)
-plot(loo_PH_withC)
-```
-
-## Compare model fit
-
-```{r}
-comp <- loo_compare(loo_main, loo_PH_withC)
-print(comp)
+# prepare data
+params <- params %>%
+  select(!ID_block) %>%
+  mutate(ID = as.factor(ID),
+         aud_group = as.factor(aud_group),
+         reinforcer_type = as.factor(reinforcer_type),
+         block = as.factor(block))
 ```
 
 # Bayesian parameter analysis
@@ -175,257 +82,282 @@ plotHDI(posterior_draws$C_sub_con_m)
 
 ## Alpha
 
-<!-- ### From one model -->
+### From one model
+
+```{r}
+fig1 <- ggplot(params, aes(x = reinforcer_type, y = alpha, fill = reinforcer_type)) +
+  geom_violin() +
+  geom_boxplot(width=0.1, size=0.8) +
+  facet_wrap(~aud_group, scales="fixed") +
+  scale_y_continuous("Initial learning rate (α)", limits = c(0,1)) +
+  theme_light(base_size=18) +
+  theme(axis.title.x=element_blank(),
+      axis.text.x=element_blank(),
+      axis.ticks.x=element_blank(),
+      legend.position = "bottom") +
+  scale_fill_brewer(name="Reinforcer type", 
+                  labels=c("alcohol", "juice"),
+                  palette = "Accent")
+
+fig1
+```
+
+<!-- ### From several models -->
 
 <!-- ```{r} -->
-<!-- fig1 <- ggplot(params, aes(reinforcer_type, y = alpha, fill=reinforcer_type)) + -->
+<!-- fig1 <- ggplot(data=params_PH_withC, aes(x=reinforcer_type, y = alpha, fill=reinforcer_type)) + -->
 <!--   geom_violin() + -->
-<!--   geom_boxplot(width=0.1) + -->
+<!--   geom_boxplot(width=0.1) +  -->
 <!--   geom_jitter(shape=16, position=position_jitter(0.2)) + -->
-<!--   facet_wrap(~aud_group, scales="free_y") + -->
+<!--   facet_wrap(~aud_group, scales="fixed") + -->
 <!--   scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) + -->
 <!--   scale_y_continuous("alpha") + -->
 <!--   scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) + -->
 <!--   theme_bw(base_size=12) + -->
-<!--   theme(legend.position = "none") -->
+<!--   theme(legend.position = "none") + -->
+<!--   ggtitle("PH_withC_all") -->
 
-<!-- fig1 -->
+<!-- fig2 <- ggplot(data=params_PH_withC_aud_hc, aes(x=reinforcer_type, y = alpha, fill=reinforcer_type)) + -->
+<!--   geom_violin() + -->
+<!--   geom_boxplot(width=0.1) +  -->
+<!--   geom_jitter(shape=16, position=position_jitter(0.2)) + -->
+<!--   facet_wrap(~aud_group, scales="fixed") + -->
+<!--   scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) + -->
+<!--   scale_y_continuous("alpha") + -->
+<!--   scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) + -->
+<!--   theme_bw(base_size=12) + -->
+<!--   theme(legend.position = "none")  + -->
+<!--   ggtitle("PH_withC_pergroup") -->
+
+<!-- fig3 <- ggplot(data=params_PH_withC_aud_hc_alc_jui, aes(x=reinforcer_type, y = alpha, fill=reinforcer_type)) + -->
+<!--   geom_violin() + -->
+<!--   geom_boxplot(width=0.1) +  -->
+<!--   geom_jitter(shape=16, position=position_jitter(0.2)) + -->
+<!--   facet_wrap(~aud_group, scales="fixed") + -->
+<!--   scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) + -->
+<!--   scale_y_continuous("alpha") + -->
+<!--   scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) + -->
+<!--   theme_bw(base_size=12) + -->
+<!--   theme(legend.position = "none") + -->
+<!--   ggtitle("PH_withC_pergroupandreinforcertype") -->
+
+<!-- fig_comb <- ggarrange(fig1, fig2, fig3) -->
+<!-- fig_comb -->
 <!-- ``` -->
-
-### From several models
-
-```{r}
-fig1 <- ggplot(data=params_PH_withC, aes(x=reinforcer_type, y = alpha, fill=reinforcer_type)) +
-  geom_violin() +
-  geom_boxplot(width=0.1) + 
-  geom_jitter(shape=16, position=position_jitter(0.2)) +
-  facet_wrap(~aud_group, scales="fixed") +
-  scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) +
-  scale_y_continuous("alpha") +
-  scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) +
-  theme_bw(base_size=12) +
-  theme(legend.position = "none") +
-  ggtitle("PH_withC_all")
-
-fig2 <- ggplot(data=params_PH_withC_aud_hc, aes(x=reinforcer_type, y = alpha, fill=reinforcer_type)) +
-  geom_violin() +
-  geom_boxplot(width=0.1) + 
-  geom_jitter(shape=16, position=position_jitter(0.2)) +
-  facet_wrap(~aud_group, scales="fixed") +
-  scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) +
-  scale_y_continuous("alpha") +
-  scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) +
-  theme_bw(base_size=12) +
-  theme(legend.position = "none")  +
-  ggtitle("PH_withC_pergroup")
-
-fig3 <- ggplot(data=params_PH_withC_aud_hc_alc_jui, aes(x=reinforcer_type, y = alpha, fill=reinforcer_type)) +
-  geom_violin() +
-  geom_boxplot(width=0.1) + 
-  geom_jitter(shape=16, position=position_jitter(0.2)) +
-  facet_wrap(~aud_group, scales="fixed") +
-  scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) +
-  scale_y_continuous("alpha") +
-  scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) +
-  theme_bw(base_size=12) +
-  theme(legend.position = "none") +
-  ggtitle("PH_withC_pergroupandreinforcertype")
-
-fig_comb <- ggarrange(fig1, fig2, fig3)
-fig_comb
-```
 
 ## Inverse temperature
 
-<!-- ### From one model -->
+### From one model
+
+```{r}
+fig2 <- ggplot(params, aes(x = reinforcer_type, y = tau, fill = reinforcer_type)) +
+  geom_violin() +
+  geom_boxplot(width=0.1, size=0.8) +
+  facet_wrap(~aud_group, scales="fixed") +
+  scale_y_continuous("Inverse temperature (β)", limits = c(0,100)) +
+  theme_light(base_size=18) +
+  theme(axis.title.x=element_blank(),
+      axis.text.x=element_blank(),
+      axis.ticks.x=element_blank(),
+      legend.position = "bottom") +
+  scale_fill_brewer(name="Reinforcer type", 
+                  labels=c("alcohol", "juice"),
+                  palette = "Accent")
+
+fig2
+```
+<!-- ### From several models -->
 
 <!-- ```{r} -->
-<!-- fig2 <- ggplot(params, aes(reinforcer_type, y = invtemp, fill=reinforcer_type)) + -->
+<!-- fig1 <- ggplot(data=params_PH_withC, aes(x=reinforcer_type, y = tau, fill=reinforcer_type)) + -->
 <!--   geom_violin() + -->
 <!--   geom_boxplot(width=0.1) +  -->
 <!--   geom_jitter(shape=16, position=position_jitter(0.2)) + -->
-<!--   facet_wrap(~aud_group, scales="free_y") + -->
+<!--   facet_wrap(~aud_group, scales="fixed") + -->
 <!--   scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) + -->
-<!--   scale_y_continuous("beta") + -->
+<!--   scale_y_continuous("tau") + -->
 <!--   scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) + -->
 <!--   theme_bw(base_size=12) + -->
-<!--   theme(legend.position = "none") -->
+<!--   theme(legend.position = "none") + -->
+<!--   ggtitle("PH_withC") -->
 
-<!-- fig2 -->
+<!-- fig2 <- ggplot(data=params_PH_withC_aud_hc, aes(x=reinforcer_type, y = tau, fill=reinforcer_type)) + -->
+<!--   geom_violin() + -->
+<!--   geom_boxplot(width=0.1) +  -->
+<!--   geom_jitter(shape=16, position=position_jitter(0.2)) + -->
+<!--   facet_wrap(~aud_group, scales="fixed") + -->
+<!--   scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) + -->
+<!--   scale_y_continuous("tau") + -->
+<!--   scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) + -->
+<!--   theme_bw(base_size=12) + -->
+<!--   theme(legend.position = "none")  + -->
+<!--   ggtitle("PH_withC_pergroup") -->
+
+<!-- fig3 <- ggplot(data=params_PH_withC_aud_hc_alc_jui, aes(x=reinforcer_type, y = tau, fill=reinforcer_type)) + -->
+<!--   geom_violin() + -->
+<!--   geom_boxplot(width=0.1) +  -->
+<!--   geom_jitter(shape=16, position=position_jitter(0.2)) + -->
+<!--   facet_wrap(~aud_group, scales="fixed") + -->
+<!--   scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) + -->
+<!--   scale_y_continuous("tau") + -->
+<!--   scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) + -->
+<!--   theme_bw(base_size=12) + -->
+<!--   theme(legend.position = "none") + -->
+<!--   ggtitle("PH_withC_pergroupandreinforcertype") -->
+
+<!-- fig_comb <- ggarrange(fig1, fig2, fig3) -->
+<!-- fig_comb -->
 <!-- ``` -->
-
-### From several models
-
-```{r}
-fig1 <- ggplot(data=params_PH_withC, aes(x=reinforcer_type, y = tau, fill=reinforcer_type)) +
-  geom_violin() +
-  geom_boxplot(width=0.1) + 
-  geom_jitter(shape=16, position=position_jitter(0.2)) +
-  facet_wrap(~aud_group, scales="fixed") +
-  scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) +
-  scale_y_continuous("tau") +
-  scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) +
-  theme_bw(base_size=12) +
-  theme(legend.position = "none") +
-  ggtitle("PH_withC")
-
-fig2 <- ggplot(data=params_PH_withC_aud_hc, aes(x=reinforcer_type, y = tau, fill=reinforcer_type)) +
-  geom_violin() +
-  geom_boxplot(width=0.1) + 
-  geom_jitter(shape=16, position=position_jitter(0.2)) +
-  facet_wrap(~aud_group, scales="fixed") +
-  scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) +
-  scale_y_continuous("tau") +
-  scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) +
-  theme_bw(base_size=12) +
-  theme(legend.position = "none")  +
-  ggtitle("PH_withC_pergroup")
-
-fig3 <- ggplot(data=params_PH_withC_aud_hc_alc_jui, aes(x=reinforcer_type, y = tau, fill=reinforcer_type)) +
-  geom_violin() +
-  geom_boxplot(width=0.1) + 
-  geom_jitter(shape=16, position=position_jitter(0.2)) +
-  facet_wrap(~aud_group, scales="fixed") +
-  scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) +
-  scale_y_continuous("tau") +
-  scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) +
-  theme_bw(base_size=12) +
-  theme(legend.position = "none") +
-  ggtitle("PH_withC_pergroupandreinforcertype")
-
-fig_comb <- ggarrange(fig1, fig2, fig3)
-fig_comb
-```
 
 ## Gamma
 
-<!-- ### From one model -->
+### From one model
+
+```{r}
+fig3 <- ggplot(params, aes(x = reinforcer_type, y = gamma, fill = reinforcer_type)) +
+  geom_violin() +
+  geom_boxplot(width=0.1, size=0.8) +
+  facet_wrap(~aud_group, scales="fixed") +
+  scale_y_continuous("Decay constant (γ)", limits = c(0,1)) +
+  theme_light(base_size=18) +
+  theme(axis.title.x=element_blank(),
+      axis.text.x=element_blank(),
+      axis.ticks.x=element_blank(),
+      legend.position = "bottom") +
+  scale_fill_brewer(name="Reinforcer type", 
+                  labels=c("alcohol", "juice"),
+                  palette = "Accent")
+
+fig3
+```
+
+<!-- ### From several models -->
 
 <!-- ```{r} -->
-<!-- fig3 <- ggplot(params, aes(reinforcer_type, y = gamma, fill=reinforcer_type)) + -->
+<!-- fig1 <- ggplot(data=params_PH_withC, aes(x=reinforcer_type, y = gamma, fill=reinforcer_type)) + -->
 <!--   geom_violin() + -->
 <!--   geom_boxplot(width=0.1) +  -->
 <!--   geom_jitter(shape=16, position=position_jitter(0.2)) + -->
-<!--   facet_wrap(~aud_group, scales="free_y") + -->
+<!--   facet_wrap(~aud_group, scales="fixed") + -->
 <!--   scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) + -->
 <!--   scale_y_continuous("gamma") + -->
 <!--   scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) + -->
 <!--   theme_bw(base_size=12) + -->
-<!--   theme(legend.position = "none") -->
+<!--   theme(legend.position = "none") + -->
+<!--   ggtitle("PH_withC") -->
 
-<!-- fig3 -->
-<!-- ``` -->
-
-### From several models
-
-```{r}
-fig1 <- ggplot(data=params_PH_withC, aes(x=reinforcer_type, y = gamma, fill=reinforcer_type)) +
-  geom_violin() +
-  geom_boxplot(width=0.1) + 
-  geom_jitter(shape=16, position=position_jitter(0.2)) +
-  facet_wrap(~aud_group, scales="fixed") +
-  scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) +
-  scale_y_continuous("gamma") +
-  scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) +
-  theme_bw(base_size=12) +
-  theme(legend.position = "none") +
-  ggtitle("PH_withC")
-
-fig2 <- ggplot(data=params_PH_withC_aud_hc, aes(x=reinforcer_type, y = gamma, fill=reinforcer_type)) +
-  geom_violin() +
-  geom_boxplot(width=0.1) + 
-  geom_jitter(shape=16, position=position_jitter(0.2)) +
-  facet_wrap(~aud_group, scales="fixed") +
-  scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) +
-  scale_y_continuous("gamma") +
-  scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) +
-  theme_bw(base_size=12) +
-  theme(legend.position = "none")  +
-  ggtitle("PH_withC_pergroup")
-
-fig3 <- ggplot(data=params_PH_withC_aud_hc_alc_jui, aes(x=reinforcer_type, y = gamma, fill=reinforcer_type)) +
-  geom_violin() +
-  geom_boxplot(width=0.1) + 
-  geom_jitter(shape=16, position=position_jitter(0.2)) +
-  facet_wrap(~aud_group, scales="fixed") +
-  scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) +
-  scale_y_continuous("gamma") +
-  scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) +
-  theme_bw(base_size=12) +
-  theme(legend.position = "none") +
-  ggtitle("PH_withC_pergroupandreinforcertype")
-
-fig_comb <- ggarrange(fig1, fig2, fig3)
-fig_comb
-```
-
-## C
-
-<!-- ### From one model -->
-
-<!-- ```{r} -->
-<!-- fig4 <- ggplot(params, aes(reinforcer_type, y = C, fill=reinforcer_type)) + -->
+<!-- fig2 <- ggplot(data=params_PH_withC_aud_hc, aes(x=reinforcer_type, y = gamma, fill=reinforcer_type)) + -->
 <!--   geom_violin() + -->
 <!--   geom_boxplot(width=0.1) +  -->
 <!--   geom_jitter(shape=16, position=position_jitter(0.2)) + -->
-<!--   facet_wrap(~aud_group, scales="free_y") + -->
+<!--   facet_wrap(~aud_group, scales="fixed") + -->
+<!--   scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) + -->
+<!--   scale_y_continuous("gamma") + -->
+<!--   scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) + -->
+<!--   theme_bw(base_size=12) + -->
+<!--   theme(legend.position = "none")  + -->
+<!--   ggtitle("PH_withC_pergroup") -->
+
+<!-- fig3 <- ggplot(data=params_PH_withC_aud_hc_alc_jui, aes(x=reinforcer_type, y = gamma, fill=reinforcer_type)) + -->
+<!--   geom_violin() + -->
+<!--   geom_boxplot(width=0.1) +  -->
+<!--   geom_jitter(shape=16, position=position_jitter(0.2)) + -->
+<!--   facet_wrap(~aud_group, scales="fixed") + -->
+<!--   scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) + -->
+<!--   scale_y_continuous("gamma") + -->
+<!--   scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) + -->
+<!--   theme_bw(base_size=12) + -->
+<!--   theme(legend.position = "none") + -->
+<!--   ggtitle("PH_withC_pergroupandreinforcertype") -->
+
+<!-- fig_comb <- ggarrange(fig1, fig2, fig3) -->
+<!-- fig_comb -->
+<!-- ``` -->
+
+## C
+
+### From one model
+
+```{r}
+fig4 <- ggplot(params, aes(x = reinforcer_type, y = C, fill = reinforcer_type)) +
+  geom_violin() +
+  geom_boxplot(width=0.1, size=0.8) +
+  facet_wrap(~aud_group, scales="fixed") +
+  scale_y_continuous("Scaling coefficient (C)", limits = c(0,1)) +
+  theme_light(base_size=18) +
+  theme(axis.title.x=element_blank(),
+      axis.text.x=element_blank(),
+      axis.ticks.x=element_blank(),
+      legend.position = "bottom") +
+  scale_fill_brewer(name="Reinforcer type", 
+                  labels=c("alcohol", "juice"),
+                  palette = "Accent")
+
+fig4
+```
+<!-- ### From several models -->
+
+<!-- ```{r} -->
+<!-- fig1 <- ggplot(data=params_PH_withC, aes(x=reinforcer_type, y = C, fill=reinforcer_type)) + -->
+<!--   geom_violin() + -->
+<!--   geom_boxplot(width=0.1) +  -->
+<!--   geom_jitter(shape=16, position=position_jitter(0.2)) + -->
+<!--   facet_wrap(~aud_group, scales="fixed") + -->
 <!--   scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) + -->
 <!--   scale_y_continuous("C") + -->
 <!--   scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) + -->
 <!--   theme_bw(base_size=12) + -->
-<!--   theme(legend.position = "none") -->
+<!--   theme(legend.position = "none") + -->
+<!--   ggtitle("PH_withC") -->
 
-<!-- fig4 -->
+<!-- fig2 <- ggplot(data=params_PH_withC_aud_hc, aes(x=reinforcer_type, y = C, fill=reinforcer_type)) + -->
+<!--   geom_violin() + -->
+<!--   geom_boxplot(width=0.1) +  -->
+<!--   geom_jitter(shape=16, position=position_jitter(0.2)) + -->
+<!--   facet_wrap(~aud_group, scales="fixed") + -->
+<!--   scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) + -->
+<!--   scale_y_continuous("C") + -->
+<!--   scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) + -->
+<!--   theme_bw(base_size=12) + -->
+<!--   theme(legend.position = "none")  + -->
+<!--   ggtitle("PH_withC_pergroup") -->
+
+<!-- fig3 <- ggplot(data=params_PH_withC_aud_hc_alc_jui, aes(x=reinforcer_type, y = C, fill=reinforcer_type)) + -->
+<!--   geom_violin() + -->
+<!--   geom_boxplot(width=0.1) +  -->
+<!--   geom_jitter(shape=16, position=position_jitter(0.2)) + -->
+<!--   facet_wrap(~aud_group, scales="fixed") + -->
+<!--   scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) + -->
+<!--   scale_y_continuous("C") + -->
+<!--   scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) + -->
+<!--   theme_bw(base_size=12) + -->
+<!--   theme(legend.position = "none") + -->
+<!--   ggtitle("PH_withC_pergroupandreinforcertype") -->
+
+<!-- fig_comb <- ggarrange(fig1, fig2, fig3) -->
+<!-- fig_comb -->
 <!-- ``` -->
 
-### From several models
+## Combined plot
 
 ```{r}
-fig1 <- ggplot(data=params_PH_withC, aes(x=reinforcer_type, y = C, fill=reinforcer_type)) +
-  geom_violin() +
-  geom_boxplot(width=0.1) + 
-  geom_jitter(shape=16, position=position_jitter(0.2)) +
-  facet_wrap(~aud_group, scales="fixed") +
-  scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) +
-  scale_y_continuous("C") +
-  scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) +
-  theme_bw(base_size=12) +
-  theme(legend.position = "none") +
-  ggtitle("PH_withC")
+# save combined plot
+fig_params <- ggarrange(fig1, fig2, fig3, fig4,
+          labels = c("A", "B", "C", "D"),
+          ncol = 4, nrow = 1,
+          common.legend = TRUE, legend="bottom")
+fig_params
 
-fig2 <- ggplot(data=params_PH_withC_aud_hc, aes(x=reinforcer_type, y = C, fill=reinforcer_type)) +
-  geom_violin() +
-  geom_boxplot(width=0.1) + 
-  geom_jitter(shape=16, position=position_jitter(0.2)) +
-  facet_wrap(~aud_group, scales="fixed") +
-  scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) +
-  scale_y_continuous("C") +
-  scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) +
-  theme_bw(base_size=12) +
-  theme(legend.position = "none")  +
-  ggtitle("PH_withC_pergroup")
-
-fig3 <- ggplot(data=params_PH_withC_aud_hc_alc_jui, aes(x=reinforcer_type, y = C, fill=reinforcer_type)) +
-  geom_violin() +
-  geom_boxplot(width=0.1) + 
-  geom_jitter(shape=16, position=position_jitter(0.2)) +
-  facet_wrap(~aud_group, scales="fixed") +
-  scale_x_discrete("Reinforcer type", labels=c('alcohol', 'juice')) +
-  scale_y_continuous("C") +
-  scale_fill_manual("Reinforcer type", values = cbPalette[c(6,8)]) +
-  theme_bw(base_size=12) +
-  theme(legend.position = "none") +
-  ggtitle("PH_withC_pergroupandreinforcertype")
-
-fig_comb <- ggarrange(fig1, fig2, fig3)
-fig_comb
+png("params.png", width = 32, height = 10, units='cm', res = 600)
+fig_params
+dev.off()
 ```
 # Frequentist Linear mixed-effects regression
 
 ## Alpha
 
 ```{r}
-m_alpha <- lmer(alpha ~ 1 + reinforcer_type*aud_group + (1 + reinforcer_type | ID), data=params, control=lmerControl(calc.derivs=FALSE), REML=F)
+m_alpha <- lm(alpha ~ 1 + reinforcer_type*aud_group, data=params)
 
 tab_model(m_alpha,
           dv.labels=c("m_correct"), digits=3, digits.re=2,
@@ -437,7 +369,7 @@ We cannot include reinforcer type as random effect as the model would be unident
 ## Inverse temperature
 
 ```{r}
-m_invtemp <- lmer(invtemp ~ 1 + reinforcer_type*aud_group + (1 | ID), data=params, control=lmerControl(calc.derivs=FALSE), REML=F)
+m_invtemp <- lm(tau ~ 1 + reinforcer_type*aud_group, data=params)
 
 tab_model(m_invtemp,
           dv.labels=c("m_invtemp"), digits=3, digits.re=2,
@@ -449,7 +381,7 @@ We cannot include reinforcer type as random effect as the model would be unident
 ## Gamma
 
 ```{r}
-m_gamma <- lmer(gamma ~ 1 + reinforcer_type*aud_group + (1 | ID), data=params, control=lmerControl(calc.derivs=FALSE), REML=F)
+m_gamma <- lm(gamma ~ 1 + reinforcer_type*aud_group, data=params)
 
 tab_model(m_gamma,
           dv.labels=c("m_gamma"), digits=3, digits.re=2,
@@ -461,8 +393,7 @@ We cannot include reinforcer type as random effect as the model would be unident
 ## Gamma
 
 ```{r}
-m_C <- lmer(C_const ~ 1 + reinforcer_type*aud_group + (1 | ID), data=params,
-            control=lmerControl(calc.derivs=FALSE), REML=F)
+m_C <- lm(C ~ 1 + reinforcer_type*aud_group, data=params)
 
 tab_model(m_C,
           dv.labels=c("m_C"), digits=3, digits.re=2,
