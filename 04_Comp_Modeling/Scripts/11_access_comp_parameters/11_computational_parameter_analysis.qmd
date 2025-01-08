@@ -1,0 +1,357 @@
+---
+title: "Analysis of computational modeling results"
+author: "Milena Musial"
+output: html_document
+date: '2023-12-18'
+format: 
+  html:
+    embed-resources: true
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    number-sections: true
+    fig-width: 8
+    fig-height: 6
+    fig-format: svg
+    editor_options: 
+    chunk_output_type: console
+---
+
+# Setup
+
+```{r}
+rm(list=ls())
+libs<-c("tidyverse", "rstan", "gdata", "bayesplot", "stringr", "dplyr", "ggplot2", "loo", "hBayesDM", "lme4", "sjPlot", "ggpubr", "tidyr", "gmodels")
+sapply(libs, require, character.only=TRUE)
+
+data_path<-"/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT/WP2_ILT_DATA/Stan_Output/PH_withC"
+project_path <- "/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT"
+
+load(file.path(project_path, "WP2_ILT_DATA/RedCap/redcap_n58_new.RData"))
+
+params <- read.table(file.path(data_path, 'Params_PH_withC_init05_n58.txt'), header = T)
+PEs <- read.table(file.path(data_path, 'fmri_PEs_PH_withC_init05_n58.txt'), header = T)
+CPs <- read.table(file.path(data_path, 'fmri_pcs_PH_withC_init05_n58.txt'), header = T)
+Qs <- read.table(file.path(data_path, 'fmri_Qs_PH_withC_init05_n58.txt'), header = T)
+
+```
+
+```{r}
+# prepare params df
+params <- params %>%
+  select(!ID_block) %>%
+  mutate(ID = as.factor(ID),
+         aud_group = as.factor(aud_group),
+         reinforcer_type = as.factor(reinforcer_type),
+         block = as.factor(block))
+
+# prepare trial-by-trial df
+trialy_by_trial_df <- left_join(PEs, CPs, by = c("ID_block", "trial_block", "reinforcer_type", "ID"))
+trialy_by_trial_df <- left_join(trialy_by_trial_df, Qs, by = c("ID_block", "trial_block", "reinforcer_type", "ID"))
+trialy_by_trial_df <- trialy_by_trial_df %>%
+  select(ID, reinforcer_type, trial_block, PE_pred, pc_pred, Q_pred)
+
+trialy_by_trial_df <- trialy_by_trial_df %>%
+  mutate(ID = as.factor(ID),
+         reinforcer_type = as.factor(reinforcer_type))
+
+trialy_by_trial_df <- left_join(trialy_by_trial_df, redcap_new, by="ID")
+
+# get p correct per block and aud group and trial for plotting
+df_tbt_time <- trialy_by_trial_df %>%
+  group_by(aud_group,reinforcer_type,trial_block) %>%
+  dplyr::summarise(mean_PE = mean(abs(PE_pred), na.rm = TRUE),
+            ci_l_PE = ci(abs(PE_pred), na.rm=TRUE)[2],
+            ci_u_PE = ci(abs(PE_pred), na.rm=TRUE)[3],
+            mean_CP = mean(pc_pred, na.rm = TRUE),
+            ci_l_CP = ci(pc_pred, na.rm=TRUE)[2],
+            ci_u_CP = ci(pc_pred, na.rm=TRUE)[3],
+            mean_Q = mean(Q_pred, na.rm = TRUE),
+            ci_l_Q = ci(Q_pred, na.rm=TRUE)[2],
+            ci_u_Q = ci(Q_pred, na.rm=TRUE)[3],
+  )
+
+# set contrasts
+contrasts(params$reinforcer_type) <- abs(contr.treatment(2)-1)
+contrasts(trialy_by_trial_df$reinforcer_type) <- abs(contr.treatment(2)-1)
+contrasts(df_tbt_time$reinforcer_type) <- abs(contr.treatment(2)-1)
+
+contrasts(params$aud_group) <- abs(contr.treatment(2)-1)
+contrasts(trialy_by_trial_df$aud_group) <- abs(contr.treatment(2)-1)
+contrasts(df_tbt_time$aud_group) <- abs(contr.treatment(2)-1)
+```
+
+# Bayesian parameter analysis
+
+```{r}
+# posterior_draws <- extract(fit, pars = c("A_sub_m", "tau_sub_m", "gamma_sub_m", "C_sub_m", "A_sub_con_m", "tau_sub_con_m", "gamma_sub_con_m", "C_sub_con_m"))
+# 
+# HDIofMCMC(posterior_draws$A_sub_m)
+# HDIofMCMC(posterior_draws$tau_sub_m)
+# HDIofMCMC(posterior_draws$gamma_sub_m)
+# HDIofMCMC(posterior_draws$C_sub_m)
+# HDIofMCMC(posterior_draws$A_sub_con_m)
+# HDIofMCMC(posterior_draws$tau_sub_con_m)
+# HDIofMCMC(posterior_draws$gamma_sub_con_m)
+# HDIofMCMC(posterior_draws$C_sub_con_m)
+# 
+# plotHDI(posterior_draws$A_sub_m)
+# plotHDI(posterior_draws$tau_sub_m)
+# plotHDI(posterior_draws$gamma_sub_m)
+# plotHDI(posterior_draws$C_sub_m)
+# plotHDI(posterior_draws$A_sub_con_m)
+# plotHDI(posterior_draws$tau_sub_con_m)
+# plotHDI(posterior_draws$gamma_sub_con_m)
+# plotHDI(posterior_draws$C_sub_con_m)
+```
+# Computational parameters
+
+## Alpha
+
+```{r}
+fig1 <- ggplot(params, aes(x = reinforcer_type, y = alpha, fill = reinforcer_type)) +
+  geom_violin() +
+  geom_boxplot(width=0.1, size=0.8) +
+  facet_wrap(~aud_group, scales="fixed") +
+  scale_y_continuous("Initial learning rate (α)", limits = c(0,1)) +
+  theme_light(base_size=18) +
+  theme(axis.title.x=element_blank(),
+      axis.text.x=element_blank(),
+      axis.ticks.x=element_blank(),
+      legend.position = "bottom") +
+  scale_fill_brewer(name="Reinforcer type", 
+                  labels=c("alcohol", "juice"),
+                  palette = "Accent")
+
+fig1
+```
+
+```{r}
+m_alpha <- lm(alpha ~ 1 + reinforcer_type*aud_group, data=params)
+
+tab_model(m_alpha,
+          dv.labels=c("m_correct"), digits=3, digits.re=2,
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+We cannot include reinforcer type as random effect as the model would be unidentifiable. Therefore, the model only includes a random intercept.
+
+
+## Inverse temperature
+
+```{r}
+fig2 <- ggplot(params, aes(x = reinforcer_type, y = tau, fill = reinforcer_type)) +
+  geom_violin() +
+  geom_boxplot(width=0.1, size=0.8) +
+  facet_wrap(~aud_group, scales="fixed") +
+  scale_y_continuous("Inverse temperature (β)", limits = c(0,100)) +
+  theme_light(base_size=18) +
+  theme(axis.title.x=element_blank(),
+      axis.text.x=element_blank(),
+      axis.ticks.x=element_blank(),
+      legend.position = "bottom") +
+  scale_fill_brewer(name="Reinforcer type", 
+                  labels=c("alcohol", "juice"),
+                  palette = "Accent")
+
+fig2
+```
+
+```{r}
+m_invtemp <- lm(tau ~ 1 + reinforcer_type*aud_group, data=params)
+
+tab_model(m_invtemp,
+          dv.labels=c("m_invtemp"), digits=3, digits.re=2,
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+We cannot include reinforcer type as random effect as the model would be unidentifiable. Therefore, the model only includes a random intercept.
+
+## Gamma
+
+```{r}
+fig3 <- ggplot(params, aes(x = reinforcer_type, y = gamma, fill = reinforcer_type)) +
+  geom_violin() +
+  geom_boxplot(width=0.1, size=0.8) +
+  facet_wrap(~aud_group, scales="fixed") +
+  scale_y_continuous("Decay constant (γ)", limits = c(0,1)) +
+  theme_light(base_size=18) +
+  theme(axis.title.x=element_blank(),
+      axis.text.x=element_blank(),
+      axis.ticks.x=element_blank(),
+      legend.position = "bottom") +
+  scale_fill_brewer(name="Reinforcer type", 
+                  labels=c("alcohol", "juice"),
+                  palette = "Accent")
+
+fig3
+```
+
+```{r}
+m_gamma <- lm(gamma ~ 1 + reinforcer_type*aud_group, data=params)
+
+tab_model(m_gamma,
+          dv.labels=c("m_gamma"), digits=3, digits.re=2,
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+## C
+
+```{r}
+fig4 <- ggplot(params, aes(x = reinforcer_type, y = C, fill = reinforcer_type)) +
+  geom_violin() +
+  geom_boxplot(width=0.1, size=0.8) +
+  facet_wrap(~aud_group, scales="fixed") +
+  scale_y_continuous("Scaling coefficient (C)", limits = c(0,1)) +
+  theme_light(base_size=18) +
+  theme(axis.title.x=element_blank(),
+      axis.text.x=element_blank(),
+      axis.ticks.x=element_blank(),
+      legend.position = "bottom") +
+  scale_fill_brewer(name="Reinforcer type", 
+                  labels=c("alcohol", "juice"),
+                  palette = "Accent")
+
+fig4
+```
+
+```{r}
+m_C <- lm(C ~ 1 + reinforcer_type*aud_group, data=params)
+
+tab_model(m_C,
+          dv.labels=c("m_C"), digits=3, digits.re=2,
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+```
+
+We cannot include reinforcer type as random effect as the model would be unidentifiable. Therefore, the model only includes a random intercept.
+
+## Combined plot
+
+```{r}
+# save combined plot
+fig_params <- ggarrange(fig1, fig2, fig3, fig4,
+          labels = c("A", "B", "C", "D"),
+          ncol = 4, nrow = 1,
+          common.legend = TRUE, legend="bottom")
+fig_params
+
+png("params.png", width = 24, height = 10, units='cm', res = 600)
+fig_params
+dev.off()
+```
+
+# Trial-by-trial quantities
+
+## Absolute prediction errors
+
+```{r}
+fig_PE_time <- ggplot(df_tbt_time, aes(x=trial_block, y=abs(mean_PE), group=reinforcer_type)) +
+  geom_line(aes(color=reinforcer_type), linewidth=0.8) +
+  geom_ribbon(aes(ymin = ci_l_PE, ymax = ci_u_PE, fill = reinforcer_type), alpha = 0.2) + 
+  facet_wrap(~aud_group, scales="free_y") +
+  scale_y_continuous("Absolute \n prediction errors", limits = c(0,1)) +
+  scale_x_continuous(NULL) +
+  theme_light(base_size=18) +
+  theme(legend.position = "right") +
+  scale_color_brewer(name="Reinforcer type", 
+                  labels=c("alcohol", "juice"),
+                  palette = "Accent") +
+  scale_fill_brewer(name="Reinforcer type", 
+                  labels=c("alcohol", "juice"),
+                  palette = "Accent")
+
+fig_PE_time
+
+```
+
+```{r}
+m_PE=lmer(PE_pred~reinforcer_type*aud_group*trial_block + (1 + trial_block | ID),
+                data=trialy_by_trial_df,
+                control=lmerControl(calc.derivs=FALSE))
+
+tab_model(m_PE,
+          dv.labels=c("m_rt_trial"), digits=3, digits.re=2, transform = NULL, show.est = T, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+
+```
+
+## Choice probabilities of chosen option
+
+```{r}
+fig_CP_time <- ggplot(df_tbt_time, aes(x=trial_block, y=mean_CP, group=reinforcer_type)) +
+  geom_line(aes(color=reinforcer_type), linewidth=0.8) +
+  geom_ribbon(aes(ymin = ci_l_CP, ymax = ci_u_CP, fill = reinforcer_type), alpha = 0.2) + 
+  facet_wrap(~aud_group, scales="free_y") +
+  scale_y_continuous("Choice probabilities \n of chosen option", limits = c(0,1)) +
+  scale_x_continuous(NULL) +
+  theme_light(base_size=18) +
+  theme(legend.position = "right") +
+  scale_color_brewer(name="Reinforcer type", 
+                  labels=c("alcohol", "juice"),
+                  palette = "Accent") +
+  scale_fill_brewer(name="Reinforcer type", 
+                  labels=c("alcohol", "juice"),
+                  palette = "Accent")
+
+fig_CP_time
+
+```
+
+```{r}
+m_CP=lmer(pc_pred~reinforcer_type*aud_group*trial_block + (1 + trial_block | ID),
+                data=trialy_by_trial_df,
+                control=lmerControl(calc.derivs=FALSE))
+
+tab_model(m_CP,
+          dv.labels=c("m_rt_trial"), digits=3, digits.re=2, transform = NULL, show.est = T, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+
+```
+
+## Q-values of chosen option
+
+```{r}
+fig_Q_time <- ggplot(df_tbt_time, aes(x=trial_block, y=mean_Q, group=reinforcer_type)) +
+  geom_line(aes(color=reinforcer_type), linewidth=0.8) +
+  geom_ribbon(aes(ymin = ci_l_Q, ymax = ci_u_Q, fill = reinforcer_type), alpha = 0.2) + 
+  facet_wrap(~aud_group, scales="free_y") +
+  scale_y_continuous("Q-values \n of chosen option", limits = c(0,1)) +
+  scale_x_continuous("Trial") +
+  theme_light(base_size=18) +
+  theme(legend.position = "right") +
+  scale_color_brewer(name="Reinforcer type", 
+                  labels=c("alcohol", "juice"),
+                  palette = "Accent") +
+  scale_fill_brewer(name="Reinforcer type", 
+                  labels=c("alcohol", "juice"),
+                  palette = "Accent")
+
+fig_Q_time
+
+```
+
+```{r}
+m_Q=lmer(Q_pred~reinforcer_type*aud_group*trial_block + (1 + trial_block | ID),
+                data=trialy_by_trial_df,
+                control=lmerControl(calc.derivs=FALSE))
+
+tab_model(m_Q,
+          dv.labels=c("m_rt_trial"), digits=3, digits.re=2, transform = NULL, show.est = T, 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+
+```
+
+## Combined plot
+
+```{r}
+# save combined plot
+fig_trialbytrial <- ggarrange(fig_PE_time, fig_CP_time, fig_Q_time,
+          labels = c("A", "B", "C"),
+          ncol = 1, nrow = 3,
+          common.legend = TRUE, legend="bottom")
+fig_trialbytrial
+
+png(file.path(project_path, "Manuscript/Figures", "trial_by_trial.png"), width = 16, height = 22, units='cm', res = 600)
+fig_trialbytrial
+dev.off()
+```

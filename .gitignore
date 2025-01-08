@@ -1,0 +1,19 @@
+#
+# .gitignore
+#
+
+02_Demo/html/
+03_Behav/html/
+04_Comp_Modeling/Scripts/01_access_non-hierarchical/html/
+04_Comp_Modeling/Scripts/01_access_non-hierarchical/old/
+04_Comp_Modeling/Scripts/03_access_hierarchical/html/
+04_Comp_Modeling/Scripts/03_access_hierarchical/old/
+04_Comp_Modeling/Scripts/07_access_model_comparison/html/
+04_Comp_Modeling/Scripts/10_access_param_recovery/html/
+04_Comp_Modeling/Scripts/10_access_param_recovery/old/
+04_Comp_Modeling/Scripts/11_access_comp_parameters/html/
+04_Comp_Modeling/Models/old
+.Rproj.user
+.Rhistory
+.RData
+.DS_Store

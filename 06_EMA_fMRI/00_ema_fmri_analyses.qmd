@@ -1,0 +1,68 @@
+---
+title: "EMA descriptive analyses"
+author: "Milena Musial"
+format: html
+editor: visual
+---
+
+# Preps
+
+```{r}
+rm(list=ls())
+
+libs<-c("tidyverse", "stringr", "plyr", "dplyr", "lme4", "lmerTest","kableExtra", "gmodels", "sjPlot", "rstatix", "ggpubr")
+sapply(libs, require, character.only=TRUE)
+
+# define paths
+ema_path <- '/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT/WP2_ILT_DATA/EMA'
+demo_path <- '/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT/WP2_ILT_DATA/RedCap'
+
+# load files
+load(file.path(ema_path, "ema_data_n22.RData"))
+load(file.path(demo_path, "redcap_n22_new.RData"))
+
+# create merged file
+# ema_redcap <- left_join(ema_data, redcap_new)
+
+```
+
+For sample characteristics, execute 00_demo_psychometric_analyses.qmd
+
+# Adherence and time
+
+```{r}
+adherence <- ema_data %>%
+  select(ID, sampling_day) %>%
+  group_by(ID) %>%
+  dplyr::summarise(last_day = max(sampling_day, na.rm = TRUE),
+                   total_days = n(),
+                   duration = max(sampling_day, na.rm = TRUE)-min(sampling_day, na.rm = TRUE)+1)
+
+last_day_summary <- adherence %>%
+  select(ID, last_day) %>%
+  dplyr::summarise(mean = mean(last_day, na.rm = TRUE),
+                   se = sd(last_day, na.rm = TRUE)/sqrt(n()-sum(is.nan(last_day))),
+                   min = min(last_day, na.rm = TRUE),
+                   max = max(last_day, na.rm = TRUE),
+                   ci_l = ci(last_day, na.rm = TRUE)[2],
+                   ci_u = ci(last_day, na.rm = TRUE)[3])
+
+total_days_summary <- adherence %>%
+  select(ID, total_days) %>%
+  dplyr::summarise(mean = mean(total_days, na.rm = TRUE),
+                   se = sd(total_days, na.rm = TRUE)/sqrt(n()-sum(is.nan(total_days))),
+                   min = min(total_days, na.rm = TRUE),
+                   max = max(total_days, na.rm = TRUE),
+                   ci_l = ci(total_days, na.rm = TRUE)[2],
+                   ci_u = ci(total_days, na.rm = TRUE)[3])
+
+duration_summary <- adherence %>%
+  select(ID, duration) %>%
+  dplyr::summarise(mean = mean(duration, na.rm = TRUE),
+                   se = sd(duration, na.rm = TRUE)/sqrt(n()-sum(is.nan(duration))),
+                   min = min(duration, na.rm = TRUE),
+                   max = max(duration, na.rm = TRUE),
+                   ci_l = ci(duration, na.rm = TRUE)[2],
+                   ci_u = ci(duration, na.rm = TRUE)[3])
+
+```

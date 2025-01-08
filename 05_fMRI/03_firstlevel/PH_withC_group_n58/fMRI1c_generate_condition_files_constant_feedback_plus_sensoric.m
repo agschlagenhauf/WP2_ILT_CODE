@@ -1,0 +1,335 @@
+% generate condition file
+% loads parametric modulators from script fMRI0_gen_parametric_mod.m
+% MM 02-2024close all;
+
+clear;
+clc;
+addpath('C:\spm12')
+addpath('C:\Users\musialm\OneDrive - Charité - Universitätsmedizin Berlin\PhD\04_B01\ILT\WP2_ILT_CODE\03_fMRI\functs')
+
+% define parameters
+reg = 1;
+TR = 0.869;
+MR = 60; % Microtime resolution = number of slices (Schichten) in MR protocol
+bin = TR/MR;
+
+% define output path
+%stats_path = 'S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\02_spm12_1st_level\PH_withC_n58'; % folder for single stats of this specific model, add names of pmods
+stats_path = 'S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\02_spm12_1st_level\PH_withC_group_n58_constant_feedback_+_sensoric'; % folder for single stats of this specific model, add names of pmods
+
+% define behavioral data files
+behav_path   = 'C:\Users\musialm\OneDrive - Charité - Universitätsmedizin Berlin\PhD\04_B01\ILT\WP2_ILT_DATA\Behav\raw\FilesReport_ILTdata_2023-05-24_1718\documents'; % raw behavioral data path
+
+% get ids from n58 parametric modulator txt file
+PEs = readtable(fullfile(stats_path, 'fmri_PEs_PH_withC_hierarchical_nortype_n58.txt'));
+ids = unique(cellstr(num2str(PEs.ID)));
+clear PEs;
+
+%% subject loop
+
+for n = 1:length(ids)
+
+    sub_stats_path = fullfile([stats_path(1:end) '\sub-' ids{n}]); % subject folder within first-level stats folder
+    
+    %% load behavioral data per subject
+    behav_ilt3 = dir2([behav_path ['\' ids{n} '_termin_1_fmrt_arm_1_b01_wp2_ilt03.mat']]);
+    behav_ilt4 = dir2([behav_path ['\' ids{n} '_termin_1_fmrt_arm_1_b01_wp2_ilt04.mat']]);
+    
+    D_ilt3=load(fullfile(behav_path, behav_ilt3.name));
+    D_ilt4=load(fullfile(behav_path, behav_ilt4.name));
+    
+    % write ILT block number into data structure
+    if D_ilt3.ord == 1 % ord 1 = S-A, ord 2 = A-S 
+       if D_ilt3.Drink_Type == 'J'
+           D_ilt3.block = 1;
+       elseif D_ilt3.Drink_Type == 'A'
+           D_ilt3.block = 2;
+       end
+    elseif D_ilt3.ord == 2
+       if D_ilt3.Drink_Type == 'J'
+           D_ilt3.block = 2;
+       elseif D_ilt3.Drink_Type == 'A'
+           D_ilt3.block = 1;
+       end
+    end
+
+    if D_ilt4.ord == 1 % ord 1 = S-A, ord 2 = A-S
+       if D_ilt4.Drink_Type == 'J'
+           D_ilt4.block = 1;
+       elseif D_ilt4.Drink_Type == 'A'
+           D_ilt4.block = 2;
+       end
+    elseif D_ilt4.ord == 2
+       if D_ilt4.Drink_Type == 'J'
+           D_ilt4.block = 2;
+       elseif D_ilt4.Drink_Type == 'A'
+           D_ilt4.block = 1;
+       end
+    end
+
+    % rename behavioral data structures
+    if D_ilt3.block == 1 && D_ilt4.block == 2 
+       D_ilt1 = D_ilt3;
+       D_ilt2 = D_ilt4;
+    elseif D_ilt3.block == 2 && D_ilt4.block == 1
+       D_ilt1 = D_ilt4;
+       D_ilt2 = D_ilt3;
+    end
+
+    clear D_ilt3 D_ilt4
+    
+    %% load parametric modulator trajectories for both blocks per subject
+    load(fullfile(sub_stats_path, ['sub-', ids{n}, '_pmods_ilt1.mat']));
+    load(fullfile(sub_stats_path, ['sub-', ids{n}, '_pmods_ilt2.mat']));
+
+    blocks = {'1', '2'};
+    
+    for block = 1:length(blocks)
+        
+        % select behavioral data and pmods for respective block
+        if block == 1
+            D_sub = D_ilt1;
+            PEs_sub = subj_PEs_block1;
+            PCs_sub = subj_pcs_block1;
+        elseif block == 2
+            D_sub = D_ilt2;
+            PEs_sub = subj_PEs_block2;
+            PCs_sub = subj_pcs_block2;
+        end
+                
+        % define regressors for fMRI analysis
+        PEs{n,block} = PEs_sub-nanmean(PEs_sub);
+        PCs{n,block} = PCs_sub-nanmean(PCs_sub);
+
+        PEs{n,block} = PEs{n,block}(isnan(PEs{n,block})==0); % exclude NaNs from pmods
+        PCs{n,block} = PEs{n,block}(isnan(PEs{n,block})==0);
+
+%         % Reorder PE and PC so that NaN elements are at the position
+%         % where no action was made (currently at the end of the vector)
+%         nan_ind = find(isnan(D_sub.A)); % get index of NaN in action vector
+% 
+%         for ind = 1:length(nan_ind)
+% 
+%             PE_non_nan_start = PEs{n}(1:nan_ind(ind)-1);
+%             PE_non_nan_end = PEs{n}(nan_ind(ind):end);
+%             PEs{n}=[non_nan_start; NaN; non_nan_end];
+% 
+%             PC_non_nan_start = PCs{n}(1:nan_ind(ind)-1);
+%             PC_non_nan_end = PCs{n}(nan_ind(ind):end);
+%             PCs{n}=[non_nan_start; NaN; non_nan_end];
+% 
+%         end
+        regs          = [PEs{n,block} PCs{n,block}];
+
+        %% get onsets & set bins
+        
+        names           = {'trial', 'sensoric', 'missing_trial'};
+        durations       = {0 0 0};
+        
+        % set taste and swallow onsets to zero for trials with no reward
+        % (implemented in experiment, except for last trial; if this step
+        % is not done, taste and swallow onsets might contain only 49
+        % elements if last trial was not rewarded)
+        D_sub.T.onset_taste(D_sub.R==-1) = 0;
+        D_sub.T.onset_swallow(D_sub.R==-1) = 0;
+        
+        %%% get event onsets
+        onsets_cue      = D_sub.T.trial_onset'-D_sub.T.baseline_start;
+        onsets_feedback = D_sub.T.onset_fb'-D_sub.T.baseline_start;
+        onsets_taste = D_sub.T.onset_taste'-D_sub.T.baseline_start;
+        onsets_swallow = D_sub.T.onset_swallow'-D_sub.T.baseline_start;
+        onsets_trialend= D_sub.T.onset_trialend'-D_sub.T.baseline_start;
+        onsets_feedback_sensoric = onsets_feedback(onsets_swallow>=0);
+        
+        onsets_cue_missings = onsets_cue(isnan(D_sub.A)); % previously onsets_missings = onsets_feedback(isnan(D_sub.A))
+        onsets_feedback_missings = onsets_feedback(isnan(D_sub.A));
+        onsets_trialend_missings = onsets_trialend(isnan(D_sub.A));
+        
+        % exclude onsets of missing trials from non-missing onsets
+        onsets_cue      = onsets_cue(~isnan(D_sub.A));
+        onsets_feedback = onsets_feedback(~isnan(D_sub.A));
+        onsets_taste = onsets_taste(~isnan(D_sub.A));
+        onsets_swallow = onsets_swallow(~isnan(D_sub.A));
+        onsets_trialend = onsets_trialend(~isnan(D_sub.A));
+        
+        % reward
+        R=D_sub.R(~isnan(D_sub.A)); 
+        
+        %%% get event lengths
+        % trial, feedback, and swallow length
+        for trial = 1:length(onsets_cue)
+            if onsets_taste(trial,1) < 0 % if NO taste & swallow in this trial
+                trial_length(trial,1) = onsets_trialend(trial,1)-onsets_cue(trial,1); % trial length
+                feedback_length(trial,1) = onsets_trialend(trial,1)-onsets_feedback(trial,1);  % feedback length
+            else % if taste & swallow in this trial
+                trial_length(trial,1) = onsets_taste(trial,1)-onsets_cue(trial,1); % trial length
+                feedback_length(trial,1) = onsets_taste(trial,1)-onsets_feedback(trial,1);  % feedback length
+                sensoric_length(trial,1) = onsets_trialend(trial,1)-onsets_feedback(trial,1); % sensoric length (feedback - end)
+            end
+        end
+        
+        % missing trial length
+        if ~isempty(onsets_cue_missings)
+            for missing = 1:length(onsets_cue_missings)
+                missing_trial_length(missing,1) = onsets_trialend_missings(missing,1)-onsets_cue_missings(missing,1); % trial length
+            end
+        end
+            
+        % exclude taste and swallow onsets in trials with no reward
+        onsets_taste = onsets_taste(onsets_taste>=0);
+        onsets_swallow = onsets_swallow(onsets_swallow>=0);
+        
+        %%% get bin numbers per phase 
+        % get number of bins per trial
+        trial_events_c = ceil(trial_length/bin); % nbins per trial with one incomplete bin
+        trial_events_f = floor(trial_length/bin); % only full bins
+        trial_diff_c = abs(trial_length-trial_events_c*bin); % diff btw ceil*bin and trial length
+        trial_diff_f = abs(trial_length-trial_events_f*bin); % diff btw floor*bin and trial length
+
+        if trial_diff_c < trial_diff_f % check which is closer to actual trial length and choose this as events variable
+            trial_events = trial_events_c;
+        else
+            trial_events = trial_events_f;
+        end
+        
+        % get number of bins per feedback phase
+        feedback_events_c = ceil(feedback_length/bin); % nbins per trial with one incomplete bin
+        feedback_events_f = floor(feedback_length/bin); % only full bins
+        feedback_diff_c = abs(feedback_length-feedback_events_c*bin); % diff btw ceil*bin and trial length
+        feedback_diff_f = abs(feedback_length-feedback_events_f*bin); % diff btw floor*bin and trial length
+
+        if feedback_diff_c < feedback_diff_f % check which is closer to actual trial length and choose this as events variable
+            feedback_events = feedback_events_c;
+        else
+            feedback_events = feedback_events_f;
+        end
+           
+        % get number of bins per cue phase
+        cue_events = trial_events-feedback_events; % get number of bins per cue phase
+        
+        % get number of bins per sensoric phase
+        sensoric_events_c = ceil(sensoric_length/bin); % nbins per trial with one incomplete bin
+        sensoric_events_f = floor(sensoric_length/bin); % only full bins
+        sensoric_diff_c = abs(sensoric_length-sensoric_events_c*bin); % diff btw ceil*bin and trial length
+        sensoric_diff_f = abs(sensoric_length-sensoric_events_f*bin); % diff btw floor*bin and trial length
+
+        if sensoric_diff_c < sensoric_diff_f % check which is closer to actual trial length and choose this as events variable
+            sensoric_events = sensoric_events_c;
+        else
+            sensoric_events = sensoric_events_f;
+        end
+        
+        sensoric_events = sensoric_events(sensoric_events>0); % exclude trials with no sensoric phase
+        
+        % get number of bins per missing trial
+        if ~isempty(onsets_cue_missings)
+            missing_trial_events_c = ceil(missing_trial_length/bin); % nbins per trial with one incomplete bin
+            missing_trial_events_f = floor(missing_trial_length/bin); % only full bins
+            missing_trial_diff_c = abs(missing_trial_length-missing_trial_events_c*bin); % diff btw ceil*bin and trial length
+            missing_trial_diff_f = abs(missing_trial_length-missing_trial_events_f*bin); % diff btw floor*bin and trial length
+
+            if missing_trial_diff_c < missing_trial_diff_f % check which is closer to actual trial length and choose this as events variable
+                missing_trial_events = missing_trial_events_c;
+            else
+                missing_trial_events = missing_trial_events_f;
+            end
+        end
+        
+        %%% create onset regressors (containing as many onsets as bins per phase)
+        % non-missing trials
+        ind = [0; cumsum(trial_events(1:end))]; % past bins at the beginning of each trial
+        for i=1:length(onsets_cue)
+            % define onsets (with bin distance) that will be modulated for
+            % each trial
+            
+            % onsets per trial
+            % onsets matrix in lines from number of past bins at trial start + 1
+            % to number of past bins at next trial start, first column
+            % == numbers starting from cue onset of trial, going in bin
+            % steps, until cue onset of trial + (number of bins in that
+            % trial - 1) * bin
+            ons(ind(i)+1:ind(i+1),1)=[onsets_cue(i):bin:(onsets_cue(i)+(trial_events(i)-1)*bin)]'; 
+            
+            % binary indicator of cue vs feedback phase
+            % onsets matrix in lines from number of past bins at trial start + 1
+            % to number of past bins at next trial start, second column
+            % == ones for every cue bin, twos for every feedback bin,
+            % threes for every swallow bin
+            ons(ind(i)+1:ind(i+1),2)=[ones(cue_events(i),1); ones(feedback_events(i),1)+1];
+            
+            % PE modulator
+            % parametric modulator matrix in lines from number of past bins 
+            % at trial start + 1 to number of past bins at next trial
+            % start, column 1
+            % == zero vector of length cue_events concatenated with PEs
+            % vector of length feedback_events (containing PE value of
+            % trial) and with zeros vector of length swallow events
+            PE_modulator(ind(i)+1:ind(i+1),1)=[zeros(cue_events(i),1); repmat(regs(i,1), feedback_events(i), 1)]; % epsilon 2 und 3
+            
+            % choice prob modulator
+            % parametric modulator matrix in lines from number of past bins 
+            % at trial start + 1 to number of past bins at next trial
+            % start, column 1
+            % == PCs vector of length cue_events (containing old PC value
+            % before update) concatenated with PCs vector of length 
+            % feedback_events (containing updated PC value)
+            if     i< length(onsets_cue)
+                PC_modulator(ind(i)+1:ind(i+1),1) = [repmat(regs(i,2), cue_events(i), 1); repmat(regs(i+1,2), feedback_events(i), 1)];% only sigma2 and mu3
+            elseif i==length(onsets_cue) % letzter Trial
+                PC_modulator(ind(i)+1:ind(i+1),1) = [repmat(regs(i,2), cue_events(i), 1); repmat(regs(i,2), feedback_events(i), 1)];% only sigma2 and mu3
+            end
+        end
+        
+        % sensoric phase
+        ind_s = [0; cumsum(sensoric_events(1:end))]; % past bins at the beginning of each sensoric phase
+        for s=1:length(onsets_feedback_sensoric)
+            % onsets matrix in lines from number of past bins at trial start + 1
+            % to number of past bins at next trial start, first column
+            % == numbers starting from feedback onset of trial, going in bin
+            % steps, until feedback onset of trial + (number of bins in that
+            % trial - 1) * bin
+            ons_s(ind_s(s)+1:ind_s(s+1),1)=[onsets_feedback_sensoric(s):bin:(onsets_feedback_sensoric(s)+(sensoric_events(s)-1)*bin)]'; 
+        end
+        
+        % missing trials
+        if ~isempty(onsets_cue_missings)
+            ind_m = [0; cumsum(missing_trial_events(1:end))]; % past bins at the beginning of each swallow phase
+            for m=1:length(onsets_cue_missings)
+                % onsets matrix in lines from number of past bins at trial start + 1
+                % to number of past bins at next trial start, first column
+                % == numbers starting from cue onset of trial, going in bin
+                % steps, until cue onset of trial + (number of bins in that
+                % trial - 1) * bin
+                ons_m(ind_m(m)+1:ind_m(m+1),1)=[onsets_cue_missings(m):bin:(onsets_cue_missings(m)+(missing_trial_events(m)-1)*bin)]'; 
+            end
+        end
+        
+        onsets{1}       = ons(:,1);
+        onsets{2}       = ons_s(:,1);
+        if ~isempty(onsets_cue_missings)
+            onsets{3}   = ons_m(:,1);
+        else
+            onsets{3} = NaN; 
+            ons_m = NaN;
+        end
+        
+        %% define condition file content
+        orth = {0 0 0}; % zwei nullen? wenn 0 = beide können gleiche Varianz erklären
+        
+        pmod(1).name{1} = 'prediction_error';
+        pmod(1).param{1}= [PE_modulator(:,1)];
+        pmod(1).poly{1} = 1;
+
+        pmod(1).name{2} = 'choice_prob';
+        pmod(1).param{2}= [PC_modulator(:,1)];
+        pmod(1).poly{2} = 1;
+
+        % save multiple condition files
+        if ~exist(sub_stats_path,'dir'); mkdir(sub_stats_path); end
+
+        save([sub_stats_path '/sub-' ids{n} '_conditions_ilt_reinforcer_' D_sub.Drink_Type '_block_' blocks{block} '.mat'], 'names', 'onsets','durations', 'pmod', 'orth');
+        clear regs pmod onsets names durations onsets_cue onsets_cue_missings onsets_feedback onsets_feedback_missings onsets_taste onsets_swallow onsets_trialend onsets_trialend_missings orth ons ons_m ons_s PE_modulator PC_modulator trial_length feedback_length cue_length swallow_length missing_trial_length
+        
+    end % block
+    
+end % subject
