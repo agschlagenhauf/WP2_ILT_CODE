@@ -21,64 +21,134 @@ format:
 
 ```{r}
 rm(list=ls())
-libs<-c("tidyverse", "rstan", "gdata", "bayesplot", "stringr", "dplyr", "ggplot2", "loo", "hBayesDM", "lme4", "sjPlot", "ggpubr", "tidyr", "gmodels")
+libs<-c("tidyverse", "rstan", "gdata", "bayesplot", "stringr", "dplyr", "ggplot2", "loo", "hBayesDM", "lme4", "sjPlot", "ggpubr", "tidyr", "gmodels", "performance", "robustlmm", "lmerTest", "emmeans")
 sapply(libs, require, character.only=TRUE)
 
 data_path<-"/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT/WP2_ILT_DATA/Stan_Output/PH_withC"
 project_path <- "/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT"
 
 load(file.path(project_path, "WP2_ILT_DATA/RedCap/redcap_n58_new.RData"))
+load(file.path(project_path, "WP2_ILT_DATA/Behav/behav_final_n58.RData"))
 
 params <- read.table(file.path(data_path, 'Params_PH_withC_init05_n58.txt'), header = T)
 PEs <- read.table(file.path(data_path, 'fmri_PEs_PH_withC_init05_n58.txt'), header = T)
 CPs <- read.table(file.path(data_path, 'fmri_pcs_PH_withC_init05_n58.txt'), header = T)
 Qs <- read.table(file.path(data_path, 'fmri_Qs_PH_withC_init05_n58.txt'), header = T)
 
+# number notation without exponentials
+options(scipen = 50)
 ```
 
 ```{r}
-# prepare params df
+### prepare params df ###
+
 params <- params %>%
   select(!ID_block) %>%
   mutate(ID = as.factor(ID),
-         aud_group = as.factor(aud_group),
+         aud_group = factor(aud_group, levels = c("HC", "AUD")),
          reinforcer_type = as.factor(reinforcer_type),
          block = as.factor(block))
 
-# prepare trial-by-trial df
+### prepare trial-by-trial df ###
+
 trialy_by_trial_df <- left_join(PEs, CPs, by = c("ID_block", "trial_block", "reinforcer_type", "ID"))
 trialy_by_trial_df <- left_join(trialy_by_trial_df, Qs, by = c("ID_block", "trial_block", "reinforcer_type", "ID"))
 trialy_by_trial_df <- trialy_by_trial_df %>%
-  select(ID, reinforcer_type, trial_block, PE_pred, pc_pred, Q_pred)
-
-trialy_by_trial_df <- trialy_by_trial_df %>%
+  select(ID, reinforcer_type, trial_block, PE_pred, pc_pred, Q_pred) %>%
   mutate(ID = as.factor(ID),
-         reinforcer_type = as.factor(reinforcer_type))
-
+         reinforcer_type = as.factor(reinforcer_type),
+         abs_PE_pred = abs(PE_pred))
 trialy_by_trial_df <- left_join(trialy_by_trial_df, redcap_new, by="ID")
+trialy_by_trial_df <- left_join(trialy_by_trial_df, behav_final, by=c("ID", "reinforcer_type", "trial_block"))
+trialy_by_trial_df <- trialy_by_trial_df %>%
+  select(ID, ID_block, aud_group, reinforcer_type, trial_block, choice, PE_pred, abs_PE_pred, pc_pred, Q_pred) %>%
+  mutate(aud_group = factor(aud_group, levels = c("HC", "AUD"))) %>%
+  arrange(ID_block)
+
+# rearrange NAs in trial-by-trial quantities to be at position where no choice was made
+
+new_PEs_all <- c()
+new_absPEs_all <- c()
+new_CPs_all <- c()
+new_Qs_all <- c()
+
+for (n in 1:length(unique(trialy_by_trial_df$ID_block))) {
+  
+  id <- unique(trialy_by_trial_df$ID_block)[n]
+  
+  # get original vectors
+  choices <- trialy_by_trial_df$choice[trialy_by_trial_df$ID_block==id]
+  PEs <- trialy_by_trial_df$PE_pred[trialy_by_trial_df$ID_block==id]
+  absPEs <- trialy_by_trial_df$abs_PE_pred[trialy_by_trial_df$ID_block==id]
+  CPs <- trialy_by_trial_df$pc_pred[trialy_by_trial_df$ID_block==id]
+  Qs <- trialy_by_trial_df$Q_pred[trialy_by_trial_df$ID_block==id]
+  
+  # initialize new sorted vectors
+  PEs_new <- PEs
+  absPEs_new <- absPEs
+  CPs_new <- CPs
+  Qs_new <- Qs
+  
+  # find indices where choice is NA
+  na_indices <- which(is.na(choices))
+  
+  # shift values forward and fill NA where choice is NA
+  for (i in seq_along(na_indices)) {
+  
+    PEs_new[(na_indices[i]+1):length(PEs_new)] <- PEs_new[na_indices[i]:(length(PEs_new)-1)]  
+    PEs_new[na_indices[i]] <- NA
+    PEs_new <- PEs_new[1:length(PEs)]
+    
+    absPEs_new[(na_indices[i]+1):length(absPEs_new)] <- absPEs_new[na_indices[i]:(length(absPEs_new)-1)]  
+    absPEs_new[na_indices[i]] <- NA
+    absPEs_new <- absPEs_new[1:length(absPEs)]
+    
+    CPs_new[(na_indices[i]+1):length(CPs_new)] <- CPs_new[na_indices[i]:(length(CPs_new)-1)]  
+    CPs_new[na_indices[i]] <- NA
+    CPs_new <- CPs_new[1:length(CPs)]
+    
+    Qs_new[(na_indices[i]+1):length(Qs_new)] <- Qs_new[na_indices[i]:(length(Qs_new)-1)]  
+    Qs_new[na_indices[i]] <- NA
+    Qs_new <- Qs_new[1:length(Qs)]
+    
+  }
+  
+  new_PEs_all <- append(new_PEs_all, PEs_new)
+  new_absPEs_all <- append(new_absPEs_all, absPEs_new)
+  new_CPs_all <- append(new_CPs_all, CPs_new)
+  new_Qs_all <- append(new_Qs_all, Qs_new)
+  
+}
+
+trialy_by_trial_df$new_PEs <- new_PEs_all
+trialy_by_trial_df$new_absPEs <- new_absPEs_all
+trialy_by_trial_df$new_CPs <- new_CPs_all
+trialy_by_trial_df$new_Qs <- new_Qs_all
 
 # get p correct per block and aud group and trial for plotting
 df_tbt_time <- trialy_by_trial_df %>%
   group_by(aud_group,reinforcer_type,trial_block) %>%
-  dplyr::summarise(mean_PE = mean(abs(PE_pred), na.rm = TRUE),
-            ci_l_PE = ci(abs(PE_pred), na.rm=TRUE)[2],
-            ci_u_PE = ci(abs(PE_pred), na.rm=TRUE)[3],
-            mean_CP = mean(pc_pred, na.rm = TRUE),
-            ci_l_CP = ci(pc_pred, na.rm=TRUE)[2],
-            ci_u_CP = ci(pc_pred, na.rm=TRUE)[3],
-            mean_Q = mean(Q_pred, na.rm = TRUE),
-            ci_l_Q = ci(Q_pred, na.rm=TRUE)[2],
-            ci_u_Q = ci(Q_pred, na.rm=TRUE)[3],
-  )
+  dplyr::summarise(mean_PE = mean(new_absPEs, na.rm = TRUE),
+            ci_l_PE = ci(new_absPEs, na.rm=TRUE)[2],
+            ci_u_PE = ci(new_absPEs, na.rm=TRUE)[3],
+            mean_CP = mean(new_CPs, na.rm = TRUE),
+            ci_l_CP = ci(new_CPs, na.rm=TRUE)[2],
+            ci_u_CP = ci(new_CPs, na.rm=TRUE)[3],
+            mean_Q = mean(new_Qs, na.rm = TRUE),
+            ci_l_Q = ci(new_Qs, na.rm=TRUE)[2],
+            ci_u_Q = ci(new_Qs, na.rm=TRUE)[3],
+  ) %>%
+  mutate(aud_group = factor(aud_group, levels = c("HC", "AUD")))
+  
 
 # set contrasts
 contrasts(params$reinforcer_type) <- abs(contr.treatment(2)-1)
 contrasts(trialy_by_trial_df$reinforcer_type) <- abs(contr.treatment(2)-1)
 contrasts(df_tbt_time$reinforcer_type) <- abs(contr.treatment(2)-1)
 
-contrasts(params$aud_group) <- abs(contr.treatment(2)-1)
-contrasts(trialy_by_trial_df$aud_group) <- abs(contr.treatment(2)-1)
-contrasts(df_tbt_time$aud_group) <- abs(contr.treatment(2)-1)
+contrasts(params$aud_group)
+contrasts(trialy_by_trial_df$aud_group)
+contrasts(df_tbt_time$aud_group)
 ```
 
 # Bayesian parameter analysis
@@ -104,6 +174,7 @@ contrasts(df_tbt_time$aud_group) <- abs(contr.treatment(2)-1)
 # plotHDI(posterior_draws$gamma_sub_con_m)
 # plotHDI(posterior_draws$C_sub_con_m)
 ```
+
 # Computational parameters
 
 ## Alpha
@@ -127,15 +198,33 @@ fig1
 ```
 
 ```{r}
-m_alpha <- lm(alpha ~ 1 + reinforcer_type*aud_group, data=params)
+m_alpha <- lmer(alpha ~ 1 + reinforcer_type*aud_group + (1 | ID), data=params)
 
 tab_model(m_alpha,
-          dv.labels=c("m_correct"), digits=3, digits.re=2,
+          dv.labels=c("m_alpha"), digits=3, digits.re=2, df.method = "satterthwaite",
           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+
+check_model(m_alpha, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+
+# robust estimation
+m_alpha_robust <- rlmer(alpha ~ 1 + reinforcer_type*aud_group + (1 | ID), data=params)
+
+plot(m_alpha_robust)
 ```
 
-We cannot include reinforcer type as random effect as the model would be unidentifiable. Therefore, the model only includes a random intercept.
+Derive p-values for robust model according to https://stats.stackexchange.com/questions/430490/obtaining-p-values-in-a-robustlmm-mixed-model-via-satterthwaite-approximated-dfs
 
+```{r}
+# get Satterthwaite DFs from non-robust model
+coefs <- data.frame(coef(summary(m_alpha)))
+
+# get coefficients from robust model to extract t-values
+coefs.robust <- coef(summary(m_alpha_robust))
+
+# calculate p-values based on robust t-values and non-robust approx. DFs
+p.values <- 2*pt(abs(coefs.robust[,3]), coefs$df, lower=FALSE)
+as.data.frame(p.values)
+```
 
 ## Inverse temperature
 
@@ -158,14 +247,33 @@ fig2
 ```
 
 ```{r}
-m_invtemp <- lm(tau ~ 1 + reinforcer_type*aud_group, data=params)
+m_invtemp <- lmer(tau ~ 1 + reinforcer_type*aud_group + (1 | ID), data=params)
 
 tab_model(m_invtemp,
-          dv.labels=c("m_invtemp"), digits=3, digits.re=2,
+          dv.labels=c("m_invtemp"), digits=3, digits.re=2, df.method = "satterthwaite",
           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+
+check_model(m_invtemp, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+
+# robust estimation
+m_invtemp_robust <- rlmer(tau ~ 1 + reinforcer_type*aud_group + (1 | ID), data=params)
+
+plot(m_invtemp_robust)
 ```
 
-We cannot include reinforcer type as random effect as the model would be unidentifiable. Therefore, the model only includes a random intercept.
+Derive p-values for robust model according to https://stats.stackexchange.com/questions/430490/obtaining-p-values-in-a-robustlmm-mixed-model-via-satterthwaite-approximated-dfs
+
+```{r}
+# get Satterthwaite DFs from non-robust model
+coefs <- data.frame(coef(summary(m_invtemp)))
+
+# get coefficients from robust model to extract t-values
+coefs.robust <- coef(summary(m_invtemp_robust))
+
+# calculate p-values based on robust t-values and non-robust approx. DFs
+p.values <- 2*pt(abs(coefs.robust[,3]), coefs$df, lower=FALSE)
+as.data.frame(p.values)
+```
 
 ## Gamma
 
@@ -188,11 +296,32 @@ fig3
 ```
 
 ```{r}
-m_gamma <- lm(gamma ~ 1 + reinforcer_type*aud_group, data=params)
+m_gamma <- lmer(gamma ~ 1 + reinforcer_type*aud_group + (1 | ID), data=params)
 
 tab_model(m_gamma,
-          dv.labels=c("m_gamma"), digits=3, digits.re=2,
+          dv.labels=c("m_gamma"), digits=3, digits.re=2, df.method = "satterthwaite",
           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+
+check_model(m_gamma, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+
+# robust estimation
+m_gamma_robust <- rlmer(gamma ~ 1 + reinforcer_type*aud_group + (1 | ID), data=params)
+
+plot(m_gamma_robust)
+```
+
+Derive p-values for robust model according to https://stats.stackexchange.com/questions/430490/obtaining-p-values-in-a-robustlmm-mixed-model-via-satterthwaite-approximated-dfs
+
+```{r}
+# get Satterthwaite DFs from non-robust model
+coefs <- data.frame(coef(summary(m_gamma)))
+
+# get coefficients from robust model to extract t-values
+coefs.robust <- coef(summary(m_gamma_robust))
+
+# calculate p-values based on robust t-values and non-robust approx. DFs
+p.values <- 2*pt(abs(coefs.robust[,3]), coefs$df, lower=FALSE)
+as.data.frame(p.values)
 ```
 
 ## C
@@ -216,28 +345,32 @@ fig4
 ```
 
 ```{r}
-m_C <- lm(C ~ 1 + reinforcer_type*aud_group, data=params)
+m_C <- lmer(C ~ 1 + reinforcer_type*aud_group + (1 | ID), data=params)
 
 tab_model(m_C,
-          dv.labels=c("m_C"), digits=3, digits.re=2,
+          dv.labels=c("m_C"), digits=3, digits.re=2, df.method = "satterthwaite",
           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+
+check_model(m_C, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+
+# robust estimation
+m_C_robust <- rlmer(C ~ 1 + reinforcer_type*aud_group + (1 | ID), data=params)
+
+plot(m_C_robust)
 ```
 
-We cannot include reinforcer type as random effect as the model would be unidentifiable. Therefore, the model only includes a random intercept.
-
-## Combined plot
+Derive p-values for robust model according to https://stats.stackexchange.com/questions/430490/obtaining-p-values-in-a-robustlmm-mixed-model-via-satterthwaite-approximated-dfs
 
 ```{r}
-# save combined plot
-fig_params <- ggarrange(fig1, fig2, fig3, fig4,
-          labels = c("A", "B", "C", "D"),
-          ncol = 4, nrow = 1,
-          common.legend = TRUE, legend="bottom")
-fig_params
+# get Satterthwaite DFs from non-robust model
+coefs <- data.frame(coef(summary(m_C)))
 
-png("params.png", width = 24, height = 10, units='cm', res = 600)
-fig_params
-dev.off()
+# get coefficients from robust model to extract t-values
+coefs.robust <- coef(summary(m_C_robust))
+
+# calculate p-values based on robust t-values and non-robust approx. DFs
+p.values <- 2*pt(abs(coefs.robust[,3]), coefs$df, lower=FALSE)
+as.data.frame(p.values)
 ```
 
 # Trial-by-trial quantities
@@ -245,12 +378,12 @@ dev.off()
 ## Absolute prediction errors
 
 ```{r}
-fig_PE_time <- ggplot(df_tbt_time, aes(x=trial_block, y=abs(mean_PE), group=reinforcer_type)) +
+fig_PE_time <- ggplot(df_tbt_time, aes(x=trial_block, y=mean_PE, group=reinforcer_type)) +
   geom_line(aes(color=reinforcer_type), linewidth=0.8) +
   geom_ribbon(aes(ymin = ci_l_PE, ymax = ci_u_PE, fill = reinforcer_type), alpha = 0.2) + 
-  facet_wrap(~aud_group, scales="free_y") +
-  scale_y_continuous("Absolute \n prediction errors", limits = c(0,1)) +
-  scale_x_continuous(NULL) +
+  facet_wrap(~aud_group, scales="fixed") +
+  scale_y_continuous("Absolute RPEs", limits = c(0,1)) +
+  scale_x_continuous("Trial") +
   theme_light(base_size=18) +
   theme(legend.position = "right") +
   scale_color_brewer(name="Reinforcer type", 
@@ -265,15 +398,67 @@ fig_PE_time
 ```
 
 ```{r}
-m_PE=lmer(PE_pred~reinforcer_type*aud_group*trial_block + (1 + trial_block | ID),
+m_PE=lmer(new_absPEs ~ reinforcer_type*aud_group*trial_block + (1 + reinforcer_type + trial_block || ID),
+                data=trialy_by_trial_df,
+                control=lmerControl(calc.derivs=FALSE),
+                REML=F)
+
+tab_model(m_PE,
+          dv.labels=c("m_PE"), digits=3, digits.re=2, transform = NULL, show.est = T, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+
+check_model(m_PE, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+
+# robust estimation
+m_PE_robust=rlmer(new_absPEs ~ reinforcer_type*aud_group*trial_block + (1 + reinforcer_type + trial_block || ID),
                 data=trialy_by_trial_df,
                 control=lmerControl(calc.derivs=FALSE))
 
-tab_model(m_PE,
-          dv.labels=c("m_rt_trial"), digits=3, digits.re=2, transform = NULL, show.est = T, 
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+plot(m_PE_robust)
 
 ```
+
+Derive p-values for robust model according to https://stats.stackexchange.com/questions/430490/obtaining-p-values-in-a-robustlmm-mixed-model-via-satterthwaite-approximated-dfs
+
+```{r}
+# get Satterthwaite DFs from non-robust model
+coefs <- data.frame(coef(summary(m_PE)))
+
+# get coefficients from robust model to extract t-values
+coefs.robust <- coef(summary(m_PE_robust))
+
+# calculate p-values based on robust t-values and non-robust approx. DFs
+p.values <- 2*pt(abs(coefs.robust[,3]), coefs$df, lower=FALSE)
+as.data.frame(p.values)
+```
+
+As difference in significance, show full model:
+
+```{r}
+tab_model(m_PE_robust,
+          dv.labels=c("m_PE_robust"), digits=3, digits.re=2, transform = NULL, show.est = T, df.method = "normal",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+summary(m_PE_robust)
+```
+
+Get p-values for post-hoc tests based on satterthwaites dfs: 
+
+```{r}
+post_hoc_PE <- summary(emtrends(m_PE, c("reinforcer_type", "aud_group"), var = "trial_block", lmer.df = "satterthwaite", lmerTest.limit = 5702), infer=TRUE)
+post_hoc_PE
+
+post_hoc_PE_robust <- summary(emtrends(m_PE_robust, c("reinforcer_type", "aud_group"), var = "trial_block", lmer.df = "satterthwaite", lmerTest.limit = 5702), infer=TRUE)
+post_hoc_PE_robust
+post_hoc_PE_robust <- as.matrix(post_hoc_PE_robust)
+
+p.values <- 2*pt(abs(as.numeric(post_hoc_PE_robust[,8])), post_hoc_PE$df, lower=F)
+as.data.frame(p.values)
+```
+
+```{r}
+plot_model(m_PE_robust, type = "pred", terms = c("trial_block", "reinforcer_type"))
+```
+
 
 ## Choice probabilities of chosen option
 
@@ -281,9 +466,9 @@ tab_model(m_PE,
 fig_CP_time <- ggplot(df_tbt_time, aes(x=trial_block, y=mean_CP, group=reinforcer_type)) +
   geom_line(aes(color=reinforcer_type), linewidth=0.8) +
   geom_ribbon(aes(ymin = ci_l_CP, ymax = ci_u_CP, fill = reinforcer_type), alpha = 0.2) + 
-  facet_wrap(~aud_group, scales="free_y") +
-  scale_y_continuous("Choice probabilities \n of chosen option", limits = c(0,1)) +
-  scale_x_continuous(NULL) +
+  facet_wrap(~aud_group, scales="fixed") +
+  scale_y_continuous("Choice probabilities", limits = c(0,1)) +
+  scale_x_continuous("Trial") +
   theme_light(base_size=18) +
   theme(legend.position = "right") +
   scale_color_brewer(name="Reinforcer type", 
@@ -298,14 +483,76 @@ fig_CP_time
 ```
 
 ```{r}
-m_CP=lmer(pc_pred~reinforcer_type*aud_group*trial_block + (1 + trial_block | ID),
+m_CP=lmer(new_CPs~reinforcer_type*aud_group*trial_block + (1 + reinforcer_type + trial_block | ID),
                 data=trialy_by_trial_df,
                 control=lmerControl(calc.derivs=FALSE))
 
 tab_model(m_CP,
-          dv.labels=c("m_rt_trial"), digits=3, digits.re=2, transform = NULL, show.est = T, 
+          dv.labels=c("m_CP"), digits=3, digits.re=2, transform = NULL, show.est = T, df.method = "satterthwaite",
           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
 
+check_model(m_CP, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+
+# robust estimation
+m_CP_robust=rlmer(new_CPs~reinforcer_type*aud_group*trial_block + (1 + reinforcer_type + trial_block | ID),
+                data=trialy_by_trial_df,
+                control=lmerControl(calc.derivs=FALSE))
+
+plot(m_CP_robust)
+```
+
+Derive p-values for robust model according to https://stats.stackexchange.com/questions/430490/obtaining-p-values-in-a-robustlmm-mixed-model-via-satterthwaite-approximated-dfs
+
+```{r}
+# get Satterthwaite DFs from non-robust model
+coefs <- data.frame(coef(summary(m_CP)))
+
+# get coefficients from robust model to extract t-values
+coefs.robust <- coef(summary(m_CP_robust))
+
+# calculate p-values based on robust t-values and non-robust approx. DFs
+p.values <- 2*pt(abs(coefs.robust[,3]), coefs$df, lower=FALSE)
+as.data.frame(p.values)
+```
+
+
+As difference in significance, show full model:
+
+```{r}
+tab_model(m_CP_robust,
+          dv.labels=c("m_CP_robust"), digits=3, digits.re=2, transform = NULL, show.est = T, df.method = "normal",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+summary(m_CP_robust)
+```
+
+Get p-values for post-hoc tests based on satterthwaites dfs: 
+
+```{r}
+post_hoc_CP <- summary(emtrends(m_CP, c("reinforcer_type", "aud_group"), var = "trial_block", lmer.df = "satterthwaite", lmerTest.limit = 5702), infer=TRUE)
+post_hoc_CP
+
+post_hoc_CP_robust <- summary(emtrends(m_CP_robust, c("reinforcer_type", "aud_group"), var = "trial_block", lmer.df = "satterthwaite", lmerTest.limit = 5702), infer=TRUE)
+post_hoc_CP_robust
+post_hoc_CP_robust <- as.matrix(post_hoc_CP_robust)
+
+p.values <- 2*pt(abs(as.numeric(post_hoc_CP_robust[,8])), post_hoc_CP$df, lower=F)
+as.data.frame(p.values)
+```
+
+```{r}
+pairs_CP <- pairs(emtrends(m_CP, c("reinforcer_type", "aud_group"), var = "trial_block", lmer.df = "satterthwaite", lmerTest.limit = 5702))
+pairs_CP
+
+pairs_CP_robust <- pairs(emtrends(m_CP_robust, c("reinforcer_type", "aud_group"), var = "trial_block", lmer.df = "satterthwaite", lmerTest.limit = 5702))
+pairs_CP_robust
+
+p.values <- 2*pt(6.321, 5521.5, lower=F)
+as.data.frame(p.values)
+```
+
+
+```{r}
+plot_model(m_CP_robust, type = "pred", terms = c("trial_block", "reinforcer_type", "aud_group"))
 ```
 
 ## Q-values of chosen option
@@ -331,7 +578,7 @@ fig_Q_time
 ```
 
 ```{r}
-m_Q=lmer(Q_pred~reinforcer_type*aud_group*trial_block + (1 + trial_block | ID),
+m_Q=lmer(new_Qs~reinforcer_type*aud_group*trial_block + (1 + reinforcer_type + trial_block | ID),
                 data=trialy_by_trial_df,
                 control=lmerControl(calc.derivs=FALSE))
 
@@ -339,19 +586,20 @@ tab_model(m_Q,
           dv.labels=c("m_rt_trial"), digits=3, digits.re=2, transform = NULL, show.est = T, 
           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
 
+check_model(m_Q, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
 ```
 
 ## Combined plot
 
 ```{r}
 # save combined plot
-fig_trialbytrial <- ggarrange(fig_PE_time, fig_CP_time, fig_Q_time,
-          labels = c("A", "B", "C"),
-          ncol = 1, nrow = 3,
-          common.legend = TRUE, legend="bottom")
-fig_trialbytrial
+fig_comp_mod <- ggarrange(fig1, fig2, fig3, fig4, fig_PE_time, fig_CP_time,
+          labels = c("A", "B", "C", "D", "E", "F"),
+          ncol = 2, nrow = 3,
+          common.legend = T, legend="top")
+fig_comp_mod
 
-png(file.path(project_path, "Manuscript/Figures", "trial_by_trial.png"), width = 16, height = 22, units='cm', res = 600)
-fig_trialbytrial
+png(file.path(project_path, "Manuscript/Figures", "comp_modeling.png"), width = 20, height = 26, units='cm', res = 600)
+fig_comp_mod
 dev.off()
 ```

@@ -19,7 +19,7 @@ load(file.path(data_path, "Behav/behav_final_redcap_n56.RData"))
 # structure data
 nacc_main <- nacc_main %>%
   mutate(ID = c(1:56),
-         aud_group = as.factor(c(rep("HC",28), rep("AUD",28)))) %>%
+         aud_group = factor(c(rep("HC",28), rep("AUD",28)), levels = c("HC", "AUD"))) %>%
   pivot_longer(!c("ID", "aud_group"), names_to = "combination", values_to = "value") %>%
   mutate(combination = as.factor(combination),
          reinforcer = case_when(combination %in% c("alc_left_nacc", "alc_right_nacc") ~ "alcohol",
@@ -71,7 +71,7 @@ main_peak_plot <- ggarrange(fig_main_left_nacc, fig_main_right_nacc,
           ncol = 2, nrow = 1,
           common.legend = TRUE, legend="bottom")
 
-png("NAcc_main.png", width = 18, height = 10, units='cm', res = 600)
+png(file.path("Manuscript/Figures", "NAcc_main.png"), width = 18, height = 10, units='cm', res = 600)
 main_peak_plot
 dev.off()
 

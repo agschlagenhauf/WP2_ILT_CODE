@@ -21,7 +21,8 @@ ema_data <- ema_data %>%
   select(participant_id, date, sampling_day, g_alc) %>%
   dplyr::rename(ID = participant_id,
                 date_time = date) %>%
-  mutate(date = as.Date(date_time)) %>%
+  mutate(date = as.Date(date_time),
+         log_g_alc = log(g_alc+1)) %>%
   filter(ID %in% redcap_new$ID) %>%
   drop_na()
 

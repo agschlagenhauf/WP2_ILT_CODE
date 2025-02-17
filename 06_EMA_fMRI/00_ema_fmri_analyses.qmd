@@ -10,35 +10,41 @@ editor: visual
 ```{r}
 rm(list=ls())
 
-libs<-c("tidyverse", "stringr", "plyr", "dplyr", "lme4", "lmerTest","kableExtra", "gmodels", "sjPlot", "rstatix", "ggpubr")
+libs<-c("tidyverse", "stringr", "plyr", "dplyr", "lme4", "lmerTest","kableExtra", "gmodels", "sjPlot", "rstatix", "ggpubr", "ggplot2")
 sapply(libs, require, character.only=TRUE)
 
 # define paths
 ema_path <- '/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT/WP2_ILT_DATA/EMA'
 demo_path <- '/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT/WP2_ILT_DATA/RedCap'
+mri_path <- '/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT/WP2_ILT_DATA/fMRI/PH_withC/'
 
-# load files
+# load ema and redcap files
 load(file.path(ema_path, "ema_data_n22.RData"))
-load(file.path(demo_path, "redcap_n22_new.RData"))
+load(file.path(demo_path, "redcap_n56_new.RData"))
+redcap_new <- redcap_new %>%
+  arrange(aud_group, ID)
 
 # create merged file
-# ema_redcap <- left_join(ema_data, redcap_new)
+ema_redcap <- left_join(ema_data, redcap_new)
 
+# read extracted vs voi values
+mri_df <- read.table(file.path(mri_path, "EMA_RPE_bilNAcc_per_reinforcer_across_groups_t1.txt"), sep = ",", header=TRUE)
+mri_df$ID <- redcap_new$ID
+
+# create merged df
+ema_redcap_mri <- left_join(ema_redcap, mri_df) %>%
+  mutate(last_day = max(sampling_day, na.rm = TRUE),
+                   total_days = n(),
+                   duration = max(sampling_day, na.rm = TRUE)-min(sampling_day, na.rm = TRUE)+1,
+                   days_btw_ema_start_and_mri = as.numeric(date-MRI_date))
 ```
 
 For sample characteristics, execute 00_demo_psychometric_analyses.qmd
 
-# Adherence and time
+# Adherence and time to MRI scan
 
 ```{r}
-adherence <- ema_data %>%
-  select(ID, sampling_day) %>%
-  group_by(ID) %>%
-  dplyr::summarise(last_day = max(sampling_day, na.rm = TRUE),
-                   total_days = n(),
-                   duration = max(sampling_day, na.rm = TRUE)-min(sampling_day, na.rm = TRUE)+1)
-
-last_day_summary <- adherence %>%
+last_day_summary <- ema_redcap_mri %>%
   select(ID, last_day) %>%
   dplyr::summarise(mean = mean(last_day, na.rm = TRUE),
                    se = sd(last_day, na.rm = TRUE)/sqrt(n()-sum(is.nan(last_day))),
@@ -46,8 +52,9 @@ last_day_summary <- adherence %>%
                    max = max(last_day, na.rm = TRUE),
                    ci_l = ci(last_day, na.rm = TRUE)[2],
                    ci_u = ci(last_day, na.rm = TRUE)[3])
+last_day_summary
 
-total_days_summary <- adherence %>%
+total_days_summary <- ema_redcap_mri %>%
   select(ID, total_days) %>%
   dplyr::summarise(mean = mean(total_days, na.rm = TRUE),
                    se = sd(total_days, na.rm = TRUE)/sqrt(n()-sum(is.nan(total_days))),
@@ -55,8 +62,9 @@ total_days_summary <- adherence %>%
                    max = max(total_days, na.rm = TRUE),
                    ci_l = ci(total_days, na.rm = TRUE)[2],
                    ci_u = ci(total_days, na.rm = TRUE)[3])
+total_days_summary
 
-duration_summary <- adherence %>%
+duration_summary <- ema_redcap_mri %>%
   select(ID, duration) %>%
   dplyr::summarise(mean = mean(duration, na.rm = TRUE),
                    se = sd(duration, na.rm = TRUE)/sqrt(n()-sum(is.nan(duration))),
@@ -64,5 +72,76 @@ duration_summary <- adherence %>%
                    max = max(duration, na.rm = TRUE),
                    ci_l = ci(duration, na.rm = TRUE)[2],
                    ci_u = ci(duration, na.rm = TRUE)[3])
+duration_summary
 
+# time between EMA start and MRI scan
+time_diff_summary <- ema_redcap_mri %>%
+  select(ID, days_btw_ema_start_and_mri) %>%
+  group_by(ID) %>%
+  dplyr::summarise(mean = mean(days_btw_ema_start_and_mri, na.rm = TRUE),
+                   se = sd(days_btw_ema_start_and_mri, na.rm = TRUE)/sqrt(n()-sum(is.nan(days_btw_ema_start_and_mri))),
+                   min = min(days_btw_ema_start_and_mri, na.rm = TRUE),
+                   max = max(days_btw_ema_start_and_mri, na.rm = TRUE),
+                   ci_l = ci(days_btw_ema_start_and_mri, na.rm = TRUE)[2],
+                   ci_u = ci(days_btw_ema_start_and_mri, na.rm = TRUE)[3])
+time_diff_summary
+```
+
+# Predicting allcohol consumption in next 30 days based on vs voi activity
+
+## Prepare dfs
+
+```{r}
+ema_redcap_mri_post <- ema_redcap_mri %>%
+  filter((days_btw_ema_start_and_mri > (-1))) %>%
+  group_by((ID)) %>%
+  mutate(time_centered = days_btw_ema_start_and_mri - mean(days_btw_ema_start_and_mri))
+
+ema_redcap_mri_post30 <- ema_redcap_mri %>%
+  filter((days_btw_ema_start_and_mri > (-1)) & (days_btw_ema_start_and_mri < 31)) %>%
+  mutate(time_centered = days_btw_ema_start_and_mri - mean(days_btw_ema_start_and_mri),
+         alc_bilateral_nacc_centered = alc_bilateral_nacc - mean(alc_bilateral_nacc),
+         jui_bilateral_nacc_centered = jui_bilateral_nacc - mean(jui_bilateral_nacc),
+         alc_larger_jui_bilateral_nacc_centered = alc_larger_jui_bilateral_nacc - mean(alc_larger_jui_bilateral_nacc))
+
+ema_redcap_mri_pre <- ema_redcap_mri %>%
+  filter((days_btw_ema_start_and_mri < (-1)))
+```
+
+## LMM
+
+```{r}
+model_pre <- lmer(log_g_alc ~ alc_bilateral_nacc + jui_bilateral_nacc + age + gender + (1|ID),
+              data=ema_redcap_mri_pre,
+              control=lmerControl(calc.derivs=FALSE), REML = F)
+
+summary(model_pre)
+
+model_post <- lmer(log_g_alc ~ alc_bilateral_nacc + jui_bilateral_nacc + age + gender + (1|ID),
+              data=ema_redcap_mri_post,
+              control=lmerControl(calc.derivs=FALSE), REML = F)
+
+summary(model_post)
+
+model_post30 <- lmer(log_g_alc ~ (alc_bilateral_nacc + jui_bilateral_nacc)*days_btw_ema_start_and_mri + (1 + days_btw_ema_start_and_mri|ID),
+              data=ema_redcap_mri_post30,
+              control=lmerControl(calc.derivs=FALSE), REML = F)
+
+summary(model_post30)
+```
+
+```{r}
+model_post30 <- lmer(log_g_alc ~ (alc_bilateral_nacc_centered + jui_bilateral_nacc_centered) + (1 |ID),
+              data=ema_redcap_mri_post30,
+              control=lmerControl(calc.derivs=FALSE), REML = F)
+
+summary(model_post30)
+```
+
+```{r}
+ema_redcap_mri_post30 |>
+  ggplot(aes(x=time_centered, y=log_g_alc, color = jui_bilateral_nacc_centered)) +
+  facet_grid(~ID) +
+  geom_line() +
+  theme_minimal()
 ```
