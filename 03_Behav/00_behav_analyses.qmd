@@ -236,7 +236,6 @@ check_model(m_taste, check=c("pp_check", "linearity",  "homogeneity",  "normalit
 
 ```{r}
 emmeans(m_taste, specs = pairwise ~ reinforcer_type|aud_group, lmer.df = "satterthwaite")
-
 emmeans(m_taste, specs = pairwise ~ aud_group|reinforcer_type, lmer.df = "satterthwaite")
 ```
 

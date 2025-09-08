@@ -1,0 +1,101 @@
+---
+title: "EMA descriptive analyses"
+author: "Milena Musial"
+format: html
+editor: visual
+---
+
+# Preps
+
+```{r}
+rm(list=ls())
+
+libs<-c("tidyverse", "stringr", "plyr", "dplyr", "lme4", "lmerTest","kableExtra", "gmodels", "sjPlot", "rstatix", "ggpubr", "ggplot2", "PerformanceAnalytics")
+sapply(libs, require, character.only=TRUE)
+
+# define paths
+demo_path <- '/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT/WP2_ILT_DATA/RedCap'
+mri_path <- '/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT/WP2_ILT_DATA/fMRI/PH_withC/'
+
+# load redcap files
+load(file.path(demo_path, "redcap_n56_new.RData"))
+redcap_new <- redcap_new %>%
+  arrange(aud_group, ID)
+
+# read extracted vs voi values
+mri_df <- read.table(file.path(mri_path, "MAIN_RPE_clustermeans_wholebrain_ROI_per_reinforcer_across_groups_t1.txt"), sep = ",", header=TRUE)
+mri_df$ID <- redcap_new$ID
+
+# create merged df
+redcap_mri <- left_join(redcap_new, mri_df)
+```
+
+```{r}
+correlation_df <- redcap_mri %>%
+  select(MRI_audit_sum, 
+         BA_drinks_past3months,
+         bdi_total, uppsp_total, cohs_total, oci_total, 
+         alc_left_VS, jui_left_VS,
+         alc_right_VS, jui_right_VS,
+         alc_52_18_1, jui_52_18_1,
+         alc_33_40_40, jui_33_40_40,
+         alc_45_18_32, jui_45_18_32,
+         alc_42_52_1, jui_42_52_1,
+         alc_35_6_56, jui_35_6_56,
+         alc_m44_9_40, jui_m44_9_40,
+         alc_m27_21_56, jui_m27_21_56,
+         alc_m36_m46_m18, jui_m36_m46_m18)
+
+chart.Correlation(correlation_df, histogram=FALSE)
+
+
+correlation_df_aud <- redcap_mri %>%
+  filter(aud_group == "AUD") %>%
+  select(MRI_audit_sum, 
+         BA_drinks_past3months,
+         bdi_total, uppsp_total, cohs_total, oci_total, 
+         alc_left_VS, jui_left_VS,
+         alc_right_VS, jui_right_VS,
+         alc_52_18_1, jui_52_18_1,
+         alc_33_40_40, jui_33_40_40,
+         alc_45_18_32, jui_45_18_32,
+         alc_42_52_1, jui_42_52_1,
+         alc_35_6_56, jui_35_6_56,
+         alc_m44_9_40, jui_m44_9_40,
+         alc_m27_21_56, jui_m27_21_56,
+         alc_m36_m46_m18, jui_m36_m46_m18)
+
+chart.Correlation(correlation_df_aud, histogram=F, pch=1)
+
+correlation_df_hc <- redcap_mri %>%
+  filter(aud_group == "HC") %>%
+  select(MRI_audit_sum, 
+         BA_drinks_past3months,
+         bdi_total, uppsp_total, cohs_total, oci_total, 
+         alc_left_VS, jui_left_VS,
+         alc_right_VS, jui_right_VS,
+         alc_52_18_1, jui_52_18_1,
+         alc_33_40_40, jui_33_40_40,
+         alc_45_18_32, jui_45_18_32,
+         alc_42_52_1, jui_42_52_1,
+         alc_35_6_56, jui_35_6_56,
+         alc_m44_9_40, jui_m44_9_40,
+         alc_m27_21_56, jui_m27_21_56,
+         alc_m36_m46_m18, jui_m36_m46_m18)
+
+chart.Correlation(correlation_df_hc, histogram=F, pch=1)
+```
+
+```{r}
+model_audit <- lm(cohs_total ~ alc_52_18_1 + jui_52_18_1 +
+         alc_33_40_40 + jui_33_40_40 +
+         alc_45_18_32 + jui_45_18_32 +
+         alc_42_52_1 + jui_42_52_1 +
+         alc_35_6_56 + jui_35_6_56 +
+         alc_m44_9_40 + jui_m44_9_40 +
+         alc_m27_21_56 + jui_m27_21_56 +
+         alc_m36_m46_m18 + jui_m36_m46_m18,
+         data=redcap_mri[redcap_mri$aud_group=="HC",])
+summary(model_audit)
+```
+

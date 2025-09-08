@@ -87,7 +87,7 @@ time_diff_summary <- ema_redcap_mri %>%
 time_diff_summary
 ```
 
-# Predicting allcohol consumption in next 30 days based on vs voi activity
+# Predicting alcohol consumption in next 30 days based on vs voi activity
 
 ## Prepare dfs
 
