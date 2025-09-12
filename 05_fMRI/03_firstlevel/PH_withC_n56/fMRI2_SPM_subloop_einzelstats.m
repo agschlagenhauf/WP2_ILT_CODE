@@ -10,11 +10,11 @@ clc;
 clear;
 warning off;
 addpath('C:\spm12')
-addpath('C:\Users\musialm\OneDrive - Charité - Universitätsmedizin Berlin\PhD\04_B01\ILT\WP2_ILT_CODE\03_fMRI\functs')
+addpath('C:\Users\musialm\OneDrive - Charité - Universitätsmedizin Berlin\PhD\04_B01\ILT\WP2_ILT_CODE\05_fMRI\functs')
 
 % define paths
 paMeta_epi = 'S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\01_fmriprep_v23.2.1';
-einzelstatspath= 'S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\02_spm12_1st_level\PH_withC_n58_constant_feedback_+_sensoric';
+einzelstatspath= 'S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\02_ILT\00_spm12_1st_level\PH_withC_n58_constant_feedback_+_sensoric_correctbaseline_compcor';
 
 TR=0.869; % in sec
 
@@ -56,8 +56,8 @@ for pb = 1:length(names)%subjects to run
     clear epi_run1 epi_run2
     
     % get RP file
-    rp_file_run1 = spm_select('FPList', epifolder, '^RP.*ilt_run-1.mat');
-    rp_file_run2 = spm_select('FPList', epifolder, '^RP.*ilt_run-2.mat');
+    rp_file_run1 = spm_select('FPList', epifolder, '^RP.*ilt_run-1_compcor.mat');
+    rp_file_run2 = spm_select('FPList', epifolder, '^RP.*ilt_run-2_compcor.mat');
     if block_A == "block_1"
         rp_file_A = rp_file_run1;
         rp_file_J = rp_file_run2;

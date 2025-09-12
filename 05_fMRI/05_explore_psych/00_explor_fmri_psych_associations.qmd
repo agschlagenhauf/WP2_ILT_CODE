@@ -98,4 +98,3 @@ model_audit <- lm(cohs_total ~ alc_52_18_1 + jui_52_18_1 +
          data=redcap_mri[redcap_mri$aud_group=="HC",])
 summary(model_audit)
 ```
-

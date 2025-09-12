@@ -8,7 +8,7 @@
 
 clear all; clc;
 addpath('C:\spm12')
-addpath('S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\Analysen\WP2_fMRI\Scripts\functs')
+addpath('C:\Users\musialm\OneDrive - Charité - Universitätsmedizin Berlin\PhD\04_B01\ILT\WP2_ILT_CODE\05_fMRI\functs')
 
 mainpath='S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\01_fmriprep_v23.2.1'; 
 behav_data='S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\sourcedata\behav\REDCap\AID_ILT\FilesReport_ILTandAIDdata_2024-04-08_1700\documents';
@@ -91,7 +91,7 @@ for pb = 1:length(subnames)
            fprintf('reading %s \n', confounds_file)   
 
            % create output file name
-           outputname = ['RP_', subject, '_', task, '.mat'];
+           outputname = ['RP_', subject, '_', task, '_compcor.mat'];
 
            % load behavioral file per task
            if strcmp(task,'task-aid')
@@ -104,21 +104,13 @@ for pb = 1:length(subnames)
 
            % get number of vols of interest based on begin time, end time, TR
            volumes_of_interest=round((D.T.end_end_baseline-D.T.baseline_start)/TR);  
-
-           % names of the variables to be read from the tsv file 
-           var_names={'trans_x', 'trans_x_derivative1', 'trans_x_derivative1_power2', 'trans_x_power2', ...
-                      'trans_y', 'trans_y_derivative1', 'trans_y_derivative1_power2', 'trans_y_power2', ...
-                      'trans_z', 'trans_z_derivative1', 'trans_z_derivative1_power2', 'trans_z_power2', ...
-                      'rot_x', 'rot_x_derivative1', 'rot_x_derivative1_power2', 'rot_x_power2',  ...
-                      'rot_y', 'rot_y_derivative1', 'rot_y_derivative1_power2', 'rot_y_power2', ...
-                      'rot_z', 'rot_z_derivative1', 'rot_z_derivative1_power2', 'rot_z_power2' };
                   
            % get number of variables in the fMRIPrep confounds tsv file
            % because the number of columns is different between subjects
            all_lines       = readlines(confounds_file);    % read in whole tsv file
            variable_names  = strread(all_lines(1), '%s\t');% readout strings from the first line
            n_variables     = length(variable_names);       % number of variables in TSV file from fMRIPrep
-
+          
     %        % include motion outliers into var names?
     %        outlier=regexp(variable_names, 'motion_outlier.*.');
     %        outlier_idx=find(~cellfun(@isempty,outlier));
@@ -142,7 +134,23 @@ for pb = 1:length(subnames)
                volumes_of_interest=length(data{1});
                fprintf('subject with short sequence %s \n', id)      
            end
-
+           
+           % names of the variables to be read from the tsv file 
+           var_names_nocosine={'trans_x', 'trans_x_derivative1', 'trans_x_derivative1_power2', 'trans_x_power2', ...
+                              'trans_y', 'trans_y_derivative1', 'trans_y_derivative1_power2', 'trans_y_power2', ...
+                              'trans_z', 'trans_z_derivative1', 'trans_z_derivative1_power2', 'trans_z_power2', ...
+                              'rot_x', 'rot_x_derivative1', 'rot_x_derivative1_power2', 'rot_x_power2',  ...
+                              'rot_y', 'rot_y_derivative1', 'rot_y_derivative1_power2', 'rot_y_power2', ...
+                              'rot_z', 'rot_z_derivative1', 'rot_z_derivative1_power2', 'rot_z_power2', ...
+                              'w_comp_cor_00', 'w_comp_cor_01', 'w_comp_cor_02', 'w_comp_cor_03', 'w_comp_cor_04', ...
+                              'c_comp_cor_00', 'c_comp_cor_01', 'c_comp_cor_02', 'c_comp_cor_03', 'c_comp_cor_04'};
+           
+           % get cosine variables
+           ids = contains(variable_names, 'cosine');
+           var_names_cosine = variable_names(ids)';
+           
+           var_names = [var_names_nocosine var_names_cosine];
+           
            R = NaN(volumes_of_interest, length(var_names)); % create R with the appropriate size
 
            for i = 1 : length(var_names)

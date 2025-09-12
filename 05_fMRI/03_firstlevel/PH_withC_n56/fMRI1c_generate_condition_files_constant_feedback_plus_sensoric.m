@@ -5,7 +5,7 @@
 clear;
 clc;
 addpath('C:\spm12')
-addpath('C:\Users\musialm\OneDrive - Charité - Universitätsmedizin Berlin\PhD\04_B01\ILT\WP2_ILT_CODE\03_fMRI\functs')
+addpath('C:\Users\musialm\OneDrive - Charité - Universitätsmedizin Berlin\PhD\04_B01\ILT\WP2_ILT_CODE\05_fMRI\functs')
 
 % define parameters
 reg = 1;
@@ -14,7 +14,7 @@ MR = 60; % Microtime resolution = number of slices (Schichten) in MR protocol
 bin = TR/MR;
 
 % define output path
-stats_path = 'S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\02_spm12_1st_level\PH_withC_n58_constant_feedback_+_sensoric'; % folder for single stats of this specific model, add names of pmods
+stats_path = 'S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\02_ILT\00_spm12_1st_level\PH_withC_n58_constant_feedback_+_sensoric_correctbaseline_compcor'; % folder for single stats of this specific model, add names of pmods
 
 % define behavioral data files
 behav_path   = 'C:\Users\musialm\OneDrive - Charité - Universitätsmedizin Berlin\PhD\04_B01\ILT\WP2_ILT_DATA\Behav\raw\FilesReport_ILTdata_2023-05-24_1718\documents'; % raw behavioral data path
@@ -118,11 +118,11 @@ for n = 1:length(ids)
         D_sub.T.onset_swallow(D_sub.R==-1) = 0;
         
         %%% get event onsets
-        onsets_cue      = D_sub.T.trial_onset'-D_sub.T.baseline_start;
-        onsets_feedback = D_sub.T.onset_fb'-D_sub.T.baseline_start;
-        onsets_taste = D_sub.T.onset_taste'-D_sub.T.baseline_start;
-        onsets_swallow = D_sub.T.onset_swallow'-D_sub.T.baseline_start;
-        onsets_trialend= D_sub.T.onset_trialend'-D_sub.T.baseline_start;
+        onsets_cue      = D_sub.T.trial_onset'-D_sub.T.time_begin;
+        onsets_feedback = D_sub.T.onset_fb'-D_sub.T.time_begin;
+        onsets_taste = D_sub.T.onset_taste'-D_sub.T.time_begin;
+        onsets_swallow = D_sub.T.onset_swallow'-D_sub.T.time_begin;
+        onsets_trialend= D_sub.T.onset_trialend'-D_sub.T.time_begin;
         onsets_feedback_sensoric = onsets_feedback(onsets_swallow>=0);
         
         onsets_cue_missings = onsets_cue(isnan(D_sub.A)); % previously onsets_missings = onsets_feedback(isnan(D_sub.A))
