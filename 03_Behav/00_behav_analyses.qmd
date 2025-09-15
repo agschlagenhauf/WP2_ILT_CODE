@@ -204,7 +204,7 @@ stats
 
 ## Linear mixed-effects regression
 
-### Taste ratings per time point
+### Taste ratings 
 
 #### AUD group
 
@@ -243,6 +243,7 @@ emmeans(m_taste, specs = pairwise ~ aud_group|reinforcer_type, lmer.df = "satter
 plot_model(m_taste, type = "pred", terms = c("aud_group", "reinforcer_type"))
 ```
 
+
 #### AUDIT criteria
 
 ```{r}
@@ -275,7 +276,7 @@ check_model(m_taste_audit, check=c("pp_check", "linearity",  "homogeneity",  "no
 summary(emtrends(m_taste_audit, "reinforcer_type", var = "MRI_audit_sum", lmer.df = "satterthwaite"), infer=TRUE)
 ```
 
-### Craving ratings per time point
+### Craving ratings 
 
 #### AUD group
 
@@ -567,6 +568,9 @@ tab_model(m_correct_1,
 
 check_model(m_correct_1, check=c("pp_check", "reqq", "qq"))
 ```
+
+##### Controlled for taste
+
 
 ## AUDIT criteria
 

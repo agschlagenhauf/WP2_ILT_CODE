@@ -94,14 +94,14 @@ for pb = 1:length(names)%subjects to run
     matlabbatch{3}.spm.stats.fmri_spec.sess(1).multi = {condfile_A};
     matlabbatch{3}.spm.stats.fmri_spec.sess(1).regress = struct('name', {}, 'val', {});
     matlabbatch{3}.spm.stats.fmri_spec.sess(1).multi_reg = {rp_file_A};
-    matlabbatch{3}.spm.stats.fmri_spec.sess(1).hpf = 128;
+    matlabbatch{3}.spm.stats.fmri_spec.sess(1).hpf = Inf; % changed from 128 to switch off filtering (as cosine regressors included in 1st level GLM)
 
     matlabbatch{3}.spm.stats.fmri_spec.sess(2).scans(1) = cfg_dep('Expand image frames: Expanded filename list.', substruct('.','val', '{}',{2}, '.','val', '{}',{1}, '.','val', '{}',{1}), substruct('.','files'));
     matlabbatch{3}.spm.stats.fmri_spec.sess(2).cond = struct('name', {}, 'onset', {}, 'duration', {}, 'tmod', {}, 'pmod', {}, 'orth', {});
     matlabbatch{3}.spm.stats.fmri_spec.sess(2).multi = {condfile_J};
     matlabbatch{3}.spm.stats.fmri_spec.sess(2).regress = struct('name', {}, 'val', {});
     matlabbatch{3}.spm.stats.fmri_spec.sess(2).multi_reg = {rp_file_J};
-    matlabbatch{3}.spm.stats.fmri_spec.sess(2).hpf = 128;
+    matlabbatch{3}.spm.stats.fmri_spec.sess(2).hpf = Inf; % changed from 128 to switch off filtering (as cosine regressors included in 1st level GLM)
 
     matlabbatch{3}.spm.stats.fmri_spec.fact = struct('name', {}, 'levels', {});
     matlabbatch{3}.spm.stats.fmri_spec.bases.hrf.derivs = [0 0]; % change to 1 0?

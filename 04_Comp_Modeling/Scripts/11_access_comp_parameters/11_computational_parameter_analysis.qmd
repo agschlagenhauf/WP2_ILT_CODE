@@ -125,7 +125,7 @@ trialy_by_trial_df$new_absPEs <- new_absPEs_all
 trialy_by_trial_df$new_CPs <- new_CPs_all
 trialy_by_trial_df$new_Qs <- new_Qs_all
 
-# get p correct per block and aud group and trial for plotting
+# df per block and aud group and trial for plotting
 df_tbt_time <- trialy_by_trial_df %>%
   group_by(aud_group,reinforcer_type,trial_block) %>%
   dplyr::summarise(mean_PE = mean(new_absPEs, na.rm = TRUE),
@@ -139,7 +139,21 @@ df_tbt_time <- trialy_by_trial_df %>%
             ci_u_Q = ci(new_Qs, na.rm=TRUE)[3],
   ) %>%
   mutate(aud_group = factor(aud_group, levels = c("HC", "AUD")))
-  
+
+# df per block and group for plotting 
+df_tbt_average <- trialy_by_trial_df %>%
+  group_by(aud_group,reinforcer_type) %>%
+  dplyr::summarise(mean_PE = mean(new_absPEs, na.rm = TRUE),
+            ci_l_PE = ci(new_absPEs, na.rm=TRUE)[2],
+            ci_u_PE = ci(new_absPEs, na.rm=TRUE)[3],
+            mean_CP = mean(new_CPs, na.rm = TRUE),
+            ci_l_CP = ci(new_CPs, na.rm=TRUE)[2],
+            ci_u_CP = ci(new_CPs, na.rm=TRUE)[3],
+            mean_Q = mean(new_Qs, na.rm = TRUE),
+            ci_l_Q = ci(new_Qs, na.rm=TRUE)[2],
+            ci_u_Q = ci(new_Qs, na.rm=TRUE)[3],
+  ) %>%
+  mutate(aud_group = factor(aud_group, levels = c("HC", "AUD")))
 
 # set contrasts
 contrasts(params$reinforcer_type) <- abs(contr.treatment(2)-1)
@@ -149,30 +163,6 @@ contrasts(df_tbt_time$reinforcer_type) <- abs(contr.treatment(2)-1)
 contrasts(params$aud_group)
 contrasts(trialy_by_trial_df$aud_group)
 contrasts(df_tbt_time$aud_group)
-```
-
-# Bayesian parameter analysis
-
-```{r}
-# posterior_draws <- extract(fit, pars = c("A_sub_m", "tau_sub_m", "gamma_sub_m", "C_sub_m", "A_sub_con_m", "tau_sub_con_m", "gamma_sub_con_m", "C_sub_con_m"))
-# 
-# HDIofMCMC(posterior_draws$A_sub_m)
-# HDIofMCMC(posterior_draws$tau_sub_m)
-# HDIofMCMC(posterior_draws$gamma_sub_m)
-# HDIofMCMC(posterior_draws$C_sub_m)
-# HDIofMCMC(posterior_draws$A_sub_con_m)
-# HDIofMCMC(posterior_draws$tau_sub_con_m)
-# HDIofMCMC(posterior_draws$gamma_sub_con_m)
-# HDIofMCMC(posterior_draws$C_sub_con_m)
-# 
-# plotHDI(posterior_draws$A_sub_m)
-# plotHDI(posterior_draws$tau_sub_m)
-# plotHDI(posterior_draws$gamma_sub_m)
-# plotHDI(posterior_draws$C_sub_m)
-# plotHDI(posterior_draws$A_sub_con_m)
-# plotHDI(posterior_draws$tau_sub_con_m)
-# plotHDI(posterior_draws$gamma_sub_con_m)
-# plotHDI(posterior_draws$C_sub_con_m)
 ```
 
 # Computational parameters
@@ -462,6 +452,57 @@ plot_model(m_PE_robust, type = "pred", terms = c("trial_block", "reinforcer_type
 
 ## Choice probabilities of chosen option
 
+### Across trials
+
+```{r}
+
+fig_CP <- ggplot(trialy_by_trial_df, aes(x = reinforcer_type, y = pc_pred, fill = reinforcer_type)) +
+  geom_violin() +
+  geom_boxplot(width=0.1, size=0.8) +
+  facet_wrap(~aud_group, scales="fixed") +
+  scale_y_continuous("Model-predicted likelihood of chosen options", limits = c(0,1)) +
+  theme_light(base_size=18) +
+  theme(axis.title.x=element_blank(),
+      axis.text.x=element_blank(),
+      axis.ticks.x=element_blank(),
+      legend.position = "bottom") +
+  scale_fill_brewer(name="Reinforcer type", 
+                  labels=c("alcohol", "juice"),
+                  palette = "Accent")
+
+fig_CP
+
+```
+
+```{r}
+m_CP <- lmer(pc_pred ~ 1 + reinforcer_type*aud_group + (1 | ID), data=trialy_by_trial_df)
+
+tab_model(m_CP,
+          dv.labels=c("m_alpha"), digits=3, digits.re=2, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+
+check_model(m_CP, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+
+# robust estimation
+m_CP_robust <- rlmer(pc_pred ~ 1 + reinforcer_type*aud_group + (1 | ID), data=trialy_by_trial_df)
+
+plot(m_CP_robust)
+```
+
+```{r}
+# get Satterthwaite DFs from non-robust model
+coefs <- data.frame(coef(summary(m_CP)))
+
+# get coefficients from robust model to extract t-values
+coefs.robust <- coef(summary(m_CP_robust))
+
+# calculate p-values based on robust t-values and non-robust approx. DFs
+p.values <- 2*pt(abs(coefs.robust[,3]), coefs$df, lower=FALSE)
+as.data.frame(p.values)
+```
+
+### Over time
+
 ```{r}
 fig_CP_time <- ggplot(df_tbt_time, aes(x=trial_block, y=mean_CP, group=reinforcer_type)) +
   geom_line(aes(color=reinforcer_type), linewidth=0.8) +
@@ -483,22 +524,22 @@ fig_CP_time
 ```
 
 ```{r}
-m_CP=lmer(new_CPs~reinforcer_type*aud_group*trial_block + (1 + reinforcer_type + trial_block | ID),
+m_CP_time=lmer(new_CPs~reinforcer_type*aud_group*trial_block + (1 + reinforcer_type + trial_block | ID),
                 data=trialy_by_trial_df,
                 control=lmerControl(calc.derivs=FALSE))
 
-tab_model(m_CP,
+tab_model(m_CP_time,
           dv.labels=c("m_CP"), digits=3, digits.re=2, transform = NULL, show.est = T, df.method = "satterthwaite",
           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
 
-check_model(m_CP, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+check_model(m_CP_time, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
 
 # robust estimation
-m_CP_robust=rlmer(new_CPs~reinforcer_type*aud_group*trial_block + (1 + reinforcer_type + trial_block | ID),
+m_CP_time_robust=rlmer(new_CPs~reinforcer_type*aud_group*trial_block + (1 + reinforcer_type + trial_block | ID),
                 data=trialy_by_trial_df,
                 control=lmerControl(calc.derivs=FALSE))
 
-plot(m_CP_robust)
+plot(m_CP_time_robust)
 ```
 
 Derive p-values for robust model according to https://stats.stackexchange.com/questions/430490/obtaining-p-values-in-a-robustlmm-mixed-model-via-satterthwaite-approximated-dfs

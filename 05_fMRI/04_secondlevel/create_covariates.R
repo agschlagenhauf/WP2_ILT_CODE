@@ -46,7 +46,7 @@ df <- df %>%
   arrange(aud_group, ID)
 
 df <- dummy_cols(df, select_columns = c("screen_handeness", "MRI"))
-  
+
 ###########################################
 ##### create specific covariate files #####
 ###########################################
@@ -84,8 +84,6 @@ write.table(covariates_HC, file="S:/AG/AG-Schlagenhauf_TRR265/Daten/B01/WP2_DATA
             dec = ".",
             row.names = F,
             col.names = F)
-
-###########################################
 
 ##### standard covariates + age #####
 
@@ -288,12 +286,37 @@ write.table(covariates_oci_HC, file="S:/AG/AG-Schlagenhauf_TRR265/Daten/B01/WP2_
             col.names = F)
 
 
+
+#### standard covariates + taste and craving ratings #####
+
+covariates_taste_crave_AJ_diff <- df %>%
+  select(screen_handeness_1, screen_handeness_3, MRI_2, BA_smoking_days, taste_AJ_diff, crave_AJ_diff)
+
+write.table(covariates_taste_crave_AJ_diff, file="S:/AG/AG-Schlagenhauf_TRR265/Daten/B01/WP2_DATA/derivatives/02_ILT/01_spm12_2nd_level/covariates/covariates_taste_crave_AJ_diff_n56.txt", 
+            append = FALSE, 
+            sep = " ", 
+            dec = ".",
+            row.names = F,
+            col.names = F)
+
+covariates_taste_crave_AJ <- df %>%
+  select(screen_handeness_1, screen_handeness_3, MRI_2, BA_smoking_days, taste_AJ, crave_AJ)
+
+write.table(covariates_taste_crave_AJ, file="S:/AG/AG-Schlagenhauf_TRR265/Daten/B01/WP2_DATA/derivatives/02_ILT/01_spm12_2nd_level/covariates/covariates_taste_crave_AJ_n56.txt", 
+            append = FALSE, 
+            sep = " ", 
+            dec = ".",
+            row.names = F,
+            col.names = F)
+
+
+
 #### standard covariates + age + taste and craving ratings #####
 
 covariates_age_taste_crave_AJ_diff <- df %>%
   select(screen_handeness_1, screen_handeness_3, MRI_2, BA_smoking_days, age, taste_AJ_diff, crave_AJ_diff)
 
-write.table(covariates_age_taste_crave_AJ_diff, file="S:/AG/AG-Schlagenhauf_TRR265/Daten/B01/WP2_DATA/derivatives/02_ILT/01_spm12_2nd_level/covariates/covariates_taste_crave_AJ_diff_n56.txt", 
+write.table(covariates_age_taste_crave_AJ_diff, file="S:/AG/AG-Schlagenhauf_TRR265/Daten/B01/WP2_DATA/derivatives/02_ILT/01_spm12_2nd_level/covariates/covariates_age_taste_crave_AJ_diff_n56.txt", 
             append = FALSE, 
             sep = " ", 
             dec = ".",
@@ -303,7 +326,7 @@ write.table(covariates_age_taste_crave_AJ_diff, file="S:/AG/AG-Schlagenhauf_TRR2
 covariates_age_taste_crave_AJ <- df %>%
   select(screen_handeness_1, screen_handeness_3, MRI_2, BA_smoking_days, age, taste_AJ, crave_AJ)
 
-write.table(covariates_age_taste_crave_AJ, file="S:/AG/AG-Schlagenhauf_TRR265/Daten/B01/WP2_DATA/derivatives/02_ILT/01_spm12_2nd_level/covariates/covariates_taste_crave_AJ_diff_n56.txt", 
+write.table(covariates_age_taste_crave_AJ, file="S:/AG/AG-Schlagenhauf_TRR265/Daten/B01/WP2_DATA/derivatives/02_ILT/01_spm12_2nd_level/covariates/covariates_age_taste_crave_AJ_n56.txt", 
             append = FALSE, 
             sep = " ", 
             dec = ".",
