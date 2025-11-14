@@ -7,7 +7,7 @@
 
 clc; clear;warning off;
 addpath('C:\spm12')
-addpath ('C:\Users\musialm\OneDrive - Charité - Universitätsmedizin Berlin\PhD\04_B01\ILT\WP2_ILT_CODE\03_fMRI\functs')
+addpath ('C:\Users\musialm\OneDrive - Charité - Universitätsmedizin Berlin\PhD\04_B01\ILT\WP2_ILT_CODE\05_fMRI\functs')
 
 meta_path = 'S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\02_ILT\00_spm12_1st_level\';
 
@@ -103,6 +103,9 @@ for pb=1:length(pbnfolder) % loop pbn
     N=N+1; tb(N,:)={ N 'Tcon' 'none' 'RPE_alc < RPE_jui'    ((cvec_RPE_alc*-1)+cvec_RPE_jui)};
     N=N+1; tb(N,:)={ N 'Tcon' 'none' 'CP_alc > CP_jui'      (cvec_CP_alc+(cvec_CP_jui*-1))};
     N=N+1; tb(N,:)={ N 'Tcon' 'none' 'CP_alc < CP_jui'      ((cvec_CP_alc*-1)+cvec_CP_jui)};
+    
+    % Extra post-hoc contrasts
+    N=N+1; tb(N,:)={ N 'Tcon' 'none' 'CP neg'               (cvec_CP_alc+cvec_CP_jui*-1)};
 
     %% Create SPM structure
 

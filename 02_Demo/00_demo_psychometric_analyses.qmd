@@ -21,22 +21,18 @@ sapply(libs, require, character.only=TRUE)
 
 data_path<-'/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT/WP2_ILT_DATA/'
 
-sample = "n56" # n58 n71 n13 n22
+sample = "n13" # n58 n71 n13
 
 if (sample == "n56") {
   load(file.path(data_path,"RedCap/redcap_n56_new.RData"))
 } else if (sample == "n58") {
   load(file.path(data_path,"RedCap/redcap_n58_new.RData"))
-} else if (sample == "n71") {
-  load(file.path(data_path,"RedCap/redcap_n71_new.RData"))
 } else if (sample == "n13") {
   load(file.path(data_path,"RedCap/redcap_n71_new.RData"))
   redcap_new_71 <- redcap_new
   load(file.path(data_path,"RedCap/redcap_n58_new.RData"))
   redcap_new_58 <- redcap_new
   redcap_new <- redcap_new_71[! redcap_new_71$ID %in% redcap_new_58$ID, ]
-} else if (sample == "n22") {
-  load(file.path(data_path,"RedCap/redcap_n22_new.RData"))
 }
 
 # rename
@@ -91,7 +87,7 @@ age_summary <- redcap %>%
   select(aud_group, age) %>%
   group_by(aud_group) %>%
   dplyr::summarise(mean = mean(age, na.rm = TRUE),
-                   se_correct = sd(age, na.rm = TRUE)/sqrt(n()-sum(is.nan(age))),
+                   sd_correct = sd(age, na.rm = TRUE),
                    min = min(age, na.rm = TRUE),
             max = max(age, na.rm = TRUE),
             ci_l = ci(age, na.rm = TRUE)[2],
@@ -132,7 +128,7 @@ t.test(redcap$age ~ redcap$aud_group, var.equal=T)
 days_summary <- redcap %>%
   select(days_since_BA) %>%
   dplyr::summarise(mean = mean(days_since_BA, na.rm = TRUE),
-                   se_correct = sd(days_since_BA, na.rm = TRUE)/sqrt(n()-sum(is.nan(days_since_BA))),
+                   sd_correct = sd(days_since_BA, na.rm = TRUE),
                    min = min(days_since_BA, na.rm = TRUE),
             max = max(days_since_BA, na.rm = TRUE),
             ci_l = ci(days_since_BA, na.rm = TRUE)[2],
@@ -153,7 +149,7 @@ aud_summary <- redcap %>%
   select(aud_group, aud_sum) %>%
   group_by(aud_group) %>%
   dplyr::summarise(mean = mean(aud_sum, na.rm = TRUE),
-                   se_correct = sd(aud_sum, na.rm = TRUE)/sqrt(n()-sum(is.nan(aud_sum))),
+                   sd_correct = sd(aud_sum, na.rm = TRUE),
             min = min(aud_sum, na.rm = TRUE),
             max = max(aud_sum, na.rm = TRUE),
             ci_l = ci(aud_sum, na.rm = TRUE)[2],
@@ -200,7 +196,7 @@ fig_aud_crit <- ggplot(redcap, aes(x=as.factor(aud_sum))) +
   scale_fill_brewer("Accent")
 fig_aud_crit
 
-ggsave(paste("/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT/Manuscript/Figures/aud_criteria_", sample, ".png", sep=""), fig_aud_crit, width = 8, height = 5, dpi = 600)
+ggsave(paste("/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT/Manuscript/Initial_draft/Figures/aud_criteria_", sample, ".png", sep=""), fig_aud_crit, width = 8, height = 5, dpi = 600)
 ```
 
 ## AUDIT
@@ -210,7 +206,7 @@ audit_summary <- redcap %>%
   select(aud_group, MRI_audit_sum) %>%
   group_by(aud_group) %>%
   dplyr::summarise(mean = mean(MRI_audit_sum, na.rm = TRUE),
-                   se_correct = sd(MRI_audit_sum, na.rm = TRUE)/sqrt(n()-sum(is.nan(MRI_audit_sum))),
+                   sd_correct = sd(MRI_audit_sum, na.rm = TRUE),
             min = min(MRI_audit_sum, na.rm = TRUE),
             max = max(MRI_audit_sum, na.rm = TRUE),
             ci_l = ci(MRI_audit_sum, na.rm = TRUE)[2],
@@ -245,14 +241,59 @@ audit_summary %>%
 t.test(redcap$MRI_audit_sum ~ redcap$aud_group, var.equal=FALSE)
 ```
 
-## Drinks past 3 months
+## Drinking days past 3 months
+
+```{r}
+drinking_days_summary <- redcap %>%
+  select(aud_group, BA_drinking_days) %>%
+  group_by(aud_group) %>%
+  dplyr::summarise(mean = mean(BA_drinking_days, na.rm = TRUE),
+                   sd_correct = sd(BA_drinking_days, na.rm = TRUE),
+            min = min(BA_drinking_days, na.rm = TRUE),
+            max = max(BA_drinking_days, na.rm = TRUE),
+            ci_l = ci(BA_drinking_days, na.rm = TRUE)[2],
+            ci_u = ci(BA_drinking_days, na.rm = TRUE)[3])
+
+drinking_days_summary %>%
+  kable("html") %>%
+  kable_styling(font_size = 18,
+                latex_options = "scale_down")
+```
+
+```{r}
+### check assumptions
+# outliers
+  redcap %>%
+    select(BA_drinking_days, aud_group) %>%
+    group_by(aud_group) %>%
+    identify_outliers(BA_drinking_days)
+  
+# normality
+  redcap %>%
+    select(BA_drinking_days, aud_group) %>%
+    group_by(aud_group) %>%
+    shapiro_test(BA_drinking_days)
+  ggqqplot(redcap, x = "BA_drinking_days", facet.by = "aud_group")
+  
+# homoscedasticity
+  redcap %>%
+    levene_test(BA_drinking_days ~ aud_group)
+
+### conduct test
+wilcox.test(redcap$BA_drinking_days ~ redcap$aud_group,
+            exact = FALSE,
+            correct = FALSE,
+            conf.int = TRUE)
+```
+
+## Drinks on drinking days past 3 months
 
 ```{r}
 drinkstotal_summary <- redcap %>%
   select(aud_group, BA_drinks_past3months) %>%
   group_by(aud_group) %>%
   dplyr::summarise(mean = mean(BA_drinks_past3months, na.rm = TRUE),
-                   se_correct = sd(BA_drinks_past3months, na.rm = TRUE)/sqrt(n()-sum(is.nan(BA_drinks_past3months))),
+                   sd_correct = sd(BA_drinks_past3months, na.rm = TRUE),
             min = min(BA_drinks_past3months, na.rm = TRUE),
             max = max(BA_drinks_past3months, na.rm = TRUE),
             ci_l = ci(BA_drinks_past3months, na.rm = TRUE)[2],
@@ -294,7 +335,7 @@ drinksweekday_summary <- redcap %>%
   select(aud_group, BA_drinks_weekday) %>%
   group_by(aud_group) %>%
   dplyr::summarise(mean = mean(BA_drinks_weekday, na.rm = TRUE),
-                   se_correct = sd(BA_drinks_weekday, na.rm = TRUE)/sqrt(n()-sum(is.nan(BA_drinks_weekday))),
+                   sd_correct = sd(BA_drinks_weekday, na.rm = TRUE),
             min = min(BA_drinks_weekday, na.rm = TRUE),
             max = max(BA_drinks_weekday, na.rm = TRUE),
             ci_l = ci(BA_drinks_weekday, na.rm = TRUE)[2],
@@ -339,7 +380,7 @@ drinksweekendday_summary <- redcap %>%
   select(aud_group, BA_drinks_weekendday) %>%
   group_by(aud_group) %>%
   dplyr::summarise(mean = mean(BA_drinks_weekendday, na.rm = TRUE),
-                   se_correct = sd(BA_drinks_weekendday, na.rm = TRUE)/sqrt(n()-sum(is.nan(BA_drinks_weekendday))),
+                   sd_correct = sd(BA_drinks_weekendday, na.rm = TRUE),
             min = min(BA_drinks_weekendday, na.rm = TRUE),
             max = max(BA_drinks_weekendday, na.rm = TRUE),
             ci_l = ci(BA_drinks_weekendday, na.rm = TRUE)[2],
@@ -381,7 +422,7 @@ drinkspastoccasion_summary <- redcap %>%
   select(aud_group, BA_drinks_lastday) %>%
   group_by(aud_group) %>%
   dplyr::summarise(mean = mean(BA_drinks_lastday, na.rm = TRUE),
-                   se_correct = sd(BA_drinks_lastday, na.rm = TRUE)/sqrt(n()-sum(is.nan(BA_drinks_lastday))),
+                   sd_correct = sd(BA_drinks_lastday, na.rm = TRUE),
             min = min(BA_drinks_lastday, na.rm = TRUE),
             max = max(BA_drinks_lastday, na.rm = TRUE),
             ci_l = ci(BA_drinks_lastday, na.rm = TRUE)[2],
@@ -423,7 +464,7 @@ smokingdays_summary <- redcap %>%
   select(aud_group, BA_smoking_days) %>%
   group_by(aud_group) %>%
   dplyr::summarise(mean = mean(BA_smoking_days, na.rm = TRUE),
-                   se_correct = sd(BA_smoking_days, na.rm = TRUE)/sqrt(n()-sum(is.nan(BA_smoking_days))),
+                   sd_correct = sd(BA_smoking_days, na.rm = TRUE),
             min = min(BA_smoking_days, na.rm = TRUE),
             max = max(BA_smoking_days, na.rm = TRUE),
             ci_l = ci(BA_smoking_days, na.rm = TRUE)[2],
@@ -468,7 +509,7 @@ can_summary <- redcap %>%
   select(aud_group, BA_can_sum) %>%
   group_by(aud_group) %>%
   dplyr::summarise(mean = mean(BA_can_sum, na.rm = TRUE),
-                   se_correct = sd(BA_can_sum, na.rm = TRUE)/sqrt(n()-sum(is.nan(BA_can_sum))),
+                   sd_correct = sd(BA_can_sum, na.rm = TRUE),
             min = min(BA_can_sum, na.rm = TRUE),
             max = max(BA_can_sum, na.rm = TRUE),
             ci_l = ci(BA_can_sum, na.rm = TRUE)[2],
@@ -489,10 +530,12 @@ can_summary %>%
     identify_outliers(BA_can_sum)
   
 # normality
+if (sample != "n13") {
   redcap %>%
     select(BA_can_sum, aud_group) %>%
     group_by(aud_group) %>%
     shapiro_test(BA_can_sum)
+}
   ggqqplot(redcap, x = "BA_can_sum", facet.by = "aud_group")
   
 # homoscedasticity
@@ -513,7 +556,7 @@ ocitotal_summary <- redcap %>%
   select(aud_group, oci_total) %>%
   group_by(aud_group) %>%
   dplyr::summarise(mean = mean(oci_total, na.rm = TRUE),
-                   se_correct = sd(oci_total, na.rm = TRUE)/sqrt(n()-sum(is.nan(oci_total))),
+                   sd_correct = sd(oci_total, na.rm = TRUE),
             min = min(oci_total, na.rm = TRUE),
             max = max(oci_total, na.rm = TRUE),
             ci_l = ci(oci_total, na.rm = TRUE)[2],
@@ -548,20 +591,20 @@ ocitotal_summary %>%
 t.test(redcap$oci_total ~ redcap$aud_group, var.equal=TRUE)
 ```
 
-## COHS total
+## COHS automaticity
 
 ```{r}
-cohstotal_summary <- redcap %>%
-  select(aud_group, cohs_total) %>%
+cohs_automaticity_summary <- redcap %>%
+  select(aud_group, cohs_automaticity) %>%
   group_by(aud_group) %>%
-  dplyr::summarise(mean = mean(cohs_total, na.rm = TRUE),
-                   se_correct = sd(cohs_total, na.rm = TRUE)/sqrt(n()-sum(is.nan(cohs_total))),
-            min = min(cohs_total, na.rm = TRUE),
-            max = max(cohs_total, na.rm = TRUE),
-            ci_l = ci(cohs_total, na.rm = TRUE)[2],
-            ci_u = ci(cohs_total, na.rm = TRUE)[3])
+  dplyr::summarise(mean = mean(cohs_automaticity, na.rm = TRUE),
+                   sd_correct = sd(cohs_automaticity, na.rm = TRUE),
+            min = min(cohs_automaticity, na.rm = TRUE),
+            max = max(cohs_automaticity, na.rm = TRUE),
+            ci_l = ci(cohs_automaticity, na.rm = TRUE)[2],
+            ci_u = ci(cohs_automaticity, na.rm = TRUE)[3])
 
-cohstotal_summary %>%
+cohs_automaticity_summary %>%
   kable("html") %>%
   kable_styling(font_size = 18,
                 latex_options = "scale_down")
@@ -571,39 +614,39 @@ cohstotal_summary %>%
 ### check assumptions
 # outliers
   redcap %>%
-    select(cohs_total, aud_group) %>%
+    select(cohs_automaticity, aud_group) %>%
     group_by(aud_group) %>%
-    identify_outliers(cohs_total)
+    identify_outliers(cohs_automaticity)
   
 # normality
   redcap %>%
-    select(cohs_total, aud_group) %>%
+    select(cohs_automaticity, aud_group) %>%
     group_by(aud_group) %>%
-    shapiro_test(cohs_total)
-  ggqqplot(redcap, x = "cohs_total", facet.by = "aud_group")
+    shapiro_test(cohs_automaticity)
+  ggqqplot(redcap, x = "cohs_automaticity", facet.by = "aud_group")
   
 # homoscedasticity
   redcap %>%
-    levene_test(cohs_total ~ aud_group)
+    levene_test(cohs_automaticity ~ aud_group)
   
 ### conduct test
-t.test(redcap$cohs_total ~ redcap$aud_group, var.equal=TRUE)
+t.test(redcap$cohs_automaticity ~ redcap$aud_group, var.equal=TRUE)
 ```
 
-## UPPSP total
+## COHS routine
 
 ```{r}
-uppsptotal_summary <- redcap %>%
-  select(aud_group, uppsp_total) %>%
+cohs_routine_summary <- redcap %>%
+  select(aud_group, cohs_routine) %>%
   group_by(aud_group) %>%
-  dplyr::summarise(mean = mean(uppsp_total, na.rm = TRUE),
-                   se_correct = sd(uppsp_total, na.rm = TRUE)/sqrt(n()-sum(is.nan(uppsp_total))),
-            min = min(uppsp_total, na.rm = TRUE),
-            max = max(uppsp_total, na.rm = TRUE),
-            ci_l = ci(uppsp_total, na.rm = TRUE)[2],
-            ci_u = ci(uppsp_total, na.rm = TRUE)[3])
+  dplyr::summarise(mean = mean(cohs_routine, na.rm = TRUE),
+                   sd_correct = sd(cohs_routine, na.rm = TRUE),
+            min = min(cohs_routine, na.rm = TRUE),
+            max = max(cohs_routine, na.rm = TRUE),
+            ci_l = ci(cohs_routine, na.rm = TRUE)[2],
+            ci_u = ci(cohs_routine, na.rm = TRUE)[3])
 
-uppsptotal_summary %>%
+cohs_routine_summary %>%
   kable("html") %>%
   kable_styling(font_size = 18,
                 latex_options = "scale_down")
@@ -613,21 +656,231 @@ uppsptotal_summary %>%
 ### check assumptions
 # outliers
   redcap %>%
-    select(uppsp_total, aud_group) %>%
+    select(cohs_routine, aud_group) %>%
     group_by(aud_group) %>%
-    identify_outliers(uppsp_total)
+    identify_outliers(cohs_routine)
   
 # normality
   redcap %>%
-    select(uppsp_total, aud_group) %>%
+    select(cohs_routine, aud_group) %>%
     group_by(aud_group) %>%
-    shapiro_test(uppsp_total)
-  ggqqplot(redcap, x = "uppsp_total", facet.by = "aud_group")
+    shapiro_test(cohs_routine)
+  ggqqplot(redcap, x = "cohs_routine", facet.by = "aud_group")
   
 # homoscedasticity
   redcap %>%
-    levene_test(uppsp_total ~ aud_group)
+    levene_test(cohs_routine ~ aud_group)
   
 ### conduct test
-t.test(redcap$uppsp_total ~ redcap$aud_group, var.equal=TRUE)
+t.test(redcap$cohs_routine ~ redcap$aud_group, var.equal=TRUE)
+```
+
+## UPPSP negative urgency
+
+```{r}
+uppsp_nu_summary <- redcap %>%
+  select(aud_group, uppsp_negative_urgency) %>%
+  group_by(aud_group) %>%
+  dplyr::summarise(mean = mean(uppsp_negative_urgency, na.rm = TRUE),
+                   sd_correct = sd(uppsp_negative_urgency, na.rm = TRUE),
+            min = min(uppsp_negative_urgency, na.rm = TRUE),
+            max = max(uppsp_negative_urgency, na.rm = TRUE),
+            ci_l = ci(uppsp_negative_urgency, na.rm = TRUE)[2],
+            ci_u = ci(uppsp_negative_urgency, na.rm = TRUE)[3])
+
+uppsp_nu_summary %>%
+  kable("html") %>%
+  kable_styling(font_size = 18,
+                latex_options = "scale_down")
+```
+
+```{r}
+### check assumptions
+# outliers
+  redcap %>%
+    select(uppsp_negative_urgency, aud_group) %>%
+    group_by(aud_group) %>%
+    identify_outliers(uppsp_negative_urgency)
+  
+# normality
+  redcap %>%
+    select(uppsp_negative_urgency, aud_group) %>%
+    group_by(aud_group) %>%
+    shapiro_test(uppsp_negative_urgency)
+  ggqqplot(redcap, x = "uppsp_negative_urgency", facet.by = "aud_group")
+  
+# homoscedasticity
+  redcap %>%
+    levene_test(uppsp_negative_urgency ~ aud_group)
+  
+### conduct test
+t.test(redcap$uppsp_negative_urgency ~ redcap$aud_group, var.equal=TRUE)
+```
+
+## UPPSP premeditation
+
+```{r}
+uppsp_pre_summary <- redcap %>%
+  select(aud_group, uppsp_premeditation) %>%
+  group_by(aud_group) %>%
+  dplyr::summarise(mean = mean(uppsp_premeditation, na.rm = TRUE),
+                   sd_correct = sd(uppsp_premeditation, na.rm = TRUE),
+            min = min(uppsp_premeditation, na.rm = TRUE),
+            max = max(uppsp_premeditation, na.rm = TRUE),
+            ci_l = ci(uppsp_premeditation, na.rm = TRUE)[2],
+            ci_u = ci(uppsp_premeditation, na.rm = TRUE)[3])
+
+uppsp_pre_summary %>%
+  kable("html") %>%
+  kable_styling(font_size = 18,
+                latex_options = "scale_down")
+```
+
+```{r}
+### check assumptions
+# outliers
+  redcap %>%
+    select(uppsp_premeditation, aud_group) %>%
+    group_by(aud_group) %>%
+    identify_outliers(uppsp_premeditation)
+  
+# normality
+  redcap %>%
+    select(uppsp_premeditation, aud_group) %>%
+    group_by(aud_group) %>%
+    shapiro_test(uppsp_premeditation)
+  ggqqplot(redcap, x = "uppsp_negative_urgency", facet.by = "aud_group")
+  
+# homoscedasticity
+  redcap %>%
+    levene_test(uppsp_premeditation ~ aud_group)
+  
+### conduct test
+t.test(redcap$uppsp_premeditation ~ redcap$aud_group, var.equal=FALSE)
+```
+
+## UPPSP perseverance
+
+```{r}
+uppsp_pers_summary <- redcap %>%
+  select(aud_group, uppsp_perseverance) %>%
+  group_by(aud_group) %>%
+  dplyr::summarise(mean = mean(uppsp_perseverance, na.rm = TRUE),
+                   sd_correct = sd(uppsp_perseverance, na.rm = TRUE),
+            min = min(uppsp_perseverance, na.rm = TRUE),
+            max = max(uppsp_perseverance, na.rm = TRUE),
+            ci_l = ci(uppsp_perseverance, na.rm = TRUE)[2],
+            ci_u = ci(uppsp_perseverance, na.rm = TRUE)[3])
+
+uppsp_pers_summary %>%
+  kable("html") %>%
+  kable_styling(font_size = 18,
+                latex_options = "scale_down")
+```
+
+```{r}
+### check assumptions
+# outliers
+  redcap %>%
+    select(uppsp_perseverance, aud_group) %>%
+    group_by(aud_group) %>%
+    identify_outliers(uppsp_perseverance)
+  
+# normality
+  redcap %>%
+    select(uppsp_perseverance, aud_group) %>%
+    group_by(aud_group) %>%
+    shapiro_test(uppsp_perseverance)
+  ggqqplot(redcap, x = "uppsp_perseverance", facet.by = "aud_group")
+  
+# homoscedasticity
+  redcap %>%
+    levene_test(uppsp_perseverance ~ aud_group)
+  
+### conduct test
+t.test(redcap$uppsp_perseverance ~ redcap$aud_group, var.equal=TRUE)
+```
+
+## UPPSP sensation seeking
+
+```{r}
+uppsp_ss_summary <- redcap %>%
+  select(aud_group, uppsp_sensation_seeking) %>%
+  group_by(aud_group) %>%
+  dplyr::summarise(mean = mean(uppsp_sensation_seeking, na.rm = TRUE),
+                   sd_correct = sd(uppsp_sensation_seeking, na.rm = TRUE),
+            min = min(uppsp_sensation_seeking, na.rm = TRUE),
+            max = max(uppsp_sensation_seeking, na.rm = TRUE),
+            ci_l = ci(uppsp_sensation_seeking, na.rm = TRUE)[2],
+            ci_u = ci(uppsp_sensation_seeking, na.rm = TRUE)[3])
+
+uppsp_ss_summary %>%
+  kable("html") %>%
+  kable_styling(font_size = 18,
+                latex_options = "scale_down")
+```
+
+```{r}
+### check assumptions
+# outliers
+  redcap %>%
+    select(uppsp_sensation_seeking, aud_group) %>%
+    group_by(aud_group) %>%
+    identify_outliers(uppsp_sensation_seeking)
+  
+# normality
+  redcap %>%
+    select(uppsp_sensation_seeking, aud_group) %>%
+    group_by(aud_group) %>%
+    shapiro_test(uppsp_sensation_seeking)
+  ggqqplot(redcap, x = "uppsp_sensation_seeking", facet.by = "aud_group")
+  
+# homoscedasticity
+  redcap %>%
+    levene_test(uppsp_sensation_seeking ~ aud_group)
+  
+### conduct test
+t.test(redcap$uppsp_sensation_seeking ~ redcap$aud_group, var.equal=TRUE)
+```
+
+## UPPSP positive urgency
+
+```{r}
+uppsp_pu_summary <- redcap %>%
+  select(aud_group, uppsp_positive_urgency) %>%
+  group_by(aud_group) %>%
+  dplyr::summarise(mean = mean(uppsp_positive_urgency, na.rm = TRUE),
+                   sd_correct = sd(uppsp_positive_urgency, na.rm = TRUE),
+            min = min(uppsp_positive_urgency, na.rm = TRUE),
+            max = max(uppsp_positive_urgency, na.rm = TRUE),
+            ci_l = ci(uppsp_positive_urgency, na.rm = TRUE)[2],
+            ci_u = ci(uppsp_positive_urgency, na.rm = TRUE)[3])
+
+uppsp_pu_summary %>%
+  kable("html") %>%
+  kable_styling(font_size = 18,
+                latex_options = "scale_down")
+```
+
+```{r}
+### check assumptions
+# outliers
+  redcap %>%
+    select(uppsp_positive_urgency, aud_group) %>%
+    group_by(aud_group) %>%
+    identify_outliers(uppsp_positive_urgency)
+  
+# normality
+  redcap %>%
+    select(uppsp_positive_urgency, aud_group) %>%
+    group_by(aud_group) %>%
+    shapiro_test(uppsp_positive_urgency)
+  ggqqplot(redcap, x = "uppsp_positive_urgency", facet.by = "aud_group")
+  
+# homoscedasticity
+  redcap %>%
+    levene_test(uppsp_positive_urgency ~ aud_group)
+  
+### conduct test
+t.test(redcap$uppsp_positive_urgency ~ redcap$aud_group, var.equal=FALSE)
 ```

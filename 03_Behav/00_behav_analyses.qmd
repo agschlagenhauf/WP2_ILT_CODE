@@ -11,33 +11,36 @@ format:
     number-depth: 4
 editor_options: 
   chunk_output_type: inline
+execute:
+  warning: false
+  message: false
 ---
 
 # Preps
 
-```{r}
+## General setup
+
+```{r, echo=FALSE, results='hide'}
+
 rm(list=ls())
+#lapply(names(sessionInfo()$loadedOnly), require, character.only = TRUE)
+#invisible(lapply(paste0('package:', names(sessionInfo()$otherPkgs)), detach, character.only=TRUE, unload=TRUE, force=TRUE))
 
 # load packages
 libs<-c("tidyverse", "stringr", "plyr", "dplyr", "lme4", "robustlmm", "lmerTest",
         "sjPlot", "ggpubr", "gmodels", "PerformanceAnalytics", "car", "performance",
-        "emmeans", "psych")
-sapply(libs, require, character.only=TRUE)
+        "emmeans", "psych", "confintROB")
+invisible(sapply(libs, require, character.only=TRUE))
 
-#project_path <- "/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT"
 project_path <- "/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT"
 
 # define sample
-sample <- "n58" # n71, n58, n56, n13
+sample <- "n58" # n58, n56, n13
 
 # load color
 accent <- RColorBrewer::brewer.pal(7, "Accent")
 
-if (sample == 'n71') {
-  load(file.path(project_path, "WP2_ILT_DATA/Behav/behav_final_n71.RData"))
-  load(file.path(project_path, "WP2_ILT_DATA/RedCap/redcap_n71_new.RData"))
-  load(file.path(project_path, "WP2_ILT_DATA/Behav/behav_final_redcap_n71.RData"))
-} else if (sample == 'n58') {
+if (sample == 'n58') {
   load(file.path(project_path, "WP2_ILT_DATA/Behav/behav_final_n58.RData"))
   load(file.path(project_path, "WP2_ILT_DATA/RedCap/redcap_n58_new.RData"))
   load(file.path(project_path, "WP2_ILT_DATA/Behav/behav_final_redcap_n58.RData"))
@@ -60,48 +63,66 @@ if (sample == 'n71') {
 
 redcap <- redcap_new
 
+##### Adapt basic dfs & set contrasts #####
+
+behav_final <- behav_final %>%
+  rowwise() %>%
+  mutate(taste = (taste1+taste2)/2,
+         crave = (crave1+crave2)/2,
+         trial_block_centered = trial_block-1)
+
+behav_final_redcap <- behav_final_redcap %>%
+  rowwise() %>%
+  mutate(taste = (taste1+taste2)/2,
+         crave = (crave1+crave2)/2,
+         trial_block_centered = trial_block-1)
+
 # create outcome as predictor for stay switch analyses
 behav_final$outcome_pred <- factor(behav_final$outcome)
 behav_final_redcap$outcome_pred <- factor(behav_final_redcap$outcome)
+contrasts(behav_final$outcome_pred) <- contr.treatment(2)
+contrasts(behav_final_redcap$outcome_pred) <- contr.treatment(2)
 
-# set contrasts
 contrasts(behav_final$reinforcer_type) <- abs(contr.treatment(2)-1)
 contrasts(behav_final_redcap$reinforcer_type) <- abs(contr.treatment(2)-1)
 
 redcap$aud_group <- factor(redcap$aud_group, levels = c("AUD", "HC"))
-contrasts(redcap$aud_group) <- abs(contr.treatment(2)-1)
 behav_final_redcap$aud_group <- factor(behav_final_redcap$aud_group, levels = c("AUD", "HC"))
+contrasts(redcap$aud_group) <- abs(contr.treatment(2)-1)
 contrasts(behav_final_redcap$aud_group) <- abs(contr.treatment(2)-1)
 
-contrasts(behav_final$outcome_pred) <- contr.treatment(2)
-contrasts(behav_final_redcap$outcome_pred) <- contr.treatment(2)
+behav_final_redcap$screen_handeness <- factor(behav_final_redcap$screen_handeness)
+behav_final_redcap$MRI <- factor(behav_final_redcap$MRI)
+contrasts(behav_final_redcap$screen_handeness) <- contr.treatment(3, base=2)
+#contrasts(behav_final_redcap$MRI) <- contr.treatment(1)
 
-# se function
+##### define se function #####
+
 se <- function(x) sd(x, na.rm=TRUE)/sqrt(length(x)-sum(is.nan(x)))
+
+##### general settings #####
 
 # number notation without exponentials
 options(scipen = 50)
 ```
 
-# Pleasantness and craving rating
-
 ## Prepare dfs
 
-```{r}
-# get df with taste and craving ratings per subject and block
+```{r, echo=FALSE}
+##### Create df with taste and craving ratings per subject and block (r_type long, rating timepoint wide format) #####
+
 behav_rating <- behav_final %>%
   group_by(ID,reinforcer_type) %>%
   select(ID,reinforcer_type,ID_block,taste1, taste2, crave1, crave2) %>%
   distinct() %>%
   mutate(taste_diff=taste2-taste1,
-         crave_diff=crave2-crave1)
+         crave_diff=crave2-crave1,
+         taste_mean = ((taste1 + taste2)/2),
+         crave_mean = ((crave1 + crave2)/2))
 behav_rating <- merge(behav_rating,redcap,by="ID",all.x = T) # merge with demographic data for linear mixed-effects regression
 
-behav_rating <- behav_rating %>%
-  mutate(taste_mean = ((taste1 + taste2)/2),
-         crave_mean = ((crave1 + crave2)/2))
+##### Create long dfs ######
 
-# create long dfs
 behav_rating_long <- behav_rating %>%
   select(ID, aud_group, aud_sum, MRI_audit_sum, reinforcer_type, taste1, taste2, crave1, crave2) %>%
   pivot_longer(cols = c(taste1, taste2, crave1, crave2), names_to = "ratings")
@@ -112,13 +133,16 @@ behav_rating_long_taste <- behav_rating_long %>%
 behav_rating_long_crave <- behav_rating_long %>%
   filter(ratings %in% c("crave1", "crave2"))
 
+# set contrasts
+
 behav_rating_long_taste$ratings <- factor(behav_rating_long_taste$ratings)
 contrasts(behav_rating_long_taste$ratings) <- contr.treatment(2)
 
 behav_rating_long_crave$ratings <- factor(behav_rating_long_crave$ratings)
 contrasts(behav_rating_long_crave$ratings) <- contr.treatment(2)
 
-# create wide df containing demo data and taste and crave fmri covariates
+##### Create wide df containing demo data and taste and crave fmri covariates #####
+
 behav_rating_wide <- behav_final_redcap %>%
   select(ID, reinforcer_type, taste1, taste2, crave1, crave2) %>%
   mutate(taste_diff = taste2-taste1,
@@ -135,28 +159,97 @@ behav_rating_wide <- behav_final_redcap %>%
   mutate(taste_AJ = (taste_A + taste_J)/2,
          crave_AJ = (crave_A + crave_J)/2)
 
-demo_rating_wide <- left_join(redcap, behav_rating_wide) %>%
-  select(BA_smoking_days, age, taste_AJ_diff, crave_AJ_diff, BA_drinks_past3months, MRI_audit_sum, BA_drinks_weekday)
+##### Add taste and craving diff AJ to behav_final and behav_final_redcap dfs #####
 
-demo_rating_wide_aud <- left_join(redcap, behav_rating_wide) %>%
-  filter(aud_group == "AUD") %>%
-  select(BA_smoking_days, age, taste_AJ_diff, crave_AJ_diff, BA_drinks_past3months, MRI_audit_sum, BA_drinks_weekday)
+select_rating_vars <- behav_rating_wide %>%
+  select(ID, taste_AJ, taste_AJ_diff, crave_AJ, crave_AJ_diff)
 
-demo_rating_wide_hc <- left_join(redcap, behav_rating_wide) %>%
-  filter(aud_group == "HC") %>%
-  select(BA_smoking_days, age, taste_AJ_diff, crave_AJ_diff, BA_drinks_past3months, MRI_audit_sum, BA_drinks_weekday)
+behav_final <- left_join(behav_final, select_rating_vars, by="ID")
+behav_final_redcap <- left_join(behav_final_redcap, select_rating_vars, by="ID")
+
+##### Correct #####
+
+# get p correct per subject and block for plotting
+df_c <- behav_final %>%
+  group_by(ID,reinforcer_type) %>%
+  summarise_at(vars(correct), list(p_correct = mean), na.rm=T)
+df_c_rating <- merge(df_c,behav_rating,by=c("ID","reinforcer_type"))
+df_c <- merge(df_c,redcap,by="ID") # merge with demographic data for linear mixed-effects regression
+
+# get p correct per block and aud group and trial for plotting
+df_c_block_trial_group <- behav_final_redcap %>%
+  group_by(aud_group,reinforcer_type,trial_block) %>%
+  dplyr::summarise(p_correct = mean(correct, na.rm = TRUE),
+            ci_l = ci(correct, na.rm=TRUE)[2],
+            ci_u = ci(correct, na.rm=TRUE)[3]
+  )
+
+##### Win-stay #####
+
+# get p correct per subject and block for linear mixed-effects regression
+df_win_stay <- behav_final %>%
+  group_by(ID,reinforcer_type,taste,crave) %>%
+  summarise_at(vars(stay,win_stay), list(p = mean), na.rm=T) %>%
+  na.omit()
+df_win_stay <- merge(df_win_stay,redcap,by="ID") # merge with demographic data for linear mixed-effects 
+
+# get p correct per block and aud group and trial for plotting
+df_win_stay_trial_group <- behav_final_redcap %>%
+  group_by(aud_group,reinforcer_type,trial_block) %>%
+  dplyr::summarise(p = mean(win_stay, na.rm = TRUE),
+            ci_l = ci(win_stay, na.rm=TRUE)[2],
+            ci_u = ci(win_stay, na.rm=TRUE)[3]
+  )
+
+##### No-win-switch #####
+
+# get p correct per subject and block for linear mixed-effects regression
+df_nowin_switch <- behav_final %>%
+  group_by(ID,reinforcer_type,taste,crave) %>%
+  summarise_at(vars(stay,nowin_switch), list(p = mean), na.rm=T) %>%
+  na.omit()
+df_nowin_switch <- merge(df_nowin_switch,redcap,by="ID") # merge with demographic data for linear mixed-effects 
+
+# get p correct per block and aud group and trial for plotting
+df_nowin_switch_trial_group <- behav_final_redcap %>%
+  group_by(aud_group,reinforcer_type,trial_block) %>%
+  dplyr::summarise(p = mean(nowin_switch, na.rm = TRUE),
+            ci_l = ci(nowin_switch, na.rm=TRUE)[2],
+            ci_u = ci(nowin_switch, na.rm=TRUE)[3]
+  )
+
+##### RT #####
+
+# get rt per subject and block
+df_rt <- behav_final %>%
+  group_by(ID,reinforcer_type,taste,crave) %>%
+  summarise_at(vars(rt), list(p = mean)) %>%
+  na.omit()
+df_rt <- merge(df_rt,redcap,by="ID") # merge with demographic data
+
+# get p correct per block and aud group and trial for plotting
+df_rt_trial_group <- behav_final_redcap %>%
+  group_by(aud_group,reinforcer_type,trial_block) %>%
+  dplyr::summarise(p = mean(rt, na.rm = TRUE),
+            ci_l = ci(rt, na.rm=TRUE)[2],
+            ci_u = ci(rt, na.rm=TRUE)[3]
+  )
+
 ```
+
+## Determine VIF for mri analyses
+
+```{r}
+model_vif_mri <- lm(rt ~ reinforcer_type + reinforcer_type:aud_group + reinforcer_type:screen_handeness + reinforcer_type:MRI, data=behav_final_redcap)
+
+vif(model_vif_mri)
+```
+
+# Taste and craving rating
 
 ## Descriptive stats
 
 ```{r}
-d_rating_all<- behav_rating %>%
-  dplyr::summarise(across(c('taste1','taste2','crave1','crave2','taste_diff','crave_diff', 'taste_mean', 'crave_mean'), .fns=
-                   list('_mean' = mean,
-                        '_sd' = sd,
-                        '_min' = min,
-                        '_max' = max),
-                   na.rm=T))
 
 d_rating <- behav_rating %>%
   group_by(reinforcer_type,aud_group) %>%
@@ -202,184 +295,323 @@ stats <- d_rating[4,-1:-2] %>% gather(stat, val) %>%
 stats
 ```
 
+```{r}
+# Correlation taste and craving ratings
+cor.test(behav_rating_wide$taste_AJ_diff, behav_rating_wide$crave_AJ_diff, method="spearman")
+cor.test(behav_final_redcap$taste, behav_final_redcap$crave, , method="spearman")
+```
+
 ## Linear mixed-effects regression
 
-### Taste ratings 
+### Taste ratings
 
 #### AUD group
 
+##### Time effects
+
 ```{r}
-m_taste_time <- lmer(value ~ 1 + reinforcer_type*aud_group*ratings + (1|ID), 
+m_taste_time <- lmer(value ~ 1 + reinforcer_type*aud_group*ratings + (1 + reinforcer_type + ratings |ID), 
                      data=behav_rating_long_taste,
                      control=lmerControl(calc.derivs=FALSE), 
                      REML=F)
 
 tab_model(m_taste_time,
-          dv.labels=c("m_taste_time"), digits=3, digits.re=2, df.method = "satterthwaite",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))#
+          dv.labels=c("m_taste_time"), digits=2, digits.re=2, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))#
 
 check_model(m_taste_time, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq") )
 ```
 
 ```{r}
-m_taste <- lmer(value ~ 1 + reinforcer_type*aud_group + (1 | ID), 
+m_taste_time_rob <- rlmer(value ~ 1 + reinforcer_type*aud_group*ratings + (1 + reinforcer_type + ratings |ID), 
+                     data=behav_rating_long_taste,
+                     control=lmerControl(calc.derivs=FALSE), 
+                     REML=F)
+
+tab_model(m_taste_time_rob,
+          dv.labels=c("m_taste_time_rob"), digits=2, digits.re=2, df.method = "normal",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))#
+
+# CIs <- confintROB(m_taste_time_rob, parm=c(1:8), level=0.95, method="boot", boot.type = "parametric")
+# saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_taste_time_rob.rds"))
+CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_taste_time_rob.rds"))
+CIs
+```
+
+```{r}
+summary(emmeans(m_taste_time_rob, specs = pairwise ~ reinforcer_type|aud_group|ratings, lmer.df = "asymptotic", adjust = "bonf", ), infer=TRUE)
+summary(emmeans(m_taste_time_rob, specs = pairwise ~ aud_group|reinforcer_type|ratings, lmer.df = "asymptotic", adjust = "bonf"), infer=TRUE)
+summary(emmeans(m_taste_time_rob, specs = revpairwise ~ ratings|aud_group|reinforcer_type, lmer.df = "asymptotic", adjust = "bonf"), infer=TRUE)
+```
+
+##### Across both ratings
+
+```{r}
+m_taste <- lmer(value ~ 1 + reinforcer_type*aud_group + (1 + reinforcer_type| ID), 
                      data=behav_rating_long_taste,
                      control=lmerControl(calc.derivs=FALSE), 
                      REML=F)
 
 tab_model(m_taste,
-          dv.labels=c("m_taste"), digits=3, digits.re=2, df.method = "satterthwaite",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+          dv.labels=c("m_taste"), digits=2, digits.re=2, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
 
 check_model(m_taste, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq") )
 ```
 
 ```{r}
-emmeans(m_taste, specs = pairwise ~ reinforcer_type|aud_group, lmer.df = "satterthwaite")
-emmeans(m_taste, specs = pairwise ~ aud_group|reinforcer_type, lmer.df = "satterthwaite")
+m_taste_rob <- rlmer(value ~ 1 + reinforcer_type*aud_group + (1 + reinforcer_type| ID), 
+                     data=behav_rating_long_taste,
+                     control=lmerControl(calc.derivs=FALSE), 
+                     REML=F)
+
+tab_model(m_taste_rob,
+          dv.labels=c("m_taste_rob"), digits=2, digits.re=2, df.method = "normal", 
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci = 0.95, CSS = css_theme("cells"))#
+
+# CIs <- confintROB(m_taste_rob, parm=c(1:4), level=0.95, method="boot", boot.type = "parametric")
+# saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_taste_rob.rds"))
+CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_taste_rob.rds"))
+CIs
+```
+
+```{r}
+summary(emmeans(m_taste, specs = pairwise ~ reinforcer_type|aud_group, lmer.df = "satterthwaite", adjust = "bonf"), infer=TRUE)
+summary(emmeans(m_taste, specs = pairwise ~ aud_group|reinforcer_type, lmer.df = "satterthwaite", adjust = "bonf"), infer=TRUE)
 ```
 
 ```{r}
 plot_model(m_taste, type = "pred", terms = c("aud_group", "reinforcer_type"))
 ```
 
+<!-- #### AUDIT criteria -->
 
-#### AUDIT criteria
+<!-- ##### Time effects -->
 
-```{r}
-m_taste_time_audit <- lmer(value ~ 1 + reinforcer_type*MRI_audit_sum*ratings + (1|ID), 
-                     data=behav_rating_long_taste,
-                     control=lmerControl(calc.derivs=FALSE), 
-                     REML=F)
+<!-- ```{r} -->
 
-tab_model(m_taste_time_audit,
-          dv.labels=c("m_taste_time"), digits=3, digits.re=2, df.method = "satterthwaite",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+<!-- m_taste_time_audit <- lmer(value ~ 1 + reinforcer_type*MRI_audit_sum*ratings + (1 + reinforcer_type + ratings|ID),  -->
 
-check_model(m_taste_time_audit, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq") )
-```
+<!--                      data=behav_rating_long_taste, -->
 
-```{r}
-m_taste_audit <- lmer(value ~ 1 + reinforcer_type*MRI_audit_sum + (1|ID), 
-                     data=behav_rating_long_taste,
-                     control=lmerControl(calc.derivs=FALSE), 
-                     REML=F)
+<!--                      control=lmerControl(calc.derivs=FALSE),  -->
 
-tab_model(m_taste_audit,
-          dv.labels=c("m_taste"), digits=3, digits.re=2, df.method = "satterthwaite",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+<!--                      REML=F) -->
 
-check_model(m_taste_audit, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq") )
-```
+<!-- tab_model(m_taste_time_audit, -->
 
-```{r}
-summary(emtrends(m_taste_audit, "reinforcer_type", var = "MRI_audit_sum", lmer.df = "satterthwaite"), infer=TRUE)
-```
+<!--           dv.labels=c("m_taste_time_audit"), digits=2, digits.re=2, df.method = "satterthwaite", -->
 
-### Craving ratings 
+<!--           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells")) -->
+
+<!-- check_model(m_taste_time_audit, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq") ) -->
+
+<!-- ``` -->
+
+<!-- ##### Across both ratings -->
+
+<!-- ```{r} -->
+
+<!-- m_taste_audit <- lmer(value ~ 1 + reinforcer_type*MRI_audit_sum + (1 + reinforcer_type + ratings |ID),  -->
+
+<!--                      data=behav_rating_long_taste, -->
+
+<!--                      control=lmerControl(calc.derivs=FALSE),  -->
+
+<!--                      REML=F) -->
+
+<!-- tab_model(m_taste_audit, -->
+
+<!--           dv.labels=c("m_taste_audit"), digits=2, digits.re=2, df.method = "satterthwaite", -->
+
+<!--           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells")) -->
+
+<!-- check_model(m_taste_audit, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq") ) -->
+
+<!-- ``` -->
+
+<!-- ```{r} -->
+
+<!-- summary(emtrends(m_taste_audit, "reinforcer_type", var = "MRI_audit_sum", lmer.df = "satterthwaite"), infer=TRUE) -->
+
+<!-- ``` -->
+
+<!-- ```{r} -->
+
+<!-- plot_model(m_taste_audit, type = "pred", terms = c("MRI_audit_sum", "reinforcer_type")) -->
+
+<!-- ``` -->
+
+### Craving ratings
 
 #### AUD group
 
+##### Time effects
+
 ```{r}
-m_crave_time <- lmer(value ~ 1 + reinforcer_type*aud_group*ratings + (1|ID), 
+m_crave_time <- lmer(value ~ 1 + reinforcer_type*aud_group*ratings + (1 + reinforcer_type + ratings|ID), 
                      data=behav_rating_long_crave,
                      control=lmerControl(calc.derivs=FALSE), 
                      REML=F)
 
 tab_model(m_crave_time,
-          dv.labels=c("m_crave_time"), digits=3, digits.re=2, df.method = "satterthwaite",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+          dv.labels=c("m_crave_time"), digits=2, digits.re=2, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
 
 check_model(m_crave_time, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq") )
 ```
 
 ```{r}
-emmeans(m_crave_time, specs = pairwise ~ reinforcer_type|aud_group|ratings, lmer.df = "satterthwaite")
+m_crave_time_rob <- rlmer(value ~ 1 + reinforcer_type*aud_group*ratings + (1 + reinforcer_type + ratings|ID), 
+                     data=behav_rating_long_crave,
+                     control=lmerControl(calc.derivs=FALSE), 
+                     REML=F)
 
-emmeans(m_crave_time, specs = pairwise ~ aud_group|reinforcer_type|ratings, lmer.df = "satterthwaite")
+tab_model(m_crave_time_rob,
+          dv.labels=c("m_crave_time_rob"), digits=2, digits.re=2, df.method = "normal",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
+summary(m_crave_time_rob)
+
+# CIs <- confintROB(m_crave_time_rob, parm=c(1:8), level=0.95, method="boot", boot.type = "parametric")
+# saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_crave_time_rob.rds"))
+CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_crave_time_rob.rds"))
+CIs
 ```
 
 ```{r}
-plot_model(m_crave_time, type = "pred", terms = c("reinforcer_type", "aud_group"))
+summary(emmeans(m_crave_time_rob, specs = pairwise ~ reinforcer_type|aud_group|ratings, lmer.df = "asymptotic", adjust = "bonf"), infer=TRUE)
+summary(emmeans(m_crave_time_rob, specs = pairwise ~ aud_group|reinforcer_type|ratings, lmer.df = "asymptotic", adjust = "bonf"), infer=TRUE)
 ```
 
 ```{r}
-m_crave <- lmer(value ~ 1 + reinforcer_type*aud_group + (1|ID), 
+plot_model(m_crave_time, type = "pred", terms = c("aud_group", "reinforcer_type"))
+```
+
+##### Across both ratings
+
+```{r}
+m_crave <- lmer(value ~ 1 + reinforcer_type*aud_group + (1+reinforcer_type|ID), 
                      data=behav_rating_long_crave,
                      control=lmerControl(calc.derivs=FALSE), 
                      REML=F)
 
 tab_model(m_crave,
-          dv.labels=c("m_crave_time"), digits=3, digits.re=2, df.method = "satterthwaite",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+          dv.labels=c("m_crave"), digits=2, digits.re=2, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
 
 check_model(m_crave, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq") )
 ```
 
 ```{r}
-emmeans(m_crave, specs = pairwise ~ reinforcer_type|aud_group, lmer.df = "satterthwaite")
-
-emmeans(m_crave, specs = pairwise ~ aud_group|reinforcer_type, lmer.df = "satterthwaite")
-```
-
-#### AUDIT criteria
-
-```{r}
-m_crave_time_audit <- lmer(value ~ 1 + reinforcer_type*MRI_audit_sum*ratings + (1|ID), 
+m_crave_rob <- rlmer(value ~ 1 + reinforcer_type*aud_group + (1+reinforcer_type|ID), 
                      data=behav_rating_long_crave,
                      control=lmerControl(calc.derivs=FALSE), 
                      REML=F)
 
-tab_model(m_crave_time_audit,
-          dv.labels=c("m_crave_time"), digits=3, digits.re=2, df.method = "satterthwaite",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+tab_model(m_crave_rob,
+          dv.labels=c("m_crave_rob"), digits=2, digits.re=2, df.method = "normal",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))#
 
-check_model(m_crave_time_audit, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+# CIs <- confintROB(m_crave_rob, parm=c(1:4), level=0.95, method="boot", boot.type = "parametric")
+# saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_crave_rob.rds"))
+CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_crave_rob.rds"))
+CIs
 ```
 
 ```{r}
-summary(emtrends(m_crave_time_audit, c("reinforcer_type", "ratings"), var = "MRI_audit_sum", lmer.df = "satterthwaite"), infer=TRUE)
+summary(emmeans(m_crave_rob, specs = pairwise ~ reinforcer_type|aud_group, lmer.df = "asymptotic", adjust = "bonf"), infer=TRUE)
+summary(emmeans(m_crave_rob, specs = pairwise ~ aud_group|reinforcer_type, lmer.df = "asymptotic", adjust = "bonf"), infer=TRUE)
 ```
 
-```{r}
-plot_model(m_crave_time_audit, type = "pred", terms = c("MRI_audit_sum", "ratings", "reinforcer_type"))
-```
+<!-- #### AUDIT criteria -->
 
-```{r}
-m_crave_audit <- lmer(value ~ 1 + reinforcer_type*MRI_audit_sum + (1|ID), 
-                     data=behav_rating_long_crave,
-                     control=lmerControl(calc.derivs=FALSE), 
-                     REML=F)
+<!-- ##### Time effects -->
 
-tab_model(m_crave_audit,
-          dv.labels=c("m_crave_time"), digits=3, digits.re=2, df.method = "satterthwaite",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+<!-- ```{r} -->
 
-check_model(m_crave_audit, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
-```
+<!-- m_crave_time_audit <- lmer(value ~ 1 + reinforcer_type*MRI_audit_sum*ratings + (1 + reinforcer_type + ratings|ID),  -->
 
-```{r}
-summary(emtrends(m_crave_audit, "reinforcer_type", var = "MRI_audit_sum"), infer=TRUE)
-```
+<!--                      data=behav_rating_long_crave, -->
+
+<!--                      control=lmerControl(calc.derivs=FALSE),  -->
+
+<!--                      REML=F) -->
+
+<!-- tab_model(m_crave_time_audit, -->
+
+<!--           dv.labels=c("m_crave_time_audit"), digits=2, digits.re=2, df.method = "satterthwaite", -->
+
+<!--           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells")) -->
+
+<!-- check_model(m_crave_time_audit, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq")) -->
+
+<!-- ``` -->
+
+<!-- ```{r} -->
+
+<!-- summary(emtrends(m_crave_time_audit, c("reinforcer_type"), var = "MRI_audit_sum", lmer.df = "satterthwaite"), infer=TRUE) -->
+
+<!-- ``` -->
+
+<!-- ```{r} -->
+
+<!-- plot_model(m_crave_time_audit, type = "pred", terms = c("MRI_audit_sum", "reinforcer_type")) -->
+
+<!-- ``` -->
+
+<!-- ##### Across both ratings -->
+
+<!-- ```{r} -->
+
+<!-- m_crave_audit <- lmer(value ~ 1 + reinforcer_type*MRI_audit_sum + (1 + reinforcer_type|ID),  -->
+
+<!--                      data=behav_rating_long_crave, -->
+
+<!--                      control=lmerControl(calc.derivs=FALSE),  -->
+
+<!--                      REML=F) -->
+
+<!-- tab_model(m_crave_audit, -->
+
+<!--           dv.labels=c("m_crave_audit"), digits=2, digits.re=2, df.method = "satterthwaite", -->
+
+<!--           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells")) -->
+
+<!-- check_model(m_crave_audit, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq")) -->
+
+<!-- ``` -->
+
+<!-- ```{r} -->
+
+<!-- summary(emtrends(m_crave_audit, "reinforcer_type", var = "MRI_audit_sum"), infer=TRUE) -->
+
+<!-- ``` -->
+
+<!-- ```{r} -->
+
+<!-- plot_model(m_crave_audit, type = "pred", terms = c("MRI_audit_sum", "reinforcer_type")) -->
+
+<!-- ``` -->
 
 ## Plotting
 
 ### Taste per time point, group, reinforcer type
 
 ```{r}
-fig_taste <- ggplot(behav_rating_long_taste, aes(x = ratings, y = value, fill = reinforcer_type)) +
+fig_taste <- ggplot(behav_rating_long_taste, aes(x = ratings, y = value, fill = fct_rev(fct_infreq(reinforcer_type)))) +
   geom_violin() +
-  geom_boxplot(aes(group=interaction(ratings,reinforcer_type)), 
+  geom_boxplot(aes(group=interaction(ratings,fct_rev(fct_infreq(reinforcer_type)))), 
                width=0.1, position=position_dodge(width = 0.9),
                size=0.8) + 
-  facet_wrap(~aud_group, scales="fixed") +
+  facet_wrap(~fct_rev(fct_infreq(aud_group)), scales="fixed") +
   scale_x_discrete("Timepoint", labels=c('pre', 'post')) +
   scale_y_continuous("Taste rating") +
-  theme_light(base_size=18) +
+  theme_light(base_size=18, base_family = "Aptos") +
   theme(legend.position = "top") +
   scale_fill_brewer(name="Reinforcer type", 
-                    labels=c("alcohol", "juice"),
-                    palette = "Accent")
+                    labels=c("juice", "alcohol"),
+                    palette = "Pastel1",
+                    direction=-1)
 
 fig_taste
 ```
@@ -387,83 +619,36 @@ fig_taste
 ### Craving per time point, group, reinforcer type
 
 ```{r}
-fig_crave <- ggplot(behav_rating_long_crave, aes(x = ratings, y = value, fill = reinforcer_type)) +
+fig_crave <- ggplot(behav_rating_long_crave, aes(x = ratings, y = value, fill = fct_rev(fct_infreq(reinforcer_type)))) +
   geom_violin() +
-  geom_boxplot(aes(group=interaction(ratings,reinforcer_type)), 
+  geom_boxplot(aes(group=interaction(ratings,fct_rev(fct_infreq(reinforcer_type)))), 
                width=0.1, position=position_dodge(width = 0.9),
                size=0.8) + 
-  facet_wrap(~aud_group, scales="fixed") +
+  facet_wrap(~fct_rev(fct_infreq(aud_group)), scales="fixed") +
   scale_x_discrete("Timepoint", labels=c('pre', 'post')) +
   scale_y_continuous("Craving rating") +
-  theme_light(base_size=18) +
+  theme_light(base_size=18, base_family = "Aptos") +
   theme(legend.position = "top") +
   scale_fill_brewer(name="Reinforcer type", 
-                  labels=c("alcohol", "juice"),
-                  palette = "Accent")
+                  labels=c("juice", "alcohol"),
+                  palette = "Pastel1",
+                  direction=-1)
 
 fig_crave
 ```
 
+### Combined plot
+
 ```{r}
-# save combined plot
 fig_taste_crave <- ggarrange(fig_taste, fig_crave,
           labels = c("A", "B"),
           ncol = 2, nrow = 1,
           common.legend = TRUE, legend="bottom")
 fig_taste_crave
 
-png(file.path(project_path, "Manuscript/Figures", paste("taste_crave_", sample, ".png", sep="")), width = 24, height = 10, units='cm', res = 600)
-fig_taste_crave
-dev.off()
-```
-
-## Association taste and craving ratings with psychometric characteristics within AUD group + VIF
-
-```{r}
-# all
-chart.Correlation(demo_rating_wide, histogram=T, pch=1)
-
-model_aud <- lm(BA_drinks_weekday ~ BA_smoking_days + age + crave_AJ_diff + MRI_audit_sum + BA_drinks_past3months, data=demo_rating_wide)
-
-vif(model_aud)
-
-# AUD
-chart.Correlation(demo_rating_wide_aud, histogram=T, pch=1)
-
-model_aud <- lm(BA_drinks_weekday ~ BA_smoking_days + age + taste_AJ_diff + crave_AJ_diff + MRI_audit_sum, data=demo_rating_wide_aud)
-
-vif(model_aud)
-
-# HC
-chart.Correlation(demo_rating_wide_hc, histogram=T, pch=1)
-
-model_hc <- lm(BA_drinks_weekday ~ BA_smoking_days + age + taste_AJ_diff + crave_AJ_diff + MRI_audit_sum + BA_drinks_past3months, data=demo_rating_wide_hc)
-
-vif(model_hc)
 ```
 
 # Correct choices
-
-## Prepare dfs
-
-```{r}
-# get p correct per subject and block for linear mixed-effects regression
-df_c <- behav_final %>%
-  group_by(ID,reinforcer_type) %>%
-  summarise_at(vars(correct), list(p_correct = mean), na.rm=T)
-
-df_c_rating <- merge(df_c,behav_rating,by=c("ID","reinforcer_type")) # merge with demographic data for linear mixed-effects regression
-
-df_c <- merge(df_c,redcap,by="ID") # merge with demographic data for linear mixed-effects regression
-
-# get p correct per block and aud group and trial for plotting
-df_c_block_trial_group <- behav_final_redcap %>%
-  group_by(aud_group,reinforcer_type,trial_block) %>%
-  dplyr::summarise(p_correct = mean(correct, na.rm = TRUE),
-            ci_l = ci(correct, na.rm=TRUE)[2],
-            ci_u = ci(correct, na.rm=TRUE)[3]
-  )
-```
 
 ## Descriptive stats
 
@@ -523,38 +708,39 @@ df_c_stats_nan <- behav_final_redcap %>%
 
 df_c_stats_nan
 
-# overall
+# first trial only
+# per group and reinforcer type
 df_c_stats <- behav_final_redcap %>%
+  group_by(reinforcer_type,aud_group) %>%
+  filter(trial_block==1) %>%
   dplyr::summarise(across(c('correct'), .fns=
                    list('_mean' = mean,
                         '_sd' = sd,
                         '_min' = min,
                         '_max' = max),
                    na.rm=T))
-
 df_c_stats
-
-df_c_stats_nan <- behav_final_redcap %>%
-  dplyr::summarise(across(c('correct'), .fns=
-                   list('_na' = ~sum(is.na(.)))))
-
-df_c_stats_nan
 ```
 
-## AUD group
+## AUD group as predictor
+
+### Time effects
 
 ```{r}
-m_correct_time_1 <- glmer(correct ~ 1 + reinforcer_type*aud_group*trial_block + (1 + reinforcer_type + trial_block | ID), 
+m_correct_time_1 <- glmer(correct ~ 1 + reinforcer_type*aud_group*trial_block_centered + (1 + reinforcer_type + trial_block_centered | ID), 
                          data=behav_final_redcap, 
                          family = binomial, 
                          control=glmerControl(calc.derivs=FALSE))
 
 tab_model(m_correct_time_1,
-          dv.labels=c("m_correct_log"), digits=3, digits.re=2, show.est = T, df.method = "wald",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+          dv.labels=c("m_correct_time_1"), digits=2, digits.re=2, show.est = T, df.method = "wald",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
 
 check_model(m_correct_time_1, check=c("pp_check", "reqq", "qq"))
+
 ```
+
+### Across all trials
 
 ```{r}
 m_correct_1 <- glmer(correct ~ 1 + reinforcer_type*aud_group + (1 + reinforcer_type | ID), 
@@ -563,654 +749,858 @@ m_correct_1 <- glmer(correct ~ 1 + reinforcer_type*aud_group + (1 + reinforcer_t
                          control=glmerControl(calc.derivs=FALSE))
 
 tab_model(m_correct_1,
-          dv.labels=c("m_correct_log"), digits=3, digits.re=2, show.est = T, df.method = "wald",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+          dv.labels=c("m_correct_1"), digits=2, digits.re=2, show.est = T, df.method = "wald",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
 
 check_model(m_correct_1, check=c("pp_check", "reqq", "qq"))
 ```
 
-##### Controlled for taste
+### Controlling for covariates
 
-
-## AUDIT criteria
-
-```{r}
-m_correct_time_1_auditsum <- glmer(correct ~ 1 + reinforcer_type*MRI_audit_sum*trial_block + (1 + reinforcer_type + trial_block | ID), 
-                                  data=behav_final_redcap, 
-                                  family = binomial, 
-                                  control=glmerControl(calc.derivs=FALSE))
-
-tab_model(m_correct_time_1_auditsum,
-          dv.labels=c("m_correct_log"), digits=3, digits.re=2, transform = NULL, show.est = T, df.method = "wald",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
-
-check_model(m_correct_time_1_auditsum, check=c("pp_check", "reqq", "qq"))
-```
+#### Determine correlation between % correct & taste
 
 ```{r}
-m_correct_1_auditsum <- glmer(correct ~ 1 + reinforcer_type*MRI_audit_sum + (1 + reinforcer_type | ID), 
-                                  data=behav_final_redcap, 
-                                  family = binomial, 
-                                  control=glmerControl(calc.derivs=FALSE))
+# taste
+lm_correct_taste <- glmer(correct ~ taste + (1 + taste| ID), 
+                        data=behav_final_redcap, 
+                        family = binomial,
+                        control=glmerControl(calc.derivs=FALSE))
 
-tab_model(m_correct_1_auditsum,
-          dv.labels=c("m_correct_log"), digits=3, digits.re=2, transform = NULL, show.est = T, df.method = "wald",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+tab_model(lm_correct_taste,
+          dv.labels=c("lm_correct_taste"), digits=2, digits.re=2, show.est = T, df.method = "wald",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
 
-check_model(m_correct_1_auditsum, check=c("pp_check", "reqq", "qq"))
+check_model(lm_correct_taste, check=c("pp_check", "reqq", "qq"))
+
+if (sample == 'n56') {
+  # age
+  lm_correct_age <- glmer(correct ~ age + (1 | ID), 
+                          data=behav_final_redcap, 
+                          family = binomial,
+                          control=glmerControl(calc.derivs=FALSE))
+  
+  tab_model(lm_correct_age,
+            dv.labels=c("lm_correct_age"), digits=2, digits.re=2, show.est = T, df.method = "wald",
+            show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
+  
+  check_model(lm_correct_age, check=c("pp_check", "reqq", "qq"))
+}
+
+# smoking_days
+lm_correct_smoking <- glmer(correct ~ BA_smoking_days + (1 | ID), 
+                        data=behav_final_redcap, 
+                        family = binomial,
+                        control=glmerControl(calc.derivs=FALSE))
+
+tab_model(lm_correct_smoking,
+          dv.labels=c("lm_correct_smoking"), digits=2, digits.re=2, show.est = T, df.method = "wald",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
+
+check_model(lm_correct_smoking, check=c("pp_check", "reqq", "qq"))
 ```
+
+<!-- #### Time effects -->
+
+<!-- ```{r} -->
+
+<!-- m_correct_time_1_controlled <- glmer(correct ~ 1 + reinforcer_type*trial_block*aud_group + taste + (1 + reinforcer_type + trial_block | ID),  -->
+
+<!--                          data=behav_final_redcap,  -->
+
+<!--                          family = binomial,  -->
+
+<!--                          control=glmerControl(calc.derivs=FALSE)) -->
+
+<!-- tab_model(m_correct_time_1_controlled, -->
+
+<!--           dv.labels=c("m_correct_time_1_controlled"), digits=2, digits.re=2, show.est = T, df.method = "wald", -->
+
+<!--           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells")) -->
+
+<!-- check_model(m_correct_time_1_controlled, check=c("pp_check", "reqq", "qq")) -->
+
+<!-- vif(m_correct_time_1_controlled) -->
+
+<!-- ``` -->
+
+<!-- #### Across all trials -->
+
+<!-- ```{r} -->
+
+<!-- m_correct_1_controlled <- glmer(correct ~ 1 + reinforcer_type*aud_group + taste + (1 + reinforcer_type | ID),  -->
+
+<!--                          data=behav_final_redcap,  -->
+
+<!--                          family = binomial,  -->
+
+<!--                          control=glmerControl(calc.derivs=FALSE)) -->
+
+<!-- tab_model(m_correct_1_controlled, -->
+
+<!--           dv.labels=c("m_correct_1_controlled"), digits=2, digits.re=2, show.est = T, df.method = "wald", -->
+
+<!--           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells")) -->
+
+<!-- check_model(m_correct_1, check=c("pp_check", "reqq", "qq")) -->
+
+<!-- vif(m_correct_1_controlled) -->
+
+<!-- ``` -->
+
+<!-- ## AUDIT criteria -->
+
+<!-- ### Time effects -->
+
+<!-- ```{r} -->
+
+<!-- m_correct_time_1_auditsum <- glmer(correct ~ 1 + reinforcer_type*MRI_audit_sum*trial_block + (1 + reinforcer_type + trial_block | ID),  -->
+
+<!--                                   data=behav_final_redcap,  -->
+
+<!--                                   family = binomial,  -->
+
+<!--                                   control=glmerControl(calc.derivs=FALSE)) -->
+
+<!-- tab_model(m_correct_time_1_auditsum, -->
+
+<!--           dv.labels=c("m_correct_time_1_auditsum"), digits=2, digits.re=2, transform = NULL, show.est = T, df.method = "wald", -->
+
+<!--           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells")) -->
+
+<!-- check_model(m_correct_time_1_auditsum, check=c("pp_check", "reqq", "qq")) -->
+
+<!-- ``` -->
+
+<!-- ### Across trials -->
+
+<!-- ```{r} -->
+
+<!-- m_correct_1_auditsum <- glmer(correct ~ 1 + reinforcer_type*MRI_audit_sum + (1 + reinforcer_type | ID),  -->
+
+<!--                                   data=behav_final_redcap,  -->
+
+<!--                                   family = binomial,  -->
+
+<!--                                   control=glmerControl(calc.derivs=FALSE)) -->
+
+<!-- tab_model(m_correct_1_auditsum, -->
+
+<!--           dv.labels=c("m_correct_1_auditsum"), digits=2, digits.re=2, transform = NULL, show.est = T, df.method = "wald", -->
+
+<!--           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells")) -->
+
+<!-- check_model(m_correct_1_auditsum, check=c("pp_check", "reqq", "qq")) -->
+
+<!-- ``` -->
 
 ## Plotting
 
 ### Per group and reinforcer type
 
 ```{r}
-fig_correct <- ggplot(df_c, aes(reinforcer_type, y = p_correct*100, fill=reinforcer_type)) +
+fig_correct <- ggplot(df_c, aes(fct_rev(fct_infreq(reinforcer_type)), y = p_correct*100, fill=fct_rev(fct_infreq(reinforcer_type)))) +
   geom_violin() +
   geom_boxplot(width=0.1, size=0.8) + 
-  facet_wrap(~aud_group, scales="fixed") +
+  facet_wrap(~fct_rev(fct_infreq(aud_group)), scales="fixed") +
   scale_y_continuous("% Correct choices", limits = c(0,100)) +
-  theme_light(base_size=18) +
+  theme_light(base_size=18, base_family = "Aptos") +
   theme(axis.title.x=element_blank(),
         axis.text.x=element_blank(),
         axis.ticks.x=element_blank(),
         legend.position = "bottom") +
   scale_fill_brewer(name="Reinforcer type", 
-                  labels=c("alcohol", "juice"),
-                  palette = "Accent")
+                  labels=c("juice", "alcohol"),
+                  palette = "Pastel1",
+                  direction = -1)
 fig_correct
 ```
 
 ### Correct choices over course of task
 
 ```{r}
-fig_correct_time <- ggplot(df_c_block_trial_group, aes(x=trial_block, y=p_correct*100, group=reinforcer_type)) +
-  geom_line(aes(color=reinforcer_type), linewidth=0.8) +
-  geom_ribbon(aes(ymin = ci_l*100, ymax = ci_u*100, fill = reinforcer_type), alpha = 0.2) + 
-  facet_wrap(~aud_group, scales="free_y") +
-  scale_y_continuous("% Correct choices", limits = c(-5,105)) +
-  scale_x_continuous(NULL) +
-  theme_light(base_size=18) +
+fig_correct_time <- ggplot(df_c_block_trial_group, aes(x=trial_block, y=p_correct*100, group=fct_rev(fct_infreq(reinforcer_type)))) +
+  geom_line(aes(color=fct_rev(fct_infreq(reinforcer_type))), linewidth=0.8) +
+  geom_ribbon(aes(ymin = ci_l*100, ymax = ci_u*100, fill = fct_rev(fct_infreq(reinforcer_type))), alpha = 0.2) + 
+  facet_wrap(~fct_rev(fct_infreq(aud_group)), scales="free_y") +
+  scale_y_continuous("% Correct choices", limits = c(-50,175)) +
+  scale_x_continuous("Trial") +
+  theme_light(base_size=18, base_family = "Aptos") +
   theme(legend.position = "right") +
   scale_color_brewer(name="Reinforcer type", 
-                  labels=c("alcohol", "juice"),
-                  palette = "Accent") +
+                  labels=c("juice", "alcohol"),
+                  palette = "Pastel1",
+                  direction = -1) +
   scale_fill_brewer(name="Reinforcer type", 
-                  labels=c("alcohol", "juice"),
-                  palette = "Accent")
+                  labels=c("juice", "alcohol"),
+                  palette = "Pastel1",
+                  direction=-1)
 
 fig_correct_time
 
 ```
 
-# Association correct choices & ratings
+<!-- # Win-Stay behavior: Repeating the same action that was rewarded in previous trial -->
 
-## Linear mixed-effects regression taste rating
+<!-- ## Descriptive stats -->
 
-```{r}
-m_c_taste1=lmer(p_correct~taste1 + (1 | ID),
-                data=df_c_rating,
-                control=lmerControl(calc.derivs=FALSE))
+<!-- ```{r} -->
 
-tab_model(m_c_taste1,
-          dv.labels=c("m_c_taste1"), digits=3, digits.re=2, df.method = "satterthwaite",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+<!-- # per group and reinforcer type -->
 
-check_model(m_c_taste1, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+<!-- df_win_stay_stats <- behav_final_redcap %>% -->
 
-# robust estimation
-m_c_taste1_robust=rlmer(p_correct~taste1 + (1 | ID),
-                data=df_c_rating,
-                control=lmerControl(calc.derivs=FALSE))
+<!--   group_by(reinforcer_type,aud_group) %>% -->
 
-tab_model(m_c_taste1_robust,
-          dv.labels=c("m_c_taste1"), digits=3, digits.re=2, df.method = "wald",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,
-          CSS = css_theme("cells"))
+<!--   dplyr::summarise(across(c('win_stay'), .fns= -->
 
-plot(m_c_taste1_robust)
-```
+<!--                    list('_mean' = mean, -->
 
-```{r}
-m_c_taste2=lmer(p_correct~taste2 + (1 | ID),
-                data=df_c_rating,
-                control=lmerControl(calc.derivs=FALSE))
+<!--                         '_sd' = sd, -->
 
-tab_model(m_c_taste2,
-          dv.labels=c("m_c_taste2"), digits=3, digits.re=2, df.method = "satterthwaite",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+<!--                         '_min' = min, -->
 
-check_model(m_c_taste2, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+<!--                         '_max' = max), -->
 
-# robust estimation
-m_c_taste2_robust=rlmer(p_correct~taste2 + (1 | ID),
-                data=df_c_rating,
-                control=lmerControl(calc.derivs=FALSE))
+<!--                    na.rm=T)) -->
 
-tab_model(m_c_taste2_robust,
-          dv.labels=c("m_c_taste2"), digits=3, digits.re=2, df.method = "wald",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,
-          CSS = css_theme("cells"))
+<!-- df_win_stay_stats -->
 
-plot(m_c_taste2_robust)
-```
+<!-- df_win_stay_stats_nan <- behav_final_redcap %>% -->
 
-```{r}
-m_c_taste_diff=lmer(p_correct~taste_diff + (1 | ID),
-                data=df_c_rating,
-                control=lmerControl(calc.derivs=FALSE))
+<!--   group_by(reinforcer_type,aud_group) %>% -->
 
-tab_model(m_c_taste_diff,
-          dv.labels=c("m_c_taste_diff"), digits=3, digits.re=2, df.method = "satterthwaite",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+<!--   dplyr::summarise(across(c('win_stay'), .fns= -->
 
-check_model(m_c_taste_diff, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+<!--                    list('_na' = ~sum(is.na(.))))) -->
 
-# robust estimation
-m_c_taste_diff_robust=rlmer(p_correct~taste_diff + (1 | ID),
-                data=df_c_rating,
-                control=lmerControl(calc.derivs=FALSE))
+<!-- df_win_stay_stats_nan -->
 
-tab_model(m_c_taste_diff_robust,
-          dv.labels=c("m_c_taste_diff"), digits=3, digits.re=2, df.method = "wald",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,
-          CSS = css_theme("cells"))
+<!-- # per group -->
 
-plot(m_c_taste_diff_robust)
-```
+<!-- df_win_stay_stats <- behav_final_redcap %>% -->
 
-## Linear mixed-effects regression craving rating
-
-```{r}
-m_c_crave1=lmer(p_correct~crave1 + (1 | ID),
-                data=df_c_rating,
-                control=lmerControl(calc.derivs=FALSE))
-
-tab_model(m_c_crave1,
-          dv.labels=c("m_c_crave1"), digits=3, digits.re=2, df.method = "satterthwaite",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
-
-check_model(m_c_crave1, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
-
-# robust estimation
-m_c_crave1_robust=rlmer(p_correct~crave1 + (1 | ID),
-                data=df_c_rating,
-                control=lmerControl(calc.derivs=FALSE))
-
-tab_model(m_c_crave1_robust,
-          dv.labels=c("m_c_crave1"), digits=3, digits.re=2, df.method = "wald",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,
-          CSS = css_theme("cells"))
-
-plot(m_c_crave1_robust)
-```
-
-```{r}
-m_c_crave2=lmer(p_correct~crave2 + (1 | ID),
-                data=df_c_rating,
-                control=lmerControl(calc.derivs=FALSE))
-
-tab_model(m_c_crave2,
-          dv.labels=c("m_c_crave2"), digits=3, digits.re=2, df.method = "satterthwaite",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
-
-check_model(m_c_crave2, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
-
-# robust estimation
-m_c_crave2_robust=rlmer(p_correct~crave2 + (1 | ID),
-                data=df_c_rating,
-                control=lmerControl(calc.derivs=FALSE))
-
-tab_model(m_c_crave2_robust,
-          dv.labels=c("m_c_crave2"), digits=3, digits.re=2, df.method = "wald",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,
-          CSS = css_theme("cells"))
-
-plot(m_c_crave2_robust)
-```
-
-```{r}
-m_c_crave_diff=lmer(p_correct~crave_diff + (1 | ID),
-                data=df_c_rating,
-                control=lmerControl(calc.derivs=FALSE))
-
-tab_model(m_c_crave_diff,
-          dv.labels=c("m_c_crave_diff"), digits=3, digits.re=2, df.method = "satterthwaite",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
-
-check_model(m_c_crave_diff, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
-
-# robust estimation
-m_c_crave_diff_robust=rlmer(p_correct~crave_diff + (1 | ID),
-                data=df_c_rating,
-                control=lmerControl(calc.derivs=FALSE))
-
-tab_model(m_c_crave_diff_robust,
-          dv.labels=c("m_c_crave_diff"), digits=3, digits.re=2, df.method = "wald",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,
-          CSS = css_theme("cells"))
-
-plot(m_c_crave_diff_robust)
-```
-
-# Win-Stay behavior: Repeating the same action that was rewarded in previous trial
-
-## Prepare dfs
-
-```{r}
-# get p correct per subject and block for linear mixed-effects regression
-df_win_stay <- behav_final %>%
-  group_by(ID,reinforcer_type,na.rm=T) %>%
-  summarise_at(vars(stay,win_stay), list(p = mean), na.rm=T) %>%
-  na.omit()
-df_win_stay <- merge(df_win_stay,redcap,by="ID") # merge with demographic data for linear mixed-effects 
-
-# get p correct per block and aud group and trial for plotting
-df_win_stay_trial_group <- behav_final_redcap %>%
-  group_by(aud_group,reinforcer_type,trial_block) %>%
-  dplyr::summarise(p = mean(win_stay, na.rm = TRUE),
-            ci_l = ci(win_stay, na.rm=TRUE)[2],
-            ci_u = ci(win_stay, na.rm=TRUE)[3]
-  )
-```
-
-## Descriptive stats
-
-```{r}
-# per group and reinforcer type
-df_win_stay_stats <- behav_final_redcap %>%
-  group_by(reinforcer_type,aud_group) %>%
-  dplyr::summarise(across(c('win_stay'), .fns=
-                   list('_mean' = mean,
-                        '_sd' = sd,
-                        '_min' = min,
-                        '_max' = max),
-                   na.rm=T))
-df_win_stay_stats
-
-df_win_stay_stats_nan <- behav_final_redcap %>%
-  group_by(reinforcer_type,aud_group) %>%
-  dplyr::summarise(across(c('win_stay'), .fns=
-                   list('_na' = ~sum(is.na(.)))))
-df_win_stay_stats_nan
-
-# per group
-df_win_stay_stats <- behav_final_redcap %>%
-  group_by(aud_group) %>%
-  dplyr::summarise(across(c('win_stay'), .fns=
-                   list('_mean' = mean,
-                        '_sd' = sd,
-                        '_min' = min,
-                        '_max' = max),
-                   na.rm=T))
-
-df_win_stay_stats
-
-df_win_stay_stats_nan <- behav_final_redcap %>%
-  group_by(aud_group) %>%
-  dplyr::summarise(across(c('win_stay'), .fns=
-                   list('_na' = ~sum(is.na(.)))))
-
-df_win_stay_stats_nan
-
-# per reinforcer type
-df_win_stay_stats <- behav_final_redcap %>%
-  group_by(reinforcer_type) %>%
-  dplyr::summarise(across(c('win_stay'), .fns=
-                   list('_mean' = mean,
-                        '_sd' = sd,
-                        '_min' = min,
-                        '_max' = max),
-                   na.rm=T))
-
-df_win_stay_stats
-
-df_win_stay_stats_nan <- behav_final_redcap %>%
-  group_by(reinforcer_type) %>%
-  dplyr::summarise(across(c('win_stay'), .fns=
-                   list('_na' = ~sum(is.na(.)))))
-
-df_win_stay_stats_nan
-
-# overall
-df_win_stay_stats <- behav_final_redcap %>%
-  dplyr::summarise(across(c('win_stay'), .fns=
-                   list('_mean' = mean,
-                        '_sd' = sd,
-                        '_min' = min,
-                        '_max' = max),
-                   na.rm=T))
-
-df_win_stay_stats
-
-df_win_stay_stats_nan <- behav_final_redcap %>%
-  dplyr::summarise(across(c('win_stay'), .fns=
-                   list('_na' = ~sum(is.na(.)))))
-
-df_win_stay_stats_nan
-```
-
-## AUD group
-
-```{r}
-m_win_stay_time_1=glmer(win_stay~reinforcer_type*aud_group*trial_block + (1 + reinforcer_type + trial_block | ID),
-                data=behav_final_redcap,
-                family=binomial,
-                control=glmerControl(calc.derivs=FALSE))
-
-tab_model(m_win_stay_time_1,
-          dv.labels=c("m_stay"), digits=3, digits.re=2, show.est = T, df.method = "wald",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
-
-check_model(m_win_stay_time_1, check=c("pp_check", "reqq", "qq"))
-```
-
-```{r}
-m_win_stay_1=glmer(win_stay~reinforcer_type*aud_group + (1 + reinforcer_type | ID),
-                data=behav_final_redcap,
-                family=binomial,
-                control=glmerControl(calc.derivs=FALSE))
-
-tab_model(m_win_stay_1,
-          dv.labels=c("m_stay"), digits=3, digits.re=2, show.est = T, df.method = "wald",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
-
-check_model(m_win_stay_1, check=c("pp_check", "reqq", "qq"))
-```
-
-## AUDIT criteria
-
-```{r}
-m_win_stay_time_1_auditsum=glmer(win_stay~reinforcer_type*MRI_audit_sum*trial_block + (1 + reinforcer_type + trial_block | ID),
-                data=behav_final_redcap,
-                family=binomial,
-                control=glmerControl(calc.derivs=FALSE))
-
-tab_model(m_win_stay_time_1_auditsum,
-          dv.labels=c("m_stay"), digits=3, digits.re=2, transform = NULL, show.est = T, df.method = "wald",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
-
-check_model(m_win_stay_time_1_auditsum, check=c("pp_check", "reqq", "qq"))
-```
-
-```{r}
-m_win_stay_1_auditsum=glmer(win_stay~reinforcer_type*MRI_audit_sum + (1 + reinforcer_type | ID),
-                data=behav_final_redcap,
-                family=binomial,
-                control=glmerControl(calc.derivs=FALSE))
-
-tab_model(m_win_stay_1_auditsum,
-          dv.labels=c("m_stay"), digits=3, digits.re=2, transform = NULL, show.est = T, df.method = "wald",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
-
-check_model(m_win_stay_1_auditsum, check=c("pp_check", "reqq", "qq"))
-```
-
-## Plotting
-
-### Violin plot per aud group and reinforcer type
-
-```{r}
-fig_win_stay <- ggplot(df_win_stay, aes(reinforcer_type, y = win_stay_p*100, fill=reinforcer_type)) +
-  geom_violin() +
-  geom_boxplot(width=0.1, size=0.8) + 
-  facet_wrap(~ aud_group, scales="fixed") +
-  scale_y_continuous("% Win-stay", limits = c(0,100)) +
-  theme_light(base_size=18) +
-  theme(axis.title.x=element_blank(),
-      axis.text.x=element_blank(),
-      axis.ticks.x=element_blank(),
-      legend.position = "bottom") +
-  scale_fill_brewer(name="Reinforcer type", 
-                  labels=c("alcohol", "juice"),
-                  palette = "Accent")
-
-fig_win_stay
-```
-
-### Win-stay behavior over course of task
-
-```{r}
-fig_winstay_time <- ggplot(df_win_stay_trial_group, aes(x=trial_block, y=p*100, group=reinforcer_type)) +
-  geom_line(aes(color=reinforcer_type), linewidth=0.8) +
-  geom_ribbon(aes(ymin = ci_l*100, ymax = ci_u*100, fill = reinforcer_type), alpha = 0.2) + 
-  facet_wrap(~aud_group, scales="free_y") +
-  scale_y_continuous("% Win-stay", limits = c(-5,105)) +
-  scale_x_continuous(NULL) +
-  theme_light(base_size=18) +
-  theme(legend.position = "right") +
-  scale_color_brewer(name="Reinforcer type", 
-                  labels=c("alcohol", "juice"),
-                  palette = "Accent") +
-  scale_fill_brewer(name="Reinforcer type", 
-                  labels=c("alcohol", "juice"),
-                  palette = "Accent")
-
-fig_winstay_time
-
-```
-
-# No-Win-Switch behavior: Switching the action if it was not rewarded in previous trial
-
-## Prepare dfs
-
-```{r}
-# get p correct per subject and block for linear mixed-effects regression
-df_nowin_switch <- behav_final %>%
-  group_by(ID,reinforcer_type,na.rm=T) %>%
-  summarise_at(vars(stay,nowin_switch), list(p = mean), na.rm=T) %>%
-  na.omit()
-df_nowin_switch <- merge(df_nowin_switch,redcap,by="ID") # merge with demographic data for linear mixed-effects 
-
-# get p correct per block and aud group and trial for plotting
-df_nowin_switch_trial_group <- behav_final_redcap %>%
-  group_by(aud_group,reinforcer_type,trial_block) %>%
-  dplyr::summarise(p = mean(nowin_switch, na.rm = TRUE),
-            ci_l = ci(nowin_switch, na.rm=TRUE)[2],
-            ci_u = ci(nowin_switch, na.rm=TRUE)[3]
-  )
-```
-
-## Descriptive stats
-
-```{r}
-# per group and reinforcer type
-df_nowin_switch_stats <- behav_final_redcap %>%
-  group_by(reinforcer_type,aud_group) %>%
-  dplyr::summarise(across(c('nowin_switch'), .fns=
-                   list('_mean' = mean,
-                        '_sd' = sd,
-                        '_min' = min,
-                        '_max' = max),
-                   na.rm=T))
-df_nowin_switch_stats
-
-df_nowin_switch_stats_nan <- behav_final_redcap %>%
-  group_by(reinforcer_type,aud_group) %>%
-  dplyr::summarise(across(c('nowin_switch'), .fns=
-                   list('_na' = ~sum(is.na(.)))))
-df_nowin_switch_stats_nan
-
-# per group
-df_nowin_switch_stats <- behav_final_redcap %>%
-  group_by(aud_group) %>%
-  dplyr::summarise(across(c('nowin_switch'), .fns=
-                   list('_mean' = mean,
-                        '_sd' = sd,
-                        '_min' = min,
-                        '_max' = max),
-                   na.rm=T))
-
-df_nowin_switch_stats
-
-df_nowin_switch_stats_nan <- behav_final_redcap %>%
-  group_by(aud_group) %>%
-  dplyr::summarise(across(c('nowin_switch'), .fns=
-                   list('_na' = ~sum(is.na(.)))))
-
-df_nowin_switch_stats_nan
-
-# per reinforcer type
-df_nowin_switch_stats <- behav_final_redcap %>%
-  group_by(reinforcer_type) %>%
-  dplyr::summarise(across(c('nowin_switch'), .fns=
-                   list('_mean' = mean,
-                        '_sd' = sd,
-                        '_min' = min,
-                        '_max' = max),
-                   na.rm=T))
-
-df_nowin_switch_stats
-
-df_nowin_switch_stats_nan <- behav_final_redcap %>%
-  group_by(reinforcer_type) %>%
-  dplyr::summarise(across(c('nowin_switch'), .fns=
-                   list('_na' = ~sum(is.na(.)))))
-
-df_nowin_switch_stats_nan
-
-# overall
-df_nowin_switch_stats <- behav_final_redcap %>%
-  dplyr::summarise(across(c('nowin_switch'), .fns=
-                   list('_mean' = mean,
-                        '_sd' = sd,
-                        '_min' = min,
-                        '_max' = max),
-                   na.rm=T))
-
-df_nowin_switch_stats
-
-df_nowin_switch_stats_nan <- behav_final_redcap %>%
-  dplyr::summarise(across(c('nowin_switch'), .fns=
-                   list('_na' = ~sum(is.na(.)))))
-
-df_nowin_switch_stats_nan
-```
-
-## AUD group
-
-```{r}
-m_nowin_switch_time_1=glmer(nowin_switch~reinforcer_type*aud_group*trial_block + (1 + reinforcer_type + trial_block | ID),
-                data=behav_final_redcap,
-                family=binomial,
-                control=glmerControl(calc.derivs=FALSE))
-
-tab_model(m_nowin_switch_time_1,
-          dv.labels=c("m_switch"), digits=3, digits.re=2, show.est = T, df.method = "wald",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
-
-check_model(m_nowin_switch_time_1, check=c("pp_check", "reqq", "qq"))
-```
-
-```{r}
-m_nowin_switch_1=glmer(nowin_switch~reinforcer_type*aud_group + (1 + reinforcer_type | ID),
-                data=behav_final_redcap,
-                family=binomial,
-                control=glmerControl(calc.derivs=FALSE))
-
-tab_model(m_nowin_switch_1,
-          dv.labels=c("m_switch"), digits=3, digits.re=2, show.est = T, df.method = "wald",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
-
-check_model(m_nowin_switch_1, check=c("pp_check", "reqq", "qq"))
-```
-
-## AUDIT criteria
-
-```{r}
-m_nowin_switch_time_1_auditsum=glmer(nowin_switch~reinforcer_type*MRI_audit_sum*trial_block + (1 + reinforcer_type + trial_block | ID),
-                data=behav_final_redcap,
-                family=binomial,
-                control=glmerControl(calc.derivs=FALSE))
-
-tab_model(m_nowin_switch_time_1_auditsum,
-          dv.labels=c("m_switch"), digits=3, digits.re=2, transform = NULL, show.est = T, df.method = "wald",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
-
-check_model(m_nowin_switch_time_1_auditsum, check=c("pp_check", "reqq", "qq"))
-```
-
-```{r}
-m_nowin_switch_1_auditsum=glmer(nowin_switch~reinforcer_type*MRI_audit_sum + (1 + reinforcer_type | ID),
-                data=behav_final_redcap,
-                family=binomial,
-                control=glmerControl(calc.derivs=FALSE))
-
-tab_model(m_nowin_switch_1_auditsum,
-          dv.labels=c("m_switch"), digits=3, digits.re=2, transform = NULL, show.est = T, df.method = "wald",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
-
-check_model(m_nowin_switch_1_auditsum, check=c("pp_check", "reqq", "qq"))
-```
-
-## Plotting
-
-### Violin plot per aud group and reinforcer type
-
-```{r}
-
-fig_nowin_switch <- ggplot(df_nowin_switch, aes(reinforcer_type, y = nowin_switch_p*100, fill=reinforcer_type)) +
-  geom_violin() +
-  geom_boxplot(width=0.1, size=0.8) + 
-  facet_wrap(~ aud_group, scales="fixed") +
-  scale_y_continuous("% No-win-switch", limits = c(0,100)) +
-  theme_light(base_size=18) +
-  theme(axis.title.x=element_blank(),
-      axis.text.x=element_blank(),
-      axis.ticks.x=element_blank(),
-      legend.position = "bottom") +
-  scale_fill_brewer(name="Reinforcer type", 
-                  labels=c("alcohol", "juice"),
-                  palette = "Accent")
-
-fig_nowin_switch
-
-```
-
-### No-win_switch behavior over course of task
-
-```{r}
-fig_nowinswitch_time <- ggplot(df_nowin_switch_trial_group, aes(x=trial_block, y=p*100, group=reinforcer_type)) +
-  geom_line(aes(color=reinforcer_type), linewidth=0.8) +
-  geom_ribbon(aes(ymin = ci_l*100, ymax = ci_u*100, fill = reinforcer_type), alpha = 0.2) + 
-  facet_wrap(~aud_group, scales="free_y") +
-  scale_y_continuous("% No-win-switch", limits = c(-5,105)) +
-  scale_x_continuous(NULL) +
-  theme_light(base_size=18) +
-  theme(legend.position = "right") +
-  scale_color_brewer(name="Reinforcer type", 
-                  labels=c("alcohol", "juice"),
-                  palette = "Accent") +
-    scale_fill_brewer(name="Reinforcer type", 
-                  labels=c("alcohol", "juice"),
-                  palette = "Accent")
-
-fig_nowinswitch_time
-
-```
+<!--   group_by(aud_group) %>% -->
+
+<!--   dplyr::summarise(across(c('win_stay'), .fns= -->
+
+<!--                    list('_mean' = mean, -->
+
+<!--                         '_sd' = sd, -->
+
+<!--                         '_min' = min, -->
+
+<!--                         '_max' = max), -->
+
+<!--                    na.rm=T)) -->
+
+<!-- df_win_stay_stats -->
+
+<!-- df_win_stay_stats_nan <- behav_final_redcap %>% -->
+
+<!--   group_by(aud_group) %>% -->
+
+<!--   dplyr::summarise(across(c('win_stay'), .fns= -->
+
+<!--                    list('_na' = ~sum(is.na(.))))) -->
+
+<!-- df_win_stay_stats_nan -->
+
+<!-- # per reinforcer type -->
+
+<!-- df_win_stay_stats <- behav_final_redcap %>% -->
+
+<!--   group_by(reinforcer_type) %>% -->
+
+<!--   dplyr::summarise(across(c('win_stay'), .fns= -->
+
+<!--                    list('_mean' = mean, -->
+
+<!--                         '_sd' = sd, -->
+
+<!--                         '_min' = min, -->
+
+<!--                         '_max' = max), -->
+
+<!--                    na.rm=T)) -->
+
+<!-- df_win_stay_stats -->
+
+<!-- df_win_stay_stats_nan <- behav_final_redcap %>% -->
+
+<!--   group_by(reinforcer_type) %>% -->
+
+<!--   dplyr::summarise(across(c('win_stay'), .fns= -->
+
+<!--                    list('_na' = ~sum(is.na(.))))) -->
+
+<!-- df_win_stay_stats_nan -->
+
+<!-- ``` -->
+
+<!-- ## AUD group -->
+
+<!-- ### Time effects -->
+
+<!-- ```{r} -->
+
+<!-- m_win_stay_time_1=glmer(win_stay~reinforcer_type*aud_group*trial_block + (1 + reinforcer_type + trial_block | ID), -->
+
+<!--                 data=behav_final_redcap, -->
+
+<!--                 family=binomial, -->
+
+<!--                 control=glmerControl(calc.derivs=FALSE)) -->
+
+<!-- tab_model(m_win_stay_time_1, -->
+
+<!--           dv.labels=c("m_win_stay_time_1"), digits=2, digits.re=2, show.est = T, df.method = "wald", -->
+
+<!--           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells")) -->
+
+<!-- check_model(m_win_stay_time_1, check=c("pp_check", "reqq", "qq")) -->
+
+<!-- ``` -->
+
+<!-- ### Across all trials -->
+
+<!-- ```{r} -->
+
+<!-- m_win_stay_1=glmer(win_stay~reinforcer_type*aud_group + (1 + reinforcer_type | ID), -->
+
+<!--                 data=behav_final_redcap, -->
+
+<!--                 family=binomial, -->
+
+<!--                 control=glmerControl(calc.derivs=FALSE)) -->
+
+<!-- tab_model(m_win_stay_1, -->
+
+<!--           dv.labels=c("m_win_stay_1"), digits=2, digits.re=2, show.est = T, df.method = "wald", -->
+
+<!--           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells")) -->
+
+<!-- check_model(m_win_stay_1, check=c("pp_check", "reqq", "qq")) -->
+
+<!-- ``` -->
+
+<!-- ### Controlling for covariates -->
+
+<!-- #### Determine correlation between % correct & taste -->
+
+<!-- ```{r} -->
+
+<!-- # taste -->
+
+<!-- lm_winstay_taste <- glmer(win_stay ~ taste + (1 + taste | ID),  -->
+
+<!--                         data=behav_final_redcap,  -->
+
+<!--                         family = binomial, -->
+
+<!--                         control=glmerControl(calc.derivs=FALSE)) -->
+
+<!-- tab_model(lm_winstay_taste, -->
+
+<!--           dv.labels=c("lm_winstay_taste"), digits=2, digits.re=2, show.est = T, df.method = "wald", -->
+
+<!--           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells")) -->
+
+<!-- check_model(lm_winstay_taste, check=c("pp_check", "reqq", "qq")) -->
+
+<!-- if (sample == 'n56') { -->
+
+<!--   # age -->
+
+<!--   lm_winstay_age <- glmer(win_stay ~ age + (1 | ID),  -->
+
+<!--                           data=behav_final_redcap,  -->
+
+<!--                           family = binomial, -->
+
+<!--                           control=glmerControl(calc.derivs=FALSE)) -->
+
+<!--   tab_model(lm_winstay_age, -->
+
+<!--             dv.labels=c("lm_winstay_age"), digits=2, digits.re=2, show.est = T, df.method = "wald", -->
+
+<!--             show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells")) -->
+
+<!--   check_model(lm_winstay_age, check=c("pp_check", "reqq", "qq")) -->
+
+<!-- } -->
+
+<!-- # smoking days -->
+
+<!-- lm_winstay_smoking <- glmer(win_stay ~ BA_smoking_days + (1 | ID),  -->
+
+<!--                         data=behav_final_redcap,  -->
+
+<!--                         family = binomial, -->
+
+<!--                         control=glmerControl(calc.derivs=FALSE)) -->
+
+<!-- tab_model(lm_winstay_smoking, -->
+
+<!--           dv.labels=c("lm_winstay_age"), digits=2, digits.re=2, show.est = T, df.method = "wald", -->
+
+<!--           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells")) -->
+
+<!-- check_model(lm_winstay_smoking, check=c("pp_check", "reqq", "qq")) -->
+
+<!-- ``` -->
+
+<!-- No correlations between potential confounds and outcome, so no control analyses necessary. -->
+
+<!-- ## AUDIT criteria -->
+
+<!-- ### Time effects -->
+
+<!-- ```{r} -->
+
+<!-- m_win_stay_time_1_auditsum=glmer(win_stay~reinforcer_type*MRI_audit_sum*trial_block + (1 + reinforcer_type + trial_block | ID), -->
+
+<!--                 data=behav_final_redcap, -->
+
+<!--                 family=binomial, -->
+
+<!--                 control=glmerControl(calc.derivs=FALSE)) -->
+
+<!-- tab_model(m_win_stay_time_1_auditsum, -->
+
+<!--           dv.labels=c("m_win_stay_time_1_auditsum"), digits=2, digits.re=2, transform = NULL, show.est = T, df.method = "wald", -->
+
+<!--           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells")) -->
+
+<!-- check_model(m_win_stay_time_1_auditsum, check=c("pp_check", "reqq", "qq")) -->
+
+<!-- ``` -->
+
+<!-- ### Across all trials -->
+
+<!-- ```{r} -->
+
+<!-- m_win_stay_1_auditsum=glmer(win_stay~reinforcer_type*MRI_audit_sum + (1 + reinforcer_type | ID), -->
+
+<!--                 data=behav_final_redcap, -->
+
+<!--                 family=binomial, -->
+
+<!--                 control=glmerControl(calc.derivs=FALSE)) -->
+
+<!-- tab_model(m_win_stay_1_auditsum, -->
+
+<!--           dv.labels=c("m_win_stay_1_auditsum"), digits=2, digits.re=2, transform = NULL, show.est = T, df.method = "wald", -->
+
+<!--           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells")) -->
+
+<!-- check_model(m_win_stay_1_auditsum, check=c("pp_check", "reqq", "qq")) -->
+
+<!-- ``` -->
+
+<!-- ## Plotting -->
+
+<!-- ### Violin plot per aud group and reinforcer type -->
+
+<!-- ```{r} -->
+
+<!-- fig_win_stay <- ggplot(df_win_stay, aes(reinforcer_type, y = win_stay_p*100, fill=reinforcer_type)) + -->
+
+<!--   geom_violin() + -->
+
+<!--   geom_boxplot(width=0.1, size=0.8) +  -->
+
+<!--   facet_wrap(~ aud_group, scales="fixed") + -->
+
+<!--   scale_y_continuous("% Win-stay", limits = c(0,100)) + -->
+
+<!--   theme_light(base_size=18) + -->
+
+<!--   theme(axis.title.x=element_blank(), -->
+
+<!--       axis.text.x=element_blank(), -->
+
+<!--       axis.ticks.x=element_blank(), -->
+
+<!--       legend.position = "bottom") + -->
+
+<!--   scale_fill_brewer(name="Reinforcer type",  -->
+
+<!--                   labels=c("alcohol", "juice"), -->
+
+<!--                   palette = "Accent") -->
+
+<!-- fig_win_stay -->
+
+<!-- ``` -->
+
+<!-- ### Win-stay behavior over course of task -->
+
+<!-- ```{r} -->
+
+<!-- fig_winstay_time <- ggplot(df_win_stay_trial_group, aes(x=trial_block, y=p*100, group=reinforcer_type)) + -->
+
+<!--   geom_line(aes(color=reinforcer_type), linewidth=0.8) + -->
+
+<!--   geom_ribbon(aes(ymin = ci_l*100, ymax = ci_u*100, fill = reinforcer_type), alpha = 0.2) +  -->
+
+<!--   facet_wrap(~aud_group, scales="free_y") + -->
+
+<!--   scale_y_continuous("% Win-stay", limits = c(-5,105)) + -->
+
+<!--   scale_x_continuous(NULL) + -->
+
+<!--   theme_light(base_size=18) + -->
+
+<!--   theme(legend.position = "right") + -->
+
+<!--   scale_color_brewer(name="Reinforcer type",  -->
+
+<!--                   labels=c("alcohol", "juice"), -->
+
+<!--                   palette = "Accent") + -->
+
+<!--   scale_fill_brewer(name="Reinforcer type",  -->
+
+<!--                   labels=c("alcohol", "juice"), -->
+
+<!--                   palette = "Accent") -->
+
+<!-- fig_winstay_time -->
+
+<!-- ``` -->
+
+<!-- # No-Win-Switch behavior: Switching the action if it was not rewarded in previous trial -->
+
+<!-- ## Descriptive stats -->
+
+<!-- ```{r} -->
+
+<!-- # per group and reinforcer type -->
+
+<!-- df_nowin_switch_stats <- behav_final_redcap %>% -->
+
+<!--   group_by(reinforcer_type,aud_group) %>% -->
+
+<!--   dplyr::summarise(across(c('nowin_switch'), .fns= -->
+
+<!--                    list('_mean' = mean, -->
+
+<!--                         '_sd' = sd, -->
+
+<!--                         '_min' = min, -->
+
+<!--                         '_max' = max), -->
+
+<!--                    na.rm=T)) -->
+
+<!-- df_nowin_switch_stats -->
+
+<!-- df_nowin_switch_stats_nan <- behav_final_redcap %>% -->
+
+<!--   group_by(reinforcer_type,aud_group) %>% -->
+
+<!--   dplyr::summarise(across(c('nowin_switch'), .fns= -->
+
+<!--                    list('_na' = ~sum(is.na(.))))) -->
+
+<!-- df_nowin_switch_stats_nan -->
+
+<!-- # per group -->
+
+<!-- df_nowin_switch_stats <- behav_final_redcap %>% -->
+
+<!--   group_by(aud_group) %>% -->
+
+<!--   dplyr::summarise(across(c('nowin_switch'), .fns= -->
+
+<!--                    list('_mean' = mean, -->
+
+<!--                         '_sd' = sd, -->
+
+<!--                         '_min' = min, -->
+
+<!--                         '_max' = max), -->
+
+<!--                    na.rm=T)) -->
+
+<!-- df_nowin_switch_stats -->
+
+<!-- df_nowin_switch_stats_nan <- behav_final_redcap %>% -->
+
+<!--   group_by(aud_group) %>% -->
+
+<!--   dplyr::summarise(across(c('nowin_switch'), .fns= -->
+
+<!--                    list('_na' = ~sum(is.na(.))))) -->
+
+<!-- df_nowin_switch_stats_nan -->
+
+<!-- # per reinforcer type -->
+
+<!-- df_nowin_switch_stats <- behav_final_redcap %>% -->
+
+<!--   group_by(reinforcer_type) %>% -->
+
+<!--   dplyr::summarise(across(c('nowin_switch'), .fns= -->
+
+<!--                    list('_mean' = mean, -->
+
+<!--                         '_sd' = sd, -->
+
+<!--                         '_min' = min, -->
+
+<!--                         '_max' = max), -->
+
+<!--                    na.rm=T)) -->
+
+<!-- df_nowin_switch_stats -->
+
+<!-- df_nowin_switch_stats_nan <- behav_final_redcap %>% -->
+
+<!--   group_by(reinforcer_type) %>% -->
+
+<!--   dplyr::summarise(across(c('nowin_switch'), .fns= -->
+
+<!--                    list('_na' = ~sum(is.na(.))))) -->
+
+<!-- df_nowin_switch_stats_nan -->
+
+<!-- ``` -->
+
+<!-- ## AUD group -->
+
+<!-- ### Time effects -->
+
+<!-- ```{r} -->
+
+<!-- m_nowin_switch_time_1=glmer(nowin_switch~reinforcer_type*aud_group*trial_block + (1 + reinforcer_type + trial_block | ID), -->
+
+<!--                 data=behav_final_redcap, -->
+
+<!--                 family=binomial, -->
+
+<!--                 control=glmerControl(calc.derivs=FALSE)) -->
+
+<!-- tab_model(m_nowin_switch_time_1, -->
+
+<!--           dv.labels=c("m_nowin_switch_time_1"), digits=2, digits.re=2, show.est = T, df.method = "wald", -->
+
+<!--           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells")) -->
+
+<!-- check_model(m_nowin_switch_time_1, check=c("pp_check", "reqq", "qq")) -->
+
+<!-- ``` -->
+
+<!-- ### Across all trials -->
+
+<!-- ```{r} -->
+
+<!-- m_nowin_switch_1=glmer(nowin_switch~reinforcer_type*aud_group + (1 + reinforcer_type | ID), -->
+
+<!--                 data=behav_final_redcap, -->
+
+<!--                 family=binomial, -->
+
+<!--                 control=glmerControl(calc.derivs=FALSE)) -->
+
+<!-- tab_model(m_nowin_switch_1, -->
+
+<!--           dv.labels=c("m_nowin_switch_1"), digits=2, digits.re=2, show.est = T, df.method = "wald", -->
+
+<!--           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells")) -->
+
+<!-- check_model(m_nowin_switch_1, check=c("pp_check", "reqq", "qq")) -->
+
+<!-- ``` -->
+
+<!-- ### Controlling for covariates -->
+
+<!-- #### Determine correlation between % correct & taste -->
+
+<!-- ```{r} -->
+
+<!-- # taste -->
+
+<!-- lm_nowinswitch_taste <- glmer(nowin_switch ~ taste + (1 + taste | ID),  -->
+
+<!--                         data=behav_final_redcap,  -->
+
+<!--                         family = binomial, -->
+
+<!--                         control=glmerControl(calc.derivs=FALSE)) -->
+
+<!-- tab_model(lm_nowinswitch_taste, -->
+
+<!--           dv.labels=c("lm_nowinswitch_taste"), digits=2, digits.re=2, show.est = T, df.method = "wald", -->
+
+<!--           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells")) -->
+
+<!-- check_model(lm_nowinswitch_taste, check=c("pp_check", "reqq", "qq")) -->
+
+<!-- if (sample == 'n56') { -->
+
+<!--   # age -->
+
+<!--   lm_nowinswitch_age <- glmer(nowin_switch ~ age + (1 | ID),  -->
+
+<!--                           data=behav_final_redcap,  -->
+
+<!--                           family = binomial, -->
+
+<!--                           control=glmerControl(calc.derivs=FALSE)) -->
+
+<!--   tab_model(lm_nowinswitch_age, -->
+
+<!--             dv.labels=c("lm_nowinswitch_age"), digits=2, digits.re=2, show.est = T, df.method = "wald", -->
+
+<!--             show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells")) -->
+
+<!--   check_model(lm_nowinswitch_age, check=c("pp_check", "reqq", "qq")) -->
+
+<!-- } -->
+
+<!-- # smoking days -->
+
+<!-- lm_nowinswitch_smoking <- glmer(nowin_switch ~ BA_smoking_days + (1 | ID),  -->
+
+<!--                         data=behav_final_redcap,  -->
+
+<!--                         family = binomial, -->
+
+<!--                         control=glmerControl(calc.derivs=FALSE)) -->
+
+<!-- tab_model(lm_nowinswitch_smoking, -->
+
+<!--           dv.labels=c("lm_nowinswitch_smoking"), digits=2, digits.re=2, show.est = T, df.method = "wald", -->
+
+<!--           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells")) -->
+
+<!-- check_model(lm_nowinswitch_smoking, check=c("pp_check", "reqq", "qq")) -->
+
+<!-- ``` -->
+
+<!-- No correlations between potential confounds and outcome, so no control analyses necessary. -->
+
+<!-- ## AUDIT criteria -->
+
+<!-- ### Time effects -->
+
+<!-- ```{r} -->
+
+<!-- m_nowin_switch_time_1_auditsum=glmer(nowin_switch~reinforcer_type*MRI_audit_sum*trial_block + (1 + reinforcer_type + trial_block | ID), -->
+
+<!--                 data=behav_final_redcap, -->
+
+<!--                 family=binomial, -->
+
+<!--                 control=glmerControl(calc.derivs=FALSE)) -->
+
+<!-- tab_model(m_nowin_switch_time_1_auditsum, -->
+
+<!--           dv.labels=c("m_nowin_switch_time_1_auditsum"), digits=2, digits.re=2, transform = NULL, show.est = T, df.method = "wald", -->
+
+<!--           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells")) -->
+
+<!-- check_model(m_nowin_switch_time_1_auditsum, check=c("pp_check", "reqq", "qq")) -->
+
+<!-- ``` -->
+
+<!-- ### Across all trials -->
+
+<!-- ```{r} -->
+
+<!-- m_nowin_switch_1_auditsum=glmer(nowin_switch~reinforcer_type*MRI_audit_sum + (1 + reinforcer_type | ID), -->
+
+<!--                 data=behav_final_redcap, -->
+
+<!--                 family=binomial, -->
+
+<!--                 control=glmerControl(calc.derivs=FALSE)) -->
+
+<!-- tab_model(m_nowin_switch_1_auditsum, -->
+
+<!--           dv.labels=c("m_switch"), digits=2, digits.re=2, transform = NULL, show.est = T, df.method = "wald", -->
+
+<!--           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells")) -->
+
+<!-- check_model(m_nowin_switch_1_auditsum, check=c("pp_check", "reqq", "qq")) -->
+
+<!-- ``` -->
+
+<!-- ## Plotting -->
+
+<!-- ### Violin plot per aud group and reinforcer type -->
+
+<!-- ```{r} -->
+
+<!-- fig_nowin_switch <- ggplot(df_nowin_switch, aes(reinforcer_type, y = nowin_switch_p*100, fill=reinforcer_type)) + -->
+
+<!--   geom_violin() + -->
+
+<!--   geom_boxplot(width=0.1, size=0.8) +  -->
+
+<!--   facet_wrap(~ aud_group, scales="fixed") + -->
+
+<!--   scale_y_continuous("% No-win-switch", limits = c(0,100)) + -->
+
+<!--   theme_light(base_size=18) + -->
+
+<!--   theme(axis.title.x=element_blank(), -->
+
+<!--       axis.text.x=element_blank(), -->
+
+<!--       axis.ticks.x=element_blank(), -->
+
+<!--       legend.position = "bottom") + -->
+
+<!--   scale_fill_brewer(name="Reinforcer type",  -->
+
+<!--                   labels=c("alcohol", "juice"), -->
+
+<!--                   palette = "Accent") -->
+
+<!-- fig_nowin_switch -->
+
+<!-- ``` -->
+
+<!-- ### No-win_switch behavior over course of task -->
+
+<!-- ```{r} -->
+
+<!-- fig_nowinswitch_time <- ggplot(df_nowin_switch_trial_group, aes(x=trial_block, y=p*100, group=reinforcer_type)) + -->
+
+<!--   geom_line(aes(color=reinforcer_type), linewidth=0.8) + -->
+
+<!--   geom_ribbon(aes(ymin = ci_l*100, ymax = ci_u*100, fill = reinforcer_type), alpha = 0.2) +  -->
+
+<!--   facet_wrap(~aud_group, scales="free_y") + -->
+
+<!--   scale_y_continuous("% No-win-switch", limits = c(-5,105)) + -->
+
+<!--   scale_x_continuous(NULL) + -->
+
+<!--   theme_light(base_size=18) + -->
+
+<!--   theme(legend.position = "right") + -->
+
+<!--   scale_color_brewer(name="Reinforcer type",  -->
+
+<!--                   labels=c("alcohol", "juice"), -->
+
+<!--                   palette = "Accent") + -->
+
+<!--     scale_fill_brewer(name="Reinforcer type",  -->
+
+<!--                   labels=c("alcohol", "juice"), -->
+
+<!--                   palette = "Accent") -->
+
+<!-- fig_nowinswitch_time -->
+
+<!-- ``` -->
 
 # Reaction times
 
-## Prepare dfs
-
-```{r}
-# get rt per subject and block for linear mixed-effects regression
-df_rt <- behav_final %>%
-  group_by(ID,reinforcer_type) %>%
-  summarise_at(vars(rt), list(p = mean)) %>%
-  na.omit()
-df_rt <- merge(df_rt,redcap,by="ID") # merge with demographic data for linear mixed-effects 
-
-# get p correct per block and aud group and trial for plotting
-df_rt_trial_group <- behav_final_redcap %>%
-  group_by(aud_group,reinforcer_type,trial_block) %>%
-  dplyr::summarise(p = mean(rt, na.rm = TRUE),
-            ci_l = ci(rt, na.rm=TRUE)[2],
-            ci_u = ci(rt, na.rm=TRUE)[3]
-  )
-
-```
-
 ## Descriptive stats
 
 ```{r}
@@ -1269,205 +1659,372 @@ df_rt_stats_nan <- behav_final_redcap %>%
 
 df_rt_stats_nan
 
-# overall
+# for first trial only
 df_rt_stats <- behav_final_redcap %>%
+  group_by(reinforcer_type,aud_group) %>%
+  filter(trial_block==1) %>%
   dplyr::summarise(across(c('rt'), .fns=
                    list('_mean' = mean,
                         '_sd' = sd,
                         '_min' = min,
                         '_max' = max),
                    na.rm=T))
-
 df_rt_stats
-
-df_rt_stats_nan <- behav_final_redcap %>%
-  dplyr::summarise(across(c('rt'), .fns=
-                   list('_na' = ~sum(is.na(.)))))
-
-df_rt_stats_nan
 ```
 
 ## AUD group
 
+### Time effects
+
 ```{r}
-m_rt_trial_1=lmer(rt~reinforcer_type*aud_group*trial_block + (1 + reinforcer_type + trial_block | ID),
+m_rt_trial_1=lmer(rt~reinforcer_type*aud_group*trial_block_centered + (1 + reinforcer_type + trial_block_centered | ID),
                 data=behav_final_redcap,
-                control=lmerControl(calc.derivs=FALSE))
+                control=lmerControl(calc.derivs=FALSE), 
+                REML=F)
 
 tab_model(m_rt_trial_1,
           dv.labels=c("m_rt_trial"), digits=3, digits.re=2, transform = NULL, show.est = T, df.method = "satterthwaite",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
 
 check_model(m_rt_trial_1, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
 
+```
+
+```{r}
 # robust estimation
-m_rt_trial_1_robust=rlmer(rt~reinforcer_type*aud_group*trial_block + (1 + reinforcer_type + trial_block | ID),
+m_rt_trial_1_robust=rlmer(rt~reinforcer_type*aud_group*trial_block_centered + (1 + reinforcer_type + trial_block_centered | ID),
                 data=behav_final_redcap,
-                control=lmerControl(calc.derivs=FALSE))
+                control=lmerControl(calc.derivs=FALSE), 
+                REML=F)
 
-plot(m_rt_trial_1_robust)
-```
+tab_model(m_rt_trial_1_robust,
+          dv.labels=c("m_rt_trial_1_robust"), digits=2, digits.re=2, df.method = "normal",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
 
-Derive p-values for robust model according to https://stats.stackexchange.com/questions/430490/obtaining-p-values-in-a-robustlmm-mixed-model-via-satterthwaite-approximated-dfs
+if (sample == "n58") {
+  CIs <- confintROB(m_rt_trial_1_robust, parm=c(1:8), level=0.95, method="Wald")
+  CIs
+} else {
+  confintROB(m_rt_trial_1_robust, parm=c(1:8), level=0.95, method="boot", boot.type = "parametric")
+}
 
-```{r}
-# get Satterthwaite DFs from non-robust model
-coefs <- data.frame(coef(summary(m_rt_trial_1)))
-
-# get coefficients from robust model to extract t-values
-coefs.robust <- coef(summary(m_rt_trial_1_robust))
-
-# calculate p-values based on robust t-values and non-robust approx. DFs
-p.values <- 2*pt(abs(coefs.robust[,3]), coefs$df, lower=FALSE)
-as.data.frame(p.values)
 ```
 
 ```{r}
-summary(emtrends(m_rt_trial_1, c("reinforcer_type"), var = "trial_block", lmer.df = "satterthwaite", lmerTest.limit = 5702), infer=TRUE)
+mtrends <- emtrends(m_rt_trial_1, ~reinforcer_type|aud_group, var = "trial_block_centered", lmer.df = "satterthwaite", lmerTest.limit = 5702, adjust = NULL, infer=TRUE)
+mtrends
+pairs(mtrends, adjust = "bonf", infer=TRUE)
 
-summary(emtrends(m_rt_trial_1, c("reinforcer_type", "aud_group"), var = "trial_block", lmer.df = "satterthwaite", lmerTest.limit = 5702), infer=TRUE)
-pairs(emtrends(m_rt_trial_1, c("reinforcer_type", "aud_group"), var = "trial_block", lmer.df = "satterthwaite", lmerTest.limit = 5702))
+mtrends <- emtrends(m_rt_trial_1, ~aud_group|reinforcer_type, var = "trial_block_centered", lmer.df = "satterthwaite", lmerTest.limit = 5702, adjust = NULL, infer=TRUE)
+mtrends
+pairs(mtrends, adjust = "bonf", infer=TRUE)
 ```
 
 ```{r}
-plot_model(m_rt_trial_1, type = "pred", terms = c("trial_block [all]", "reinforcer_type", "aud_group")) +
+plot_model(m_rt_trial_1, type = "pred", terms = c("trial_block_centered [all]", "reinforcer_type", "aud_group")) +
   theme_light(base_size = 14)
 ```
 
+### Across all trials
+
 ```{r}
-m_rt_1=lmer(p~reinforcer_type*aud_group + (1 | ID),
-                data=df_rt,
+m_rt_1=lmer(rt~reinforcer_type*aud_group + (1 + reinforcer_type| ID),
+                data=behav_final_redcap,
                 control=lmerControl(calc.derivs=FALSE),
                 REML=F)
 
 tab_model(m_rt_1,
-          dv.labels=c("m_rt"), digits=3, digits.re=2, df.method = "satterthwaite",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+          dv.labels=c("m_rt"), digits=2, digits.re=2, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
 
 check_model(m_rt_1, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+```
 
+```{r}
 # robust estimation
-m_rt_1_robust=rlmer(p~reinforcer_type*aud_group + (1 | ID),
-                data=df_rt,
+m_rt_1_robust=rlmer(rt~reinforcer_type*aud_group + (1 + reinforcer_type| ID),
+                data=behav_final_redcap,
                 control=lmerControl(calc.derivs=FALSE),
                 REML=F)
+
+tab_model(m_rt_1_robust,
+          dv.labels=c("m_rt_1_robust"), digits=2, digits.re=2, df.method = "normal",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
 
 plot(m_rt_1_robust)
+
+# CIs <- confintROB(m_rt_1_robust, parm=c(1:4), level=0.95, method="Wald", boot.type = "parametric")
+# saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_rt_1_robust.rds"))
+CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_rt_1_robust.rds"))
+CIs
 ```
 
-Derive p-values for robust model according to https://stats.stackexchange.com/questions/430490/obtaining-p-values-in-a-robustlmm-mixed-model-via-satterthwaite-approximated-dfs
-
 ```{r}
-# get Satterthwaite DFs from non-robust model
-coefs <- data.frame(coef(summary(m_rt_1)))
-
-# get coefficients from robust model to extract t-values
-coefs.robust <- coef(summary(m_rt_1_robust))
-
-# calculate p-values based on robust t-values and non-robust approx. DFs
-p.values <- 2*pt(abs(coefs.robust[,3]), coefs$df, lower=FALSE)
-as.data.frame(p.values)
+summary(emmeans(m_rt_1_robust, specs = pairwise ~ reinforcer_type|aud_group, lmer.df = "asymptotic", adjust = "bonf"), infer=TRUE)
+summary(emmeans(m_rt_1_robust, specs = pairwise ~ aud_group|reinforcer_type, lmer.df = "asymptotic", adjust = "bonf"), infer=TRUE)
 ```
 
-## AUDIT criteria
+```{r}
+plot_model(m_rt_1_robust, type = "pred", terms = c("aud_group", "reinforcer_type")) +
+  theme_light(base_size = 14)
+```
+
+### Controlling for covariates
+
+#### Determine correlation between % correct & taste
 
 ```{r}
-m_rt_trial_1_auditsum=lmer(rt~reinforcer_type*MRI_audit_sum*trial_block + (1 + reinforcer_type + trial_block | ID),
+# taste
+lm_rt_taste <- lmer(rt ~ taste + (1 + taste | ID), 
+                        data=behav_final_redcap, 
+                        control=lmerControl(calc.derivs=FALSE), 
+                        REML=F)
+
+tab_model(lm_rt_taste,
+          dv.labels=c("lm_rt_taste"), digits=2, digits.re=2, show.est = T, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
+
+check_model(lm_rt_taste, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+
+lm_rt_taste_rob <- rlmer(rt ~ taste + (1 + taste | ID), 
+                        data=behav_final_redcap, 
+                        control=lmerControl(calc.derivs=FALSE), 
+                     REML=F)
+
+tab_model(lm_rt_taste_rob,
+          dv.labels=c("lm_rt_taste_rob"), digits=2, digits.re=2, show.est = T, df.method = "normal",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
+
+# CIs <- confintROB(lm_rt_taste_rob, parm=c(1:2), level=0.95, method="boot", boot.type = "parametric")
+# saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_lm_rt_taste_rob.rds"))
+CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_lm_rt_taste_rob.rds"))
+CIs
+
+if (sample == "n56") {
+  # age
+  lm_rt_age <- lmer(rt ~ age + (1 | ID), 
+                          data=behav_final_redcap, 
+                          control=lmerControl(calc.derivs=FALSE), 
+                     REML=F)
+  
+  tab_model(lm_rt_age,
+            dv.labels=c("lm_rt_age"), digits=2, digits.re=2, show.est = T, df.method = "satterthwaite",
+            show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
+  
+  check_model(lm_rt_age, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+  
+  lm_rt_age_rob <- rlmer(rt ~ age + (1 | ID), 
+                        data=behav_final_redcap, 
+                        control=lmerControl(calc.derivs=FALSE), 
+                     REML=F)
+  
+  tab_model(lm_rt_age_rob,
+          dv.labels=c("lm_rt_age_rob"), digits=2, digits.re=2, show.est = T, df.method = "normal",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
+
+  confintROB(lm_rt_age_rob, parm=c(1:2), level=0.95, method="boot", boot.type = "parametric")
+
+}
+
+# smoking
+lm_rt_smoking <- lmer(rt ~ BA_smoking_days + (1 | ID), 
+                        data=behav_final_redcap, 
+                        control=lmerControl(calc.derivs=FALSE), 
+                     REML=F)
+
+tab_model(lm_rt_smoking,
+          dv.labels=c("lm_rt_smoking"), digits=2, digits.re=2, show.est = T, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
+
+check_model(lm_rt_smoking, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+
+lm_rt_smoking_rob <- rlmer(rt ~ BA_smoking_days + (1 | ID), 
+                        data=behav_final_redcap, 
+                        control=lmerControl(calc.derivs=FALSE), 
+                     REML=F)
+
+tab_model(lm_rt_smoking_rob,
+          dv.labels=c("lm_rt_smoking_rob"), digits=2, digits.re=2, show.est = T, df.method = "normal",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
+summary(lm_rt_smoking_rob)
+# CIs <- confintROB(lm_rt_smoking_rob, parm=c(1:2), level=0.95, method="boot", boot.type = "parametric")
+# saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_lm_rt_smoking_rob.rds"))
+CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_lm_rt_smoking_rob.rds"))
+CIs
+
+```
+
+#### Time effects
+
+```{r}
+m_rt_trial_1_controlled=lmer(rt~reinforcer_type*trial_block_centered*aud_group + taste + BA_smoking_days + (1 + reinforcer_type + trial_block_centered | ID),
                 data=behav_final_redcap,
-                control=lmerControl(calc.derivs=FALSE))
+                control=lmerControl(calc.derivs=FALSE), 
+                     REML=F)
 
-tab_model(m_rt_trial_1_auditsum,
-          dv.labels=c("m_rt_trial"), digits=3, digits.re=2, transform = NULL, show.est = T, df.method = "satterthwaite",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+tab_model(m_rt_trial_1_controlled,
+          dv.labels=c("m_rt_trial_1_controlled"), digits=3, digits.re=2, transform = NULL, show.est = T, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
 
-check_model(m_rt_trial_1_auditsum, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+check_model(m_rt_trial_1_controlled, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
 
-# robust estimation
-m_rt_trial_1_auditsum_robust=rlmer(rt~reinforcer_type*MRI_audit_sum*trial_block + (1 + reinforcer_type + trial_block | ID),
+vif(m_rt_trial_1_controlled)
+```
+
+```{r}
+m_rt_trial_1_controlled_rob=rlmer(rt~reinforcer_type*trial_block_centered*aud_group + taste + BA_smoking_days + (1 + reinforcer_type + trial_block_centered | ID),
                 data=behav_final_redcap,
-                control=lmerControl(calc.derivs=FALSE))
+                control=lmerControl(calc.derivs=FALSE), 
+                     REML=F)
 
-plot(m_rt_trial_1_auditsum_robust)
-```
+tab_model(m_rt_trial_1_controlled_rob,
+          dv.labels=c("m_rt_trial_1_controlled_rob"), digits=2, digits.re=2, transform = NULL, show.est = T, df.method = "normal",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
 
-Derive p-values for robust model according to https://stats.stackexchange.com/questions/430490/obtaining-p-values-in-a-robustlmm-mixed-model-via-satterthwaite-approximated-dfs
 
-```{r}
-# get Satterthwaite DFs from non-robust model
-coefs <- data.frame(coef(summary(m_rt_trial_1_auditsum)))
-
-# get coefficients from robust model to extract t-values
-coefs.robust <- coef(summary(m_rt_trial_1_auditsum_robust))
-
-# calculate p-values based on robust t-values and non-robust approx. DFs
-p.values <- 2*pt(abs(coefs.robust[,3]), coefs$df, lower=FALSE)
-as.data.frame(p.values)
+if (sample == "n58") {
+  CIs <- confintROB(m_rt_trial_1_controlled_rob, parm=c(1:10), level=0.95, method="Wald")
+  CIs
+} else {
+  confintROB(m_rt_trial_1_controlled_rob, parm=c(1:10), level=0.95, method="boot", boot.type = "parametric")
+}
 ```
 
 ```{r}
-summary(emtrends(m_rt_trial_1_auditsum, c("reinforcer_type"), var = "trial_block", pbkrtest.limit = 5603), infer=TRUE)
+mtrends <- emtrends(m_rt_trial_1_controlled, ~reinforcer_type|aud_group, var = "trial_block_centered", lmer.df = "satterthwaite", lmerTest.limit = 5702)
+pairs(mtrends, adjust = "bonf")
 
-summary(emtrends(m_rt_trial_1_auditsum, c("reinforcer_type", "MRI_audit_sum"), var = c("trial_block"), at = list(MRI_audit_sum = c(2.1,9.4,16.7)), pbkrtest.limit = 5603), infer=TRUE)
-pairs(emtrends(m_rt_trial_1_auditsum, c("reinforcer_type", "MRI_audit_sum"), var = c("trial_block"), at = list(MRI_audit_sum = c(2.1,9.4,16.7)), pbkrtest.limit = 5603))
+mtrends <- emtrends(m_rt_trial_1_controlled, ~aud_group|reinforcer_type, var = "trial_block_centered", lmer.df = "satterthwaite", lmerTest.limit = 5702)
+pairs(mtrends, adjust = "bonf")
 ```
 
 ```{r}
-plot_model(m_rt_trial_1_auditsum, type = "pred", terms = c("trial_block [all]", "reinforcer_type", "MRI_audit_sum"))
+plot_model(m_rt_trial_1_controlled, type = "pred", terms = c("trial_block_centered [all]", "reinforcer_type", "aud_group")) +
+  theme_light(base_size = 14)
 ```
 
+#### Across all trials
+
 ```{r}
-m_rt_1_auditsum=lmer(p~reinforcer_type*MRI_audit_sum + (1 | ID),
-                data=df_rt,
+m_rt_1_controlled=lmer(rt~reinforcer_type*aud_group + taste + BA_smoking_days + (1 | ID),
+                data=behav_final_redcap,
                 control=lmerControl(calc.derivs=FALSE),
                 REML=F)
 
-tab_model(m_rt_1_auditsum,
-          dv.labels=c("m_rt"), digits=3, digits.re=2, df.method = "satterthwaite",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+tab_model(m_rt_1_controlled,
+          dv.labels=c("m_rt_1_controlled"), digits=2, digits.re=2, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
 
-check_model(m_rt_1_auditsum, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+check_model(m_rt_1_controlled, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
 
-# robust estimation
-m_rt_1_auditsum_robust=rlmer(p~reinforcer_type*MRI_audit_sum + (1 | ID),
-                data=df_rt,
+```
+
+```{r}
+m_rt_1_controlled_rob=rlmer(rt~reinforcer_type*aud_group + taste + BA_smoking_days + (1 | ID),
+                data=behav_final_redcap,
                 control=lmerControl(calc.derivs=FALSE),
                 REML=F)
 
-plot(m_rt_1_auditsum_robust)
-```
+tab_model(m_rt_1_controlled_rob,
+          dv.labels=c("m_rt_1_controlled_rob"), digits=2, digits.re=2, df.method = "normal",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
 
-Derive p-values for robust model according to https://stats.stackexchange.com/questions/430490/obtaining-p-values-in-a-robustlmm-mixed-model-via-satterthwaite-approximated-dfs
+#CIs <- confintROB(m_rt_1_controlled_rob, parm=c(1:6), level=0.95, method="boot", boot.type = "parametric")
+#saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_rt_1_controlled_rob.rds"))
+CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_rt_1_controlled_rob.rds"))
+CIs
+
+```
 
 ```{r}
-# get Satterthwaite DFs from non-robust model
-coefs <- data.frame(coef(summary(m_rt_1_auditsum)))
-
-# get coefficients from robust model to extract t-values
-coefs.robust <- coef(summary(m_rt_1_auditsum_robust))
-
-# calculate p-values based on robust t-values and non-robust approx. DFs
-p.values <- 2*pt(abs(coefs.robust[,3]), coefs$df, lower=FALSE)
-as.data.frame(p.values)
+summary(emmeans(m_rt_1_controlled_rob, specs = pairwise ~ reinforcer_type|aud_group, lmer.df = "asymptotic", adjust = "bonf"), infer=TRUE)
+summary(emmeans(m_rt_1_controlled_rob, specs = pairwise ~ aud_group|reinforcer_type, lmer.df = "asymptotic", adjust = "bonf"), infer=TRUE)
 ```
+
+```{r}
+plot_model(m_rt_1_controlled, type = "pred", terms = c("aud_group", "reinforcer_type")) +
+  theme_light(base_size = 14)
+```
+
+<!-- ## AUDIT criteria -->
+
+<!-- ### Time effects -->
+
+<!-- ```{r} -->
+
+<!-- m_rt_trial_1_auditsum=lmer(rt~reinforcer_type*MRI_audit_sum*trial_block + (1 + reinforcer_type + trial_block | ID), -->
+
+<!--                 data=behav_final_redcap, -->
+
+<!--                 control=lmerControl(calc.derivs=FALSE),  -->
+
+<!--                      REML=F) -->
+
+<!-- tab_model(m_rt_trial_1_auditsum, -->
+
+<!--           dv.labels=c("m_rt_trial"), digits=2, digits.re=2, transform = NULL, show.est = T, df.method = "satterthwaite", -->
+
+<!--           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells")) -->
+
+<!-- check_model(m_rt_trial_1_auditsum, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq")) -->
+
+<!-- ``` -->
+
+<!-- ```{r} -->
+
+<!-- summary(emtrends(m_rt_trial_1_auditsum, c("reinforcer_type", "MRI_audit_sum"), var = c("trial_block"), at = list(MRI_audit_sum = c(2.1,9.4,16.7)), pbkrtest.limit = 5603), infer=TRUE) -->
+
+<!-- pairs(emtrends(m_rt_trial_1_auditsum, c("reinforcer_type", "MRI_audit_sum"), var = c("trial_block"), at = list(MRI_audit_sum = c(2.1,9.4,16.7)), pbkrtest.limit = 5603)) -->
+
+<!-- ``` -->
+
+<!-- ```{r} -->
+
+<!-- plot_model(m_rt_trial_1_auditsum, type = "pred", terms = c("trial_block [all]", "reinforcer_type", "MRI_audit_sum")) -->
+
+<!-- ``` -->
+
+<!-- ### Across all trials -->
+
+<!-- ```{r} -->
+
+<!-- m_rt_1_auditsum=lmer(p~reinforcer_type*MRI_audit_sum + (1 | ID), -->
+
+<!--                 data=df_rt, -->
+
+<!--                 control=lmerControl(calc.derivs=FALSE), -->
+
+<!--                 REML=F) -->
+
+<!-- tab_model(m_rt_1_auditsum, -->
+
+<!--           dv.labels=c("m_rt"), digits=2, digits.re=2, df.method = "satterthwaite", -->
+
+<!--           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells")) -->
+
+<!-- check_model(m_rt_1_auditsum, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq")) -->
+
+<!-- ``` -->
 
 ## Plotting
 
 ### Violin plot per aud group and reinforcer type
 
 ```{r}
-fig_rt <- ggplot(df_rt, aes(reinforcer_type, y = p, fill=reinforcer_type)) +
+fig_rt <- ggplot(df_rt, aes(fct_rev(fct_infreq(reinforcer_type)), y = p, fill=fct_rev(fct_infreq(reinforcer_type)))) +
   geom_violin() +
   geom_boxplot(width=0.1, size=0.8) + 
-  facet_wrap(~ aud_group, scales="fixed") +
-  scale_y_continuous("Reaction time (s)", limits = c(0,1)) +
-  theme_light(base_size=18) +
+  facet_wrap(~fct_rev(fct_infreq(aud_group)), scales="fixed") +
+  scale_y_continuous("Response time (s)", limits = c(0,1.2)) +
+  theme_light(base_size=18, base_family = "Aptos") +
   theme(axis.title.x=element_blank(),
       axis.text.x=element_blank(),
       axis.ticks.x=element_blank(),
       legend.position = "bottom") +
   scale_fill_brewer(name="Reinforcer type", 
-                  labels=c("alcohol", "juice"),
-                  palette = "Accent")
+                  labels=c("juice", "alcohol"),
+                  palette = "Pastel1",
+                  direction = -1)
 
 fig_rt
 ```
@@ -1475,20 +2032,22 @@ fig_rt
 ### RT over course of task
 
 ```{r}
-fig_rt_time <- ggplot(df_rt_trial_group, aes(x=trial_block, y=p, group=reinforcer_type)) +
-  geom_line(aes(color=reinforcer_type), linewidth=0.8) +
-  geom_ribbon(aes(ymin = ci_l, ymax = ci_u, fill = reinforcer_type), alpha = 0.2) + 
-  facet_wrap(~aud_group, scales="free_y") +
-  scale_y_continuous("Reaction time (s)", limits = c(0,1)) +
+fig_rt_time <- ggplot(df_rt_trial_group, aes(x=trial_block, y=p, group=fct_rev(fct_infreq(reinforcer_type)))) +
+  geom_line(aes(color=fct_rev(fct_infreq(reinforcer_type))), linewidth=0.8) +
+  geom_ribbon(aes(ymin = ci_l, ymax = ci_u, fill = fct_rev(fct_infreq(reinforcer_type))), alpha = 0.2) + 
+  facet_wrap(~fct_rev(fct_infreq(aud_group)), scales="free_y") +
+  scale_y_continuous("Response time (s)", limits = c(0,1.2)) +
   scale_x_continuous("Trial") +
-  theme_light(base_size=18) +
+  theme_light(base_size=18, base_family = "Aptos") +
   theme(legend.position = "right") +
   scale_color_brewer(name="Reinforcer type", 
-                  labels=c("alcohol", "juice"),
-                  palette = "Accent") +
+                  labels=c("juice", "alcohol"),
+                  palette = "Pastel1",
+                  direction = -1) +
   scale_fill_brewer(name="Reinforcer type", 
-                  labels=c("alcohol", "juice"),
-                  palette = "Accent")
+                  labels=c("juice", "alcohol"),
+                  palette = "Pastel1",
+                  direction = -1)
 
 fig_rt_time
 
@@ -1498,26 +2057,21 @@ fig_rt_time
 
 ```{r}
 # save combined plot
-fig_correct_win_stay <- ggarrange(fig_correct, fig_win_stay, fig_nowin_switch, fig_rt,
-          labels = c("A", "B", "C", "D"),
-          ncol = 2, nrow = 2,
+fig_behav_violin <- ggarrange(fig_correct, fig_rt,
+          labels = c("A", "B"),
+          ncol = 2, nrow = 1,
           common.legend = TRUE, legend="bottom")
-fig_correct_win_stay
+fig_behav_violin
 
-png(file.path(project_path, "Manuscript/Figures", paste("correct_win_stay_", sample, ".png", sep="")), width = 16, height = 17, units='cm', res = 600)
-fig_correct_win_stay
-dev.off()
 ```
 
 ```{r}
 # save combined plot
-fig_correct_win_stay_rt_time <- ggarrange(fig_correct_time, fig_winstay_time, fig_nowinswitch_time, fig_rt_time,
-          labels = c("A", "B", "C", "D"),
-          ncol = 1, nrow = 4,
-          common.legend = TRUE, legend="bottom")
-fig_correct_win_stay_rt_time
+fig_behav <- ggarrange(fig_taste_crave, fig_correct_time, fig_rt_time,
+          labels = c("A", "C", "D"),
+          ncol = 1, nrow = 3,
+          common.legend = TRUE, legend="bottom", heights = c(1.3,1,1))
+fig_behav
 
-png(file.path(project_path, "Manuscript/Figures", paste("correct_win_stay_time_", sample, ".png", sep="")), width = 16, height =28, units='cm', res = 600)
-fig_correct_win_stay_rt_time
-dev.off()
+ggsave(file.path(project_path, "Manuscript/Figures", paste("final_fig_behav_", sample, ".png", sep="")), width = 20, height =25, units='cm', dpi = 600, bg="white")
 ```

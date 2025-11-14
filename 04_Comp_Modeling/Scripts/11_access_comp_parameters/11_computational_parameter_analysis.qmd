@@ -15,20 +15,37 @@ format:
     fig-format: svg
     editor_options: 
     chunk_output_type: console
+execute:
+  warning: false
+  message: false
 ---
 
 # Setup
 
-```{r}
+```{r, echo=FALSE, results='hide'}
 rm(list=ls())
-libs<-c("tidyverse", "rstan", "gdata", "bayesplot", "stringr", "dplyr", "ggplot2", "loo", "hBayesDM", "lme4", "sjPlot", "ggpubr", "tidyr", "gmodels", "performance", "robustlmm", "lmerTest", "emmeans")
-sapply(libs, require, character.only=TRUE)
+
+lapply(names(sessionInfo()$loadedOnly), require, character.only = TRUE)
+invisible(lapply(paste0('package:', names(sessionInfo()$otherPkgs)), detach, character.only=TRUE, unload=TRUE, force=TRUE))
+
+libs<-c("tidyverse", "rstan", "gdata", "bayesplot", "stringr", "dplyr", "ggplot2", "loo", "hBayesDM", "lme4", "sjPlot", "ggpubr", "tidyr", "gmodels", "performance", "robustlmm", "lmerTest", "emmeans", "confintROB")
+invisible(sapply(libs, require, character.only=TRUE))
 
 data_path<-"/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT/WP2_ILT_DATA/Stan_Output/PH_withC"
 project_path <- "/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT"
 
 load(file.path(project_path, "WP2_ILT_DATA/RedCap/redcap_n58_new.RData"))
 load(file.path(project_path, "WP2_ILT_DATA/Behav/behav_final_n58.RData"))
+load(file.path(project_path, "WP2_ILT_DATA/Behav/behav_final_redcap_n58.RData"))
+
+behav_final_redcap <- behav_final_redcap %>%
+  rowwise() %>%
+  mutate(taste = (taste1+taste2)/2,
+         crave = (crave1+crave2)/2)
+
+df_taste_crave <- behav_final_redcap %>%
+  select(ID, reinforcer_type, taste, crave, BA_smoking_days) %>%
+  unique()
 
 params <- read.table(file.path(data_path, 'Params_PH_withC_init05_n58.txt'), header = T)
 PEs <- read.table(file.path(data_path, 'fmri_PEs_PH_withC_init05_n58.txt'), header = T)
@@ -49,6 +66,8 @@ params <- params %>%
          reinforcer_type = as.factor(reinforcer_type),
          block = as.factor(block))
 
+params <- left_join(params, df_taste_crave)
+
 ### prepare trial-by-trial df ###
 
 trialy_by_trial_df <- left_join(PEs, CPs, by = c("ID_block", "trial_block", "reinforcer_type", "ID"))
@@ -58,10 +77,10 @@ trialy_by_trial_df <- trialy_by_trial_df %>%
   mutate(ID = as.factor(ID),
          reinforcer_type = as.factor(reinforcer_type),
          abs_PE_pred = abs(PE_pred))
-trialy_by_trial_df <- left_join(trialy_by_trial_df, redcap_new, by="ID")
-trialy_by_trial_df <- left_join(trialy_by_trial_df, behav_final, by=c("ID", "reinforcer_type", "trial_block"))
+
+trialy_by_trial_df <- left_join(trialy_by_trial_df, behav_final_redcap, by=c("ID", "reinforcer_type", "trial_block"))
 trialy_by_trial_df <- trialy_by_trial_df %>%
-  select(ID, ID_block, aud_group, reinforcer_type, trial_block, choice, PE_pred, abs_PE_pred, pc_pred, Q_pred) %>%
+  select(ID, ID_block, aud_group, age, taste, crave, BA_smoking_days, reinforcer_type, trial_block, choice, PE_pred, abs_PE_pred, pc_pred, Q_pred) %>%
   mutate(aud_group = factor(aud_group, levels = c("HC", "AUD"))) %>%
   arrange(ID_block)
 
@@ -169,478 +188,1009 @@ contrasts(df_tbt_time$aud_group)
 
 ## Alpha
 
+### Descriptive stats
+
 ```{r}
-fig1 <- ggplot(params, aes(x = reinforcer_type, y = alpha, fill = reinforcer_type)) +
+stats <- params %>%
+  group_by(reinforcer_type,aud_group) %>%
+  dplyr::summarise(across(c('alpha'), .fns=
+                   list('_mean' = mean,
+                        '_sd' = sd,
+                        '_min' = min,
+                        '_max' = max),
+                   na.rm=T))
+stats
+```
+
+```{r}
+fig1 <- ggplot(params, aes(x = fct_rev(fct_infreq(reinforcer_type)), y = alpha, fill = reinforcer_type)) +
   geom_violin() +
   geom_boxplot(width=0.1, size=0.8) +
   facet_wrap(~aud_group, scales="fixed") +
+  scale_x_discrete(NULL, labels=c("juice", "alcohol")) +
   scale_y_continuous("Initial learning rate (α)", limits = c(0,1)) +
-  theme_light(base_size=18) +
-  theme(axis.title.x=element_blank(),
-      axis.text.x=element_blank(),
-      axis.ticks.x=element_blank(),
-      legend.position = "bottom") +
+  theme_light(base_size=18, base_family = "Aptos") +
+  theme(legend.position = "none") +
   scale_fill_brewer(name="Reinforcer type", 
-                  labels=c("alcohol", "juice"),
-                  palette = "Accent")
-
+                  labels=c("juice", "alcohol"),
+                  palette = "Pastel1")
 fig1
 ```
 
+### LMMs
+
 ```{r}
-m_alpha <- lmer(alpha ~ 1 + reinforcer_type*aud_group + (1 | ID), data=params)
+m_alpha <- lmer(alpha ~ 1 + reinforcer_type*aud_group + (1 | ID), 
+                data=params,
+                control=lmerControl(calc.derivs=FALSE))
 
 tab_model(m_alpha,
-          dv.labels=c("m_alpha"), digits=3, digits.re=2, df.method = "satterthwaite",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+          dv.labels=c("m_alpha"), digits=2, digits.re=2, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
 
 check_model(m_alpha, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
-
-# robust estimation
-m_alpha_robust <- rlmer(alpha ~ 1 + reinforcer_type*aud_group + (1 | ID), data=params)
-
-plot(m_alpha_robust)
 ```
 
-Derive p-values for robust model according to https://stats.stackexchange.com/questions/430490/obtaining-p-values-in-a-robustlmm-mixed-model-via-satterthwaite-approximated-dfs
+```{r, echo=FALSE, results='hide'}
+# robust estimation
+m_alpha_robust <- rlmer(alpha ~ 1 + reinforcer_type*aud_group + (1 | ID), 
+                        data=params,
+                        control=lmerControl(calc.derivs=FALSE))
+
+tab_model(m_alpha_robust,
+          dv.labels=c("m_alpha_robust"), digits=2, digits.re=2, df.method = "normal",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
+
+# CIs <- confintROB(m_alpha_robust, parm=c(1:4), level=0.95, method="boot", boot.type = "parametric")
+# saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_alpha_robust.rds"))
+CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_alpha_robust.rds"))
+CIs
+```
+
+### Controlling for covariates
+
+#### Check correlation
 
 ```{r}
-# get Satterthwaite DFs from non-robust model
-coefs <- data.frame(coef(summary(m_alpha)))
+# taste
+lm_alpha_taste <- lmer(alpha ~ taste + (1 | ID), 
+                       data=params,
+                       control=lmerControl(calc.derivs=FALSE))
 
-# get coefficients from robust model to extract t-values
-coefs.robust <- coef(summary(m_alpha_robust))
+tab_model(lm_alpha_taste,
+          dv.labels=c("lm_alpha_taste"), digits=2, digits.re=2, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
 
-# calculate p-values based on robust t-values and non-robust approx. DFs
-p.values <- 2*pt(abs(coefs.robust[,3]), coefs$df, lower=FALSE)
-as.data.frame(p.values)
+check_model(lm_alpha_taste, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+
+lm_alpha_taste_rob <- rlmer(alpha ~ taste + (1 | ID), 
+                            data=params,
+                            control=lmerControl(calc.derivs=FALSE))
+
+tab_model(lm_alpha_taste_rob,
+          dv.labels=c("lm_alpha_taste_rob"), digits=2, digits.re=2, df.method = "normal",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
+
+# CIs <- confintROB(lm_alpha_taste_rob, parm=c(1:2), level=0.95, method="boot", boot.type = "parametric")
+# saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_lm_alpha_taste_rob.rds"))
+CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_lm_alpha_taste_rob.rds"))
+CIs
+
+# smoking
+lm_alpha_smoking <- lmer(alpha ~ BA_smoking_days + (1 | ID), 
+                         data=params,
+                         control=lmerControl(calc.derivs=FALSE))
+
+tab_model(lm_alpha_smoking,
+          dv.labels=c("lm_alpha_smoking"), digits=2, digits.re=2, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
+
+check_model(lm_alpha_smoking, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+
+lm_alpha_smoking_rob <- rlmer(alpha ~ BA_smoking_days + (1 | ID), 
+                              data=params,
+                              control=lmerControl(calc.derivs=FALSE))
+
+tab_model(lm_alpha_smoking_rob,
+          dv.labels=c("lm_alpha_smoking_rob"), digits=2, digits.re=2, df.method = "normal",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
+
+# CIs <- confintROB(lm_alpha_smoking_rob, parm=c(1:2), level=0.95, method="boot", boot.type = "parametric")
+# saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_lm_alpha_smoking_rob.rds"))
+CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_lm_alpha_smoking_rob.rds"))
+CIs
 ```
+
+No control needed.
 
 ## Inverse temperature
 
+### Descriptive stats
+
 ```{r}
-fig2 <- ggplot(params, aes(x = reinforcer_type, y = tau, fill = reinforcer_type)) +
+stats <- params %>%
+  group_by(reinforcer_type,aud_group) %>%
+  dplyr::summarise(across(c('tau'), .fns=
+                   list('_mean' = mean,
+                        '_sd' = sd,
+                        '_min' = min,
+                        '_max' = max),
+                   na.rm=T))
+stats
+```
+
+```{r}
+fig2 <- ggplot(params, aes(x = fct_rev(fct_infreq(reinforcer_type)), y = tau, fill = reinforcer_type)) +
   geom_violin() +
   geom_boxplot(width=0.1, size=0.8) +
   facet_wrap(~aud_group, scales="fixed") +
+  scale_x_discrete(NULL, labels=c("juice", "alcohol")) +
   scale_y_continuous("Inverse temperature (β)", limits = c(0,100)) +
-  theme_light(base_size=18) +
-  theme(axis.title.x=element_blank(),
-      axis.text.x=element_blank(),
-      axis.ticks.x=element_blank(),
-      legend.position = "bottom") +
+  theme_light(base_size=18, base_family = "Aptos") +
+  theme(legend.position = "none") +
   scale_fill_brewer(name="Reinforcer type", 
                   labels=c("alcohol", "juice"),
-                  palette = "Accent")
+                  palette = "Pastel1")
 
 fig2
 ```
 
+### LMMs
+
 ```{r}
-m_invtemp <- lmer(tau ~ 1 + reinforcer_type*aud_group + (1 | ID), data=params)
+m_invtemp <- lmer(tau ~ 1 + reinforcer_type*aud_group + (1 | ID), 
+                  data=params,
+                  control=lmerControl(calc.derivs=FALSE))
 
 tab_model(m_invtemp,
-          dv.labels=c("m_invtemp"), digits=3, digits.re=2, df.method = "satterthwaite",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+          dv.labels=c("m_invtemp"), digits=2, digits.re=2, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
 
 check_model(m_invtemp, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
 
 # robust estimation
-m_invtemp_robust <- rlmer(tau ~ 1 + reinforcer_type*aud_group + (1 | ID), data=params)
+m_invtemp_robust <- rlmer(tau ~ 1 + reinforcer_type*aud_group + (1 | ID), 
+                          data=params,
+                          control=lmerControl(calc.derivs=FALSE))
 
-plot(m_invtemp_robust)
+tab_model(m_invtemp_robust,
+          dv.labels=c("m_invtemp"), digits=2, digits.re=2, df.method = "normal",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
+
+# CIs <- confintROB(m_invtemp_robust, parm=c(1:4), level=0.95, method="boot", boot.type = "parametric")
+# saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_invtemp_robust.rds"))
+CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_invtemp_robust.rds"))
+CIs
 ```
 
-Derive p-values for robust model according to https://stats.stackexchange.com/questions/430490/obtaining-p-values-in-a-robustlmm-mixed-model-via-satterthwaite-approximated-dfs
+### Controlling for covariates
+
+#### Check correlation
 
 ```{r}
-# get Satterthwaite DFs from non-robust model
-coefs <- data.frame(coef(summary(m_invtemp)))
+# taste
+lm_invtemp_taste <- lmer(tau ~ taste + (1 | ID), 
+                         data=params,
+                         control=lmerControl(calc.derivs=FALSE))
 
-# get coefficients from robust model to extract t-values
-coefs.robust <- coef(summary(m_invtemp_robust))
+tab_model(lm_invtemp_taste,
+          dv.labels=c("lm_invtemp_taste"), digits=2, digits.re=2, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
 
-# calculate p-values based on robust t-values and non-robust approx. DFs
-p.values <- 2*pt(abs(coefs.robust[,3]), coefs$df, lower=FALSE)
-as.data.frame(p.values)
+check_model(lm_invtemp_taste, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+
+lm_invtemp_taste_rob <- rlmer(tau ~ taste + (1 | ID), 
+                         data=params,
+                         control=lmerControl(calc.derivs=FALSE))
+
+tab_model(lm_invtemp_taste_rob,
+          dv.labels=c("lm_invtemp_taste_rob"), digits=2, digits.re=2, df.method = "normal",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
+
+# CIs <- confintROB(lm_invtemp_taste_rob, parm=c(1:2), level=0.95, method="boot", boot.type = "parametric")
+# saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_lm_invtemp_taste_rob.rds"))
+CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_lm_invtemp_taste_rob.rds"))
+CIs
+
+# smoking
+lm_invtemp_smoking <- lmer(tau ~ BA_smoking_days + (1 | ID), 
+                         data=params,
+                         control=lmerControl(calc.derivs=FALSE))
+
+tab_model(lm_invtemp_smoking,
+          dv.labels=c("lm_invtemp_smoking"), digits=2, digits.re=2, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
+
+check_model(lm_invtemp_smoking, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+
+lm_invtemp_smoking_rob <- rlmer(tau ~ BA_smoking_days + (1 | ID), 
+                         data=params,
+                         control=lmerControl(calc.derivs=FALSE))
+
+tab_model(lm_invtemp_smoking_rob,
+          dv.labels=c("lm_invtemp_smoking_rob"), digits=2, digits.re=2, df.method = "normal",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
+
+# CIs <- confintROB(lm_invtemp_smoking_rob, parm=c(1:2), level=0.95, method="boot", boot.type = "parametric")
+# saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_lm_invtemp_smoking_rob.rds"))
+CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_lm_invtemp_smoking_rob.rds"))
+CIs
+
 ```
+
+No control necessary.
 
 ## Gamma
 
+### Descriptive stats
+
 ```{r}
-fig3 <- ggplot(params, aes(x = reinforcer_type, y = gamma, fill = reinforcer_type)) +
+stats <- params %>%
+  group_by(reinforcer_type,aud_group) %>%
+  dplyr::summarise(across(c('gamma'), .fns=
+                   list('_mean' = mean,
+                        '_sd' = sd,
+                        '_min' = min,
+                        '_max' = max),
+                   na.rm=T))
+stats
+```
+
+```{r}
+fig3 <- ggplot(params, aes(x = fct_rev(fct_infreq(reinforcer_type)), y = gamma, fill = reinforcer_type)) +
   geom_violin() +
   geom_boxplot(width=0.1, size=0.8) +
   facet_wrap(~aud_group, scales="fixed") +
+  scale_x_discrete("Reinforcer type", labels=c("juice", "alcohol")) +
   scale_y_continuous("Decay constant (γ)", limits = c(0,1)) +
-  theme_light(base_size=18) +
-  theme(axis.title.x=element_blank(),
-      axis.text.x=element_blank(),
-      axis.ticks.x=element_blank(),
-      legend.position = "bottom") +
+  theme_light(base_size=18, base_family = "Aptos") +
+  theme(legend.position = "none") +
   scale_fill_brewer(name="Reinforcer type", 
                   labels=c("alcohol", "juice"),
-                  palette = "Accent")
+                  palette = "Pastel1")
 
 fig3
 ```
 
+### LMMs
+
 ```{r}
-m_gamma <- lmer(gamma ~ 1 + reinforcer_type*aud_group + (1 | ID), data=params)
+m_gamma <- lmer(gamma ~ 1 + reinforcer_type*aud_group + (1 | ID), 
+                data=params,
+                control=lmerControl(calc.derivs=FALSE))
 
 tab_model(m_gamma,
           dv.labels=c("m_gamma"), digits=3, digits.re=2, df.method = "satterthwaite",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
 
 check_model(m_gamma, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
 
 # robust estimation
-m_gamma_robust <- rlmer(gamma ~ 1 + reinforcer_type*aud_group + (1 | ID), data=params)
+m_gamma_robust <- rlmer(gamma ~ 1 + reinforcer_type*aud_group + (1 | ID), 
+                        data=params,
+                        control=lmerControl(calc.derivs=FALSE))
 
-plot(m_gamma_robust)
+tab_model(m_gamma_robust,
+          dv.labels=c("m_gamma_robust"), digits=2, digits.re=2, df.method = "normal",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
+
+# CIs <- confintROB(m_gamma_robust, parm=c(1:4), level=0.95, method="boot", boot.type = "parametric")
+# saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_gamma_robust.rds"))
+CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_gamma_robust.rds"))
+CIs
 ```
 
-Derive p-values for robust model according to https://stats.stackexchange.com/questions/430490/obtaining-p-values-in-a-robustlmm-mixed-model-via-satterthwaite-approximated-dfs
+### Controlling for covariates
+
+#### Check correlation
 
 ```{r}
-# get Satterthwaite DFs from non-robust model
-coefs <- data.frame(coef(summary(m_gamma)))
+# taste
+lm_gamma_taste <- lmer(gamma ~ taste + (1 | ID), 
+                         data=params,
+                         control=lmerControl(calc.derivs=FALSE))
 
-# get coefficients from robust model to extract t-values
-coefs.robust <- coef(summary(m_gamma_robust))
+tab_model(lm_gamma_taste,
+          dv.labels=c("lm_gamma_taste"), digits=2, digits.re=2, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
 
-# calculate p-values based on robust t-values and non-robust approx. DFs
-p.values <- 2*pt(abs(coefs.robust[,3]), coefs$df, lower=FALSE)
-as.data.frame(p.values)
+check_model(lm_gamma_taste, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+
+lm_gamma_taste_rob <- rlmer(gamma ~ taste + (1 | ID), 
+                         data=params,
+                         control=lmerControl(calc.derivs=FALSE))
+
+tab_model(lm_gamma_taste_rob,
+          dv.labels=c("lm_gamma_taste_rob"), digits=2, digits.re=2, df.method = "normal",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
+
+# CIs <- confintROB(lm_gamma_taste_rob, parm=c(1:2), level=0.95, method="boot", boot.type = "parametric")
+# saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_lm_gamma_taste_rob.rds"))
+CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_lm_gamma_taste_rob.rds"))
+CIs
+
+# smoking
+lm_gamma_smoking <- lmer(gamma ~ BA_smoking_days + (1 | ID), 
+                         data=params,
+                         control=lmerControl(calc.derivs=FALSE))
+
+tab_model(lm_gamma_smoking,
+          dv.labels=c("lm_gamma_smoking"), digits=2, digits.re=2, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
+
+check_model(lm_gamma_smoking, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+
+lm_gamma_smoking_rob <- rlmer(gamma ~ BA_smoking_days + (1 | ID), 
+                         data=params,
+                         control=lmerControl(calc.derivs=FALSE))
+
+tab_model(lm_gamma_smoking_rob,
+          dv.labels=c("lm_gamma_smoking_rob"), digits=2, digits.re=2, df.method = "normal",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
+
+# CIs <- confintROB(lm_gamma_smoking_rob, parm=c(1:2), level=0.95, method="boot", boot.type = "parametric")
+# saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_lm_gamma_smoking_rob.rds"))
+CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_lm_gamma_smoking_rob.rds"))
+CIs
+
 ```
+
+No control necessary.
 
 ## C
 
-```{r}
-fig4 <- ggplot(params, aes(x = reinforcer_type, y = C, fill = reinforcer_type)) +
-  geom_violin() +
-  geom_boxplot(width=0.1, size=0.8) +
-  facet_wrap(~aud_group, scales="fixed") +
-  scale_y_continuous("Scaling coefficient (C)", limits = c(0,1)) +
-  theme_light(base_size=18) +
-  theme(axis.title.x=element_blank(),
-      axis.text.x=element_blank(),
-      axis.ticks.x=element_blank(),
-      legend.position = "bottom") +
-  scale_fill_brewer(name="Reinforcer type", 
-                  labels=c("alcohol", "juice"),
-                  palette = "Accent")
+### Descriptive stats
 
-fig4
+```{r}
+stats <- params %>%
+  group_by(reinforcer_type,aud_group) %>%
+  dplyr::summarise(across(c('C'), .fns=
+                   list('_mean' = mean,
+                        '_sd' = sd,
+                        '_min' = min,
+                        '_max' = max),
+                   na.rm=T))
+stats
 ```
 
 ```{r}
-m_C <- lmer(C ~ 1 + reinforcer_type*aud_group + (1 | ID), data=params)
+fig4 <- ggplot(params, aes(x = fct_rev(fct_infreq(reinforcer_type)), y = C, fill = reinforcer_type)) +
+  geom_violin() +
+  geom_boxplot(width=0.1, size=0.8) +
+  facet_wrap(~aud_group, scales="fixed") +
+  scale_x_discrete("Reinforcer type", labels=c("juice", "alcohol")) +
+  scale_y_continuous("Scaling coefficient (C)", limits = c(0,1)) +
+  theme_light(base_size=18) +
+  theme(legend.position = "none", base_family = "Aptos") +
+  scale_fill_brewer(name="Reinforcer type", 
+                  labels=c("alcohol", "juice"),
+                  palette = "Pastel1")
+
+fig4
+
+```
+
+### LMMs
+
+```{r}
+m_C <- lmer(C ~ 1 + reinforcer_type*aud_group + (1 | ID), 
+            data=params,
+            control=lmerControl(calc.derivs=FALSE))
 
 tab_model(m_C,
           dv.labels=c("m_C"), digits=3, digits.re=2, df.method = "satterthwaite",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
 
 check_model(m_C, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
 
 # robust estimation
-m_C_robust <- rlmer(C ~ 1 + reinforcer_type*aud_group + (1 | ID), data=params)
+m_C_robust <- rlmer(C ~ 1 + reinforcer_type*aud_group + (1 | ID), 
+                    data=params,
+                    control=lmerControl(calc.derivs=FALSE))
 
-plot(m_C_robust)
-```
+tab_model(m_C_robust,
+          dv.labels=c("m_C_robust"), digits=2, digits.re=2, df.method = "normal",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
 
-Derive p-values for robust model according to https://stats.stackexchange.com/questions/430490/obtaining-p-values-in-a-robustlmm-mixed-model-via-satterthwaite-approximated-dfs
-
-```{r}
-# get Satterthwaite DFs from non-robust model
-coefs <- data.frame(coef(summary(m_C)))
-
-# get coefficients from robust model to extract t-values
-coefs.robust <- coef(summary(m_C_robust))
-
-# calculate p-values based on robust t-values and non-robust approx. DFs
-p.values <- 2*pt(abs(coefs.robust[,3]), coefs$df, lower=FALSE)
-as.data.frame(p.values)
-```
-
-# Trial-by-trial quantities
-
-## Absolute prediction errors
-
-```{r}
-fig_PE_time <- ggplot(df_tbt_time, aes(x=trial_block, y=mean_PE, group=reinforcer_type)) +
-  geom_line(aes(color=reinforcer_type), linewidth=0.8) +
-  geom_ribbon(aes(ymin = ci_l_PE, ymax = ci_u_PE, fill = reinforcer_type), alpha = 0.2) + 
-  facet_wrap(~aud_group, scales="fixed") +
-  scale_y_continuous("Absolute RPEs", limits = c(0,1)) +
-  scale_x_continuous("Trial") +
-  theme_light(base_size=18) +
-  theme(legend.position = "right") +
-  scale_color_brewer(name="Reinforcer type", 
-                  labels=c("alcohol", "juice"),
-                  palette = "Accent") +
-  scale_fill_brewer(name="Reinforcer type", 
-                  labels=c("alcohol", "juice"),
-                  palette = "Accent")
-
-fig_PE_time
+# CIs <- confintROB(m_C_robust, parm=c(1:4), level=0.95, method="boot", boot.type = "parametric")
+# saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_C_robust.rds"))
+CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_C_robust.rds"))
+CIs
 
 ```
 
+### Controlling for covariates
+
+#### Check correlation
+
 ```{r}
-m_PE=lmer(new_absPEs ~ reinforcer_type*aud_group*trial_block + (1 + reinforcer_type + trial_block || ID),
-                data=trialy_by_trial_df,
-                control=lmerControl(calc.derivs=FALSE),
-                REML=F)
+# taste
+lm_C_taste <- lmer(C ~ taste + (1 | ID), 
+                         data=params,
+                         control=lmerControl(calc.derivs=FALSE))
 
-tab_model(m_PE,
-          dv.labels=c("m_PE"), digits=3, digits.re=2, transform = NULL, show.est = T, df.method = "satterthwaite",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+tab_model(lm_C_taste,
+          dv.labels=c("lm_C_taste"), digits=2, digits.re=2, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
 
-check_model(m_PE, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+check_model(lm_C_taste, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
 
-# robust estimation
-m_PE_robust=rlmer(new_absPEs ~ reinforcer_type*aud_group*trial_block + (1 + reinforcer_type + trial_block || ID),
-                data=trialy_by_trial_df,
-                control=lmerControl(calc.derivs=FALSE))
+lm_C_taste_rob <- rlmer(C ~ taste + (1 | ID), 
+                         data=params,
+                         control=lmerControl(calc.derivs=FALSE))
 
-plot(m_PE_robust)
+tab_model(lm_C_taste_rob,
+          dv.labels=c("lm_C_taste_rob"), digits=2, digits.re=2, df.method = "normal",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
+
+# CIs <- confintROB(lm_C_taste_rob, parm=c(1:2), level=0.95, method="boot", boot.type = "parametric")
+# saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_lm_C_taste_rob.rds"))
+CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_lm_C_taste_rob.rds"))
+CIs
+
+# smoking
+lm_C_smoking <- lmer(C ~ BA_smoking_days + (1 | ID), 
+                         data=params,
+                         control=lmerControl(calc.derivs=FALSE))
+
+tab_model(lm_C_smoking,
+          dv.labels=c("lm_C_smoking"), digits=2, digits.re=2, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
+
+check_model(lm_C_smoking, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+
+lm_C_smoking_rob <- rlmer(C ~ BA_smoking_days + (1 | ID), 
+                         data=params,
+                         control=lmerControl(calc.derivs=FALSE))
+
+tab_model(lm_C_smoking_rob,
+          dv.labels=c("lm_C_smoking_rob"), digits=2, digits.re=2, df.method = "normal",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
+
+CIs <- confintROB(lm_C_smoking_rob, parm=c(1:2), level=0.95, method="boot", boot.type = "parametric")
+saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_lm_C_smoking_rob.rds"))
+CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_lm_C_smoking_rob.rds"))
+CIs
 
 ```
 
-Derive p-values for robust model according to https://stats.stackexchange.com/questions/430490/obtaining-p-values-in-a-robustlmm-mixed-model-via-satterthwaite-approximated-dfs
+No control necessary.
+
+# Log likelihood
 
 ```{r}
-# get Satterthwaite DFs from non-robust model
-coefs <- data.frame(coef(summary(m_PE)))
-
-# get coefficients from robust model to extract t-values
-coefs.robust <- coef(summary(m_PE_robust))
-
-# calculate p-values based on robust t-values and non-robust approx. DFs
-p.values <- 2*pt(abs(coefs.robust[,3]), coefs$df, lower=FALSE)
-as.data.frame(p.values)
+df_log_likelihood <- trialy_by_trial_df %>%
+  group_by(ID, aud_group, reinforcer_type, taste, crave, BA_smoking_days) %>%
+  summarise(log_likelihood = sum(log(pc_pred), na.rm=T))
 ```
 
-As difference in significance, show full model:
+### Descriptive stats
 
 ```{r}
-tab_model(m_PE_robust,
-          dv.labels=c("m_PE_robust"), digits=3, digits.re=2, transform = NULL, show.est = T, df.method = "normal",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
-summary(m_PE_robust)
-```
-
-Get p-values for post-hoc tests based on satterthwaites dfs: 
-
-```{r}
-post_hoc_PE <- summary(emtrends(m_PE, c("reinforcer_type", "aud_group"), var = "trial_block", lmer.df = "satterthwaite", lmerTest.limit = 5702), infer=TRUE)
-post_hoc_PE
-
-post_hoc_PE_robust <- summary(emtrends(m_PE_robust, c("reinforcer_type", "aud_group"), var = "trial_block", lmer.df = "satterthwaite", lmerTest.limit = 5702), infer=TRUE)
-post_hoc_PE_robust
-post_hoc_PE_robust <- as.matrix(post_hoc_PE_robust)
-
-p.values <- 2*pt(abs(as.numeric(post_hoc_PE_robust[,8])), post_hoc_PE$df, lower=F)
-as.data.frame(p.values)
+stats <- df_log_likelihood %>%
+  group_by(reinforcer_type,aud_group) %>%
+  dplyr::summarise(across(c('log_likelihood'), .fns=
+                   list('_mean' = mean,
+                        '_sd' = sd,
+                        '_min' = min,
+                        '_max' = max),
+                   na.rm=T))
+stats
 ```
 
 ```{r}
-plot_model(m_PE_robust, type = "pred", terms = c("trial_block", "reinforcer_type"))
-```
-
-
-## Choice probabilities of chosen option
-
-### Across trials
-
-```{r}
-
-fig_CP <- ggplot(trialy_by_trial_df, aes(x = reinforcer_type, y = pc_pred, fill = reinforcer_type)) +
+fig5 <- ggplot(df_log_likelihood, aes(x = fct_rev(fct_infreq(reinforcer_type)), y = log_likelihood, fill = reinforcer_type)) +
   geom_violin() +
   geom_boxplot(width=0.1, size=0.8) +
   facet_wrap(~aud_group, scales="fixed") +
-  scale_y_continuous("Model-predicted likelihood of chosen options", limits = c(0,1)) +
-  theme_light(base_size=18) +
-  theme(axis.title.x=element_blank(),
-      axis.text.x=element_blank(),
-      axis.ticks.x=element_blank(),
-      legend.position = "bottom") +
+  scale_x_discrete("Reinforcer type", labels=c("juice", "alcohol")) +
+  scale_y_continuous("Log likelihood", limits = c(-40,0)) +
+  theme_light(base_size=18, base_family = "Aptos") +
+  theme(legend.position = "none") +
   scale_fill_brewer(name="Reinforcer type", 
                   labels=c("alcohol", "juice"),
-                  palette = "Accent")
+                  palette = "Pastel1")
 
-fig_CP
+fig5
+
+ggsave(file.path(project_path, "Manuscript/Figures", "loglik.png"), width = 10, height =8, units='cm', dpi = 600, bg="white")
 
 ```
 
+### LMMs
+
 ```{r}
-m_CP <- lmer(pc_pred ~ 1 + reinforcer_type*aud_group + (1 | ID), data=trialy_by_trial_df)
+m_ll <- lmer(log_likelihood ~ 1 + reinforcer_type*aud_group + (1 | ID), 
+            data=df_log_likelihood,
+            control=lmerControl(calc.derivs=FALSE))
 
-tab_model(m_CP,
-          dv.labels=c("m_alpha"), digits=3, digits.re=2, df.method = "satterthwaite",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+tab_model(m_ll,
+          dv.labels=c("m_ll"), digits=2, digits.re=2, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
 
-check_model(m_CP, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+check_model(m_ll, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
 
 # robust estimation
-m_CP_robust <- rlmer(pc_pred ~ 1 + reinforcer_type*aud_group + (1 | ID), data=trialy_by_trial_df)
+m_ll_robust <- rlmer(log_likelihood ~ 1 + reinforcer_type*aud_group + (1 | ID), 
+            data=df_log_likelihood,
+            control=lmerControl(calc.derivs=FALSE))
 
-plot(m_CP_robust)
+tab_model(m_ll_robust,
+          dv.labels=c("m_ll_robust"), digits=2, digits.re=2, df.method = "normal",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
+
+# CIs <- confintROB(m_ll_robust, parm=c(1:4), level=0.95, method="boot", boot.type = "parametric")
+# saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_ll_robust.rds"))
+CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_ll_robust.rds"))
+CIs
+
 ```
+
+### Controlling for covariates
+
+#### Check correlation
 
 ```{r}
-# get Satterthwaite DFs from non-robust model
-coefs <- data.frame(coef(summary(m_CP)))
+# taste
+lm_ll_taste <- lmer(log_likelihood ~ taste + (1 | ID), 
+                         data=df_log_likelihood,
+                         control=lmerControl(calc.derivs=FALSE))
 
-# get coefficients from robust model to extract t-values
-coefs.robust <- coef(summary(m_CP_robust))
+tab_model(lm_ll_taste,
+          dv.labels=c("lm_ll_taste"), digits=2, digits.re=2, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
 
-# calculate p-values based on robust t-values and non-robust approx. DFs
-p.values <- 2*pt(abs(coefs.robust[,3]), coefs$df, lower=FALSE)
-as.data.frame(p.values)
+check_model(lm_ll_taste, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+
+lm_ll_taste_rob <- rlmer(log_likelihood ~ taste + (1 | ID), 
+                         data=df_log_likelihood,
+                         control=lmerControl(calc.derivs=FALSE))
+
+tab_model(lm_ll_taste_rob,
+          dv.labels=c("lm_ll_taste_rob"), digits=2, digits.re=2, df.method = "normal",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
+
+CIs <- confintROB(lm_ll_taste_rob, parm=c(1:2), level=0.95, method="boot", boot.type = "parametric")
+saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_lm_ll_taste_rob.rds"))
+CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_lm_ll_taste_rob.rds"))
+CIs
+
+# smoking
+lm_ll_smoking <- lmer(log_likelihood ~ BA_smoking_days + (1 | ID), 
+                         data=df_log_likelihood,
+                         control=lmerControl(calc.derivs=FALSE))
+
+tab_model(lm_ll_smoking,
+          dv.labels=c("lm_ll_smoking"), digits=2, digits.re=2, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
+
+check_model(lm_ll_smoking, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+
+lm_ll_smoking_rob <- rlmer(log_likelihood ~ BA_smoking_days + (1 | ID), 
+                         data=df_log_likelihood,
+                         control=lmerControl(calc.derivs=FALSE))
+
+tab_model(lm_ll_smoking_rob,
+          dv.labels=c("lm_ll_smoking_rob"), digits=2, digits.re=2, df.method = "normal",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
+
+# CIs <- confintROB(lm_ll_smoking_rob, parm=c(1:2), level=0.95, method="boot", boot.type = "parametric")
+# saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_lm_ll_smoking_rob.rds"))
+CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_lm_ll_smoking_rob.rds"))
+CIs
 ```
 
-### Over time
+No controlling necessary.
 
-```{r}
-fig_CP_time <- ggplot(df_tbt_time, aes(x=trial_block, y=mean_CP, group=reinforcer_type)) +
-  geom_line(aes(color=reinforcer_type), linewidth=0.8) +
-  geom_ribbon(aes(ymin = ci_l_CP, ymax = ci_u_CP, fill = reinforcer_type), alpha = 0.2) + 
-  facet_wrap(~aud_group, scales="fixed") +
-  scale_y_continuous("Choice probabilities", limits = c(0,1)) +
-  scale_x_continuous("Trial") +
-  theme_light(base_size=18) +
-  theme(legend.position = "right") +
-  scale_color_brewer(name="Reinforcer type", 
-                  labels=c("alcohol", "juice"),
-                  palette = "Accent") +
-  scale_fill_brewer(name="Reinforcer type", 
-                  labels=c("alcohol", "juice"),
-                  palette = "Accent")
+<!-- # Trial-by-trial quantities -->
 
-fig_CP_time
+<!-- ## Absolute prediction errors -->
 
-```
+<!-- ```{r} -->
 
-```{r}
-m_CP_time=lmer(new_CPs~reinforcer_type*aud_group*trial_block + (1 + reinforcer_type + trial_block | ID),
-                data=trialy_by_trial_df,
-                control=lmerControl(calc.derivs=FALSE))
+<!-- fig_PE_time <- ggplot(df_tbt_time, aes(x=trial_block, y=mean_PE, group=reinforcer_type)) + -->
 
-tab_model(m_CP_time,
-          dv.labels=c("m_CP"), digits=3, digits.re=2, transform = NULL, show.est = T, df.method = "satterthwaite",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+<!--   geom_line(aes(color=reinforcer_type), linewidth=0.8) + -->
 
-check_model(m_CP_time, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+<!--   geom_ribbon(aes(ymin = ci_l_PE, ymax = ci_u_PE, fill = reinforcer_type), alpha = 0.2) +  -->
 
-# robust estimation
-m_CP_time_robust=rlmer(new_CPs~reinforcer_type*aud_group*trial_block + (1 + reinforcer_type + trial_block | ID),
-                data=trialy_by_trial_df,
-                control=lmerControl(calc.derivs=FALSE))
+<!--   facet_wrap(~aud_group, scales="fixed") + -->
 
-plot(m_CP_time_robust)
-```
+<!--   scale_y_continuous("Absolute RPEs", limits = c(0,1)) + -->
 
-Derive p-values for robust model according to https://stats.stackexchange.com/questions/430490/obtaining-p-values-in-a-robustlmm-mixed-model-via-satterthwaite-approximated-dfs
+<!--   scale_x_continuous("Trial") + -->
 
-```{r}
-# get Satterthwaite DFs from non-robust model
-coefs <- data.frame(coef(summary(m_CP)))
+<!--   theme_light(base_size=18) + -->
 
-# get coefficients from robust model to extract t-values
-coefs.robust <- coef(summary(m_CP_robust))
+<!--   theme(legend.position = "right") + -->
 
-# calculate p-values based on robust t-values and non-robust approx. DFs
-p.values <- 2*pt(abs(coefs.robust[,3]), coefs$df, lower=FALSE)
-as.data.frame(p.values)
-```
+<!--   scale_color_brewer(name="Reinforcer type",  -->
 
+<!--                   labels=c("alcohol", "juice"), -->
 
-As difference in significance, show full model:
+<!--                   palette = "Accent") + -->
 
-```{r}
-tab_model(m_CP_robust,
-          dv.labels=c("m_CP_robust"), digits=3, digits.re=2, transform = NULL, show.est = T, df.method = "normal",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
-summary(m_CP_robust)
-```
+<!--   scale_fill_brewer(name="Reinforcer type",  -->
 
-Get p-values for post-hoc tests based on satterthwaites dfs: 
+<!--                   labels=c("alcohol", "juice"), -->
 
-```{r}
-post_hoc_CP <- summary(emtrends(m_CP, c("reinforcer_type", "aud_group"), var = "trial_block", lmer.df = "satterthwaite", lmerTest.limit = 5702), infer=TRUE)
-post_hoc_CP
+<!--                   palette = "Accent") -->
 
-post_hoc_CP_robust <- summary(emtrends(m_CP_robust, c("reinforcer_type", "aud_group"), var = "trial_block", lmer.df = "satterthwaite", lmerTest.limit = 5702), infer=TRUE)
-post_hoc_CP_robust
-post_hoc_CP_robust <- as.matrix(post_hoc_CP_robust)
+<!-- fig_PE_time -->
 
-p.values <- 2*pt(abs(as.numeric(post_hoc_CP_robust[,8])), post_hoc_CP$df, lower=F)
-as.data.frame(p.values)
-```
+<!-- ``` -->
 
-```{r}
-pairs_CP <- pairs(emtrends(m_CP, c("reinforcer_type", "aud_group"), var = "trial_block", lmer.df = "satterthwaite", lmerTest.limit = 5702))
-pairs_CP
+<!-- ```{r} -->
 
-pairs_CP_robust <- pairs(emtrends(m_CP_robust, c("reinforcer_type", "aud_group"), var = "trial_block", lmer.df = "satterthwaite", lmerTest.limit = 5702))
-pairs_CP_robust
+<!-- m_PE=lmer(new_absPEs ~ reinforcer_type*aud_group*trial_block + (1 + reinforcer_type + trial_block || ID), -->
 
-p.values <- 2*pt(6.321, 5521.5, lower=F)
-as.data.frame(p.values)
-```
+<!--                 data=trialy_by_trial_df, -->
 
+<!--                 control=lmerControl(calc.derivs=FALSE), -->
 
-```{r}
-plot_model(m_CP_robust, type = "pred", terms = c("trial_block", "reinforcer_type", "aud_group"))
-```
+<!--                 REML=F) -->
 
-## Q-values of chosen option
+<!-- tab_model(m_PE, -->
 
-```{r}
-fig_Q_time <- ggplot(df_tbt_time, aes(x=trial_block, y=mean_Q, group=reinforcer_type)) +
-  geom_line(aes(color=reinforcer_type), linewidth=0.8) +
-  geom_ribbon(aes(ymin = ci_l_Q, ymax = ci_u_Q, fill = reinforcer_type), alpha = 0.2) + 
-  facet_wrap(~aud_group, scales="free_y") +
-  scale_y_continuous("Q-values \n of chosen option", limits = c(0,1)) +
-  scale_x_continuous("Trial") +
-  theme_light(base_size=18) +
-  theme(legend.position = "right") +
-  scale_color_brewer(name="Reinforcer type", 
-                  labels=c("alcohol", "juice"),
-                  palette = "Accent") +
-  scale_fill_brewer(name="Reinforcer type", 
-                  labels=c("alcohol", "juice"),
-                  palette = "Accent")
+<!--           dv.labels=c("m_PE"), digits=2, digits.re=2, transform = NULL, show.est = T, df.method = "satterthwaite", -->
 
-fig_Q_time
+<!--           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells")) -->
 
-```
+<!-- check_model(m_PE, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq")) -->
 
-```{r}
-m_Q=lmer(new_Qs~reinforcer_type*aud_group*trial_block + (1 + reinforcer_type + trial_block | ID),
-                data=trialy_by_trial_df,
-                control=lmerControl(calc.derivs=FALSE))
+<!-- # robust estimation -->
 
-tab_model(m_Q,
-          dv.labels=c("m_rt_trial"), digits=3, digits.re=2, transform = NULL, show.est = T, 
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=FALSE,CSS = css_theme("cells"))
+<!-- m_PE_robust=rlmer(new_absPEs ~ reinforcer_type*aud_group*trial_block + (1 + reinforcer_type + trial_block || ID), -->
 
-check_model(m_Q, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
-```
+<!--                 data=trialy_by_trial_df, -->
 
-## Combined plot
+<!--                 control=lmerControl(calc.derivs=FALSE)) -->
+
+<!-- plot(m_PE_robust) -->
+
+<!-- ``` -->
+
+<!-- Derive p-values for robust model according to https://stats.stackexchange.com/questions/430490/obtaining-p-values-in-a-robustlmm-mixed-model-via-satterthwaite-approximated-dfs -->
+
+<!-- ```{r} -->
+
+<!-- # get Satterthwaite DFs from non-robust model -->
+
+<!-- coefs <- data.frame(coef(summary(m_PE))) -->
+
+<!-- # get coefficients from robust model to extract t-values -->
+
+<!-- coefs.robust <- coef(summary(m_PE_robust)) -->
+
+<!-- # calculate p-values based on robust t-values and non-robust approx. DFs -->
+
+<!-- p.values <- 2*pt(abs(coefs.robust[,3]), coefs$df, lower=FALSE) -->
+
+<!-- as.data.frame(p.values) -->
+
+<!-- ``` -->
+
+<!-- As difference in significance, show full model: -->
+
+<!-- ```{r} -->
+
+<!-- tab_model(m_PE_robust, -->
+
+<!--           dv.labels=c("m_PE_robust"), digits=2, digits.re=2, transform = NULL, show.est = T, df.method = "normal", -->
+
+<!--           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells")) -->
+
+<!-- summary(m_PE_robust) -->
+
+<!-- ``` -->
+
+<!-- Get p-values for post-hoc tests based on satterthwaites dfs:  -->
+
+<!-- ```{r} -->
+
+<!-- post_hoc_PE <- summary(emtrends(m_PE, c("reinforcer_type", "aud_group"), var = "trial_block", lmer.df = "satterthwaite", lmerTest.limit = 5702), infer=TRUE) -->
+
+<!-- post_hoc_PE -->
+
+<!-- post_hoc_PE_robust <- summary(emtrends(m_PE_robust, c("reinforcer_type", "aud_group"), var = "trial_block", lmer.df = "satterthwaite", lmerTest.limit = 5702), infer=TRUE) -->
+
+<!-- post_hoc_PE_robust -->
+
+<!-- post_hoc_PE_robust <- as.matrix(post_hoc_PE_robust) -->
+
+<!-- p.values <- 2*pt(abs(as.numeric(post_hoc_PE_robust[,8])), post_hoc_PE$df, lower=F) -->
+
+<!-- as.data.frame(p.values) -->
+
+<!-- ``` -->
+
+<!-- ```{r} -->
+
+<!-- plot_model(m_PE_robust, type = "pred", terms = c("trial_block", "reinforcer_type")) -->
+
+<!-- ``` -->
+
+<!-- ## Choice probabilities of chosen option -->
+
+<!-- ### Across trials -->
+
+<!-- ```{r} -->
+
+<!-- fig_CP <- ggplot(trialy_by_trial_df, aes(x = reinforcer_type, y = pc_pred, fill = reinforcer_type)) + -->
+
+<!--   geom_violin() + -->
+
+<!--   geom_boxplot(width=0.1, size=0.8) + -->
+
+<!--   facet_wrap(~aud_group, scales="fixed") + -->
+
+<!--   scale_y_continuous("Model-predicted likelihood of chosen options", limits = c(0,1)) + -->
+
+<!--   theme_light(base_size=18) + -->
+
+<!--   theme(axis.title.x=element_blank(), -->
+
+<!--       axis.text.x=element_blank(), -->
+
+<!--       axis.ticks.x=element_blank(), -->
+
+<!--       legend.position = "bottom") + -->
+
+<!--   scale_fill_brewer(name="Reinforcer type",  -->
+
+<!--                   labels=c("alcohol", "juice"), -->
+
+<!--                   palette = "Accent") -->
+
+<!-- fig_CP -->
+
+<!-- ``` -->
+
+<!-- ```{r} -->
+
+<!-- m_CP <- lmer(pc_pred ~ 1 + reinforcer_type*aud_group + (1 | ID), data=trialy_by_trial_df) -->
+
+<!-- tab_model(m_CP, -->
+
+<!--           dv.labels=c("m_alpha"), digits=2, digits.re=2, df.method = "satterthwaite", -->
+
+<!--           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells")) -->
+
+<!-- check_model(m_CP, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq")) -->
+
+<!-- # robust estimation -->
+
+<!-- m_CP_robust <- rlmer(pc_pred ~ 1 + reinforcer_type*aud_group + (1 | ID), data=trialy_by_trial_df) -->
+
+<!-- plot(m_CP_robust) -->
+
+<!-- ``` -->
+
+<!-- ```{r} -->
+
+<!-- # get Satterthwaite DFs from non-robust model -->
+
+<!-- coefs <- data.frame(coef(summary(m_CP))) -->
+
+<!-- # get coefficients from robust model to extract t-values -->
+
+<!-- coefs.robust <- coef(summary(m_CP_robust)) -->
+
+<!-- # calculate p-values based on robust t-values and non-robust approx. DFs -->
+
+<!-- p.values <- 2*pt(abs(coefs.robust[,3]), coefs$df, lower=FALSE) -->
+
+<!-- as.data.frame(p.values) -->
+
+<!-- ``` -->
+
+<!-- ### Over time -->
+
+<!-- ```{r} -->
+
+<!-- fig_CP_time <- ggplot(df_tbt_time, aes(x=trial_block, y=mean_CP, group=reinforcer_type)) + -->
+
+<!--   geom_line(aes(color=reinforcer_type), linewidth=0.8) + -->
+
+<!--   geom_ribbon(aes(ymin = ci_l_CP, ymax = ci_u_CP, fill = reinforcer_type), alpha = 0.2) +  -->
+
+<!--   facet_wrap(~aud_group, scales="fixed") + -->
+
+<!--   scale_y_continuous("Choice probabilities", limits = c(0,1)) + -->
+
+<!--   scale_x_continuous("Trial") + -->
+
+<!--   theme_light(base_size=18) + -->
+
+<!--   theme(legend.position = "right") + -->
+
+<!--   scale_color_brewer(name="Reinforcer type",  -->
+
+<!--                   labels=c("alcohol", "juice"), -->
+
+<!--                   palette = "Accent") + -->
+
+<!--   scale_fill_brewer(name="Reinforcer type",  -->
+
+<!--                   labels=c("alcohol", "juice"), -->
+
+<!--                   palette = "Accent") -->
+
+<!-- fig_CP_time -->
+
+<!-- ``` -->
+
+<!-- ```{r} -->
+
+<!-- m_CP_time=lmer(new_CPs~reinforcer_type*aud_group*trial_block + (1 + reinforcer_type + trial_block | ID), -->
+
+<!--                 data=trialy_by_trial_df, -->
+
+<!--                 control=lmerControl(calc.derivs=FALSE)) -->
+
+<!-- tab_model(m_CP_time, -->
+
+<!--           dv.labels=c("m_CP"), digits=2, digits.re=2, transform = NULL, show.est = T, df.method = "satterthwaite", -->
+
+<!--           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells")) -->
+
+<!-- check_model(m_CP_time, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq")) -->
+
+<!-- # robust estimation -->
+
+<!-- m_CP_time_robust=rlmer(new_CPs~reinforcer_type*aud_group*trial_block + (1 + reinforcer_type + trial_block | ID), -->
+
+<!--                 data=trialy_by_trial_df, -->
+
+<!--                 control=lmerControl(calc.derivs=FALSE)) -->
+
+<!-- plot(m_CP_time_robust) -->
+
+<!-- ``` -->
+
+<!-- Derive p-values for robust model according to https://stats.stackexchange.com/questions/430490/obtaining-p-values-in-a-robustlmm-mixed-model-via-satterthwaite-approximated-dfs -->
+
+<!-- ```{r} -->
+
+<!-- # get Satterthwaite DFs from non-robust model -->
+
+<!-- coefs <- data.frame(coef(summary(m_CP))) -->
+
+<!-- # get coefficients from robust model to extract t-values -->
+
+<!-- coefs.robust <- coef(summary(m_CP_robust)) -->
+
+<!-- # calculate p-values based on robust t-values and non-robust approx. DFs -->
+
+<!-- p.values <- 2*pt(abs(coefs.robust[,3]), coefs$df, lower=FALSE) -->
+
+<!-- as.data.frame(p.values) -->
+
+<!-- ``` -->
+
+<!-- As difference in significance, show full model: -->
+
+<!-- ```{r} -->
+
+<!-- tab_model(m_CP_robust, -->
+
+<!--           dv.labels=c("m_CP_robust"), digits=2, digits.re=2, transform = NULL, show.est = T, df.method = "normal", -->
+
+<!--           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells")) -->
+
+<!-- summary(m_CP_robust) -->
+
+<!-- ``` -->
+
+<!-- Get p-values for post-hoc tests based on satterthwaites dfs:  -->
+
+<!-- ```{r} -->
+
+<!-- post_hoc_CP <- summary(emtrends(m_CP, c("reinforcer_type", "aud_group"), var = "trial_block", lmer.df = "satterthwaite", lmerTest.limit = 5702), infer=TRUE) -->
+
+<!-- post_hoc_CP -->
+
+<!-- post_hoc_CP_robust <- summary(emtrends(m_CP_robust, c("reinforcer_type", "aud_group"), var = "trial_block", lmer.df = "satterthwaite", lmerTest.limit = 5702), infer=TRUE) -->
+
+<!-- post_hoc_CP_robust -->
+
+<!-- post_hoc_CP_robust <- as.matrix(post_hoc_CP_robust) -->
+
+<!-- p.values <- 2*pt(abs(as.numeric(post_hoc_CP_robust[,8])), post_hoc_CP$df, lower=F) -->
+
+<!-- as.data.frame(p.values) -->
+
+<!-- ``` -->
+
+<!-- ```{r} -->
+
+<!-- pairs_CP <- pairs(emtrends(m_CP, c("reinforcer_type", "aud_group"), var = "trial_block", lmer.df = "satterthwaite", lmerTest.limit = 5702)) -->
+
+<!-- pairs_CP -->
+
+<!-- pairs_CP_robust <- pairs(emtrends(m_CP_robust, c("reinforcer_type", "aud_group"), var = "trial_block", lmer.df = "satterthwaite", lmerTest.limit = 5702)) -->
+
+<!-- pairs_CP_robust -->
+
+<!-- p.values <- 2*pt(6.321, 5521.5, lower=F) -->
+
+<!-- as.data.frame(p.values) -->
+
+<!-- ``` -->
+
+<!-- ```{r} -->
+
+<!-- plot_model(m_CP_robust, type = "pred", terms = c("trial_block", "reinforcer_type", "aud_group")) -->
+
+<!-- ``` -->
+
+<!-- ## Q-values of chosen option -->
+
+<!-- ```{r} -->
+
+<!-- fig_Q_time <- ggplot(df_tbt_time, aes(x=trial_block, y=mean_Q, group=reinforcer_type)) + -->
+
+<!--   geom_line(aes(color=reinforcer_type), linewidth=0.8) + -->
+
+<!--   geom_ribbon(aes(ymin = ci_l_Q, ymax = ci_u_Q, fill = reinforcer_type), alpha = 0.2) +  -->
+
+<!--   facet_wrap(~aud_group, scales="free_y") + -->
+
+<!--   scale_y_continuous("Q-values \n of chosen option", limits = c(0,1)) + -->
+
+<!--   scale_x_continuous("Trial") + -->
+
+<!--   theme_light(base_size=18) + -->
+
+<!--   theme(legend.position = "right") + -->
+
+<!--   scale_color_brewer(name="Reinforcer type",  -->
+
+<!--                   labels=c("alcohol", "juice"), -->
+
+<!--                   palette = "Accent") + -->
+
+<!--   scale_fill_brewer(name="Reinforcer type",  -->
+
+<!--                   labels=c("alcohol", "juice"), -->
+
+<!--                   palette = "Accent") -->
+
+<!-- fig_Q_time -->
+
+<!-- ``` -->
+
+<!-- ```{r} -->
+
+<!-- m_Q=lmer(new_Qs~reinforcer_type*aud_group*trial_block + (1 + reinforcer_type + trial_block | ID), -->
+
+<!--                 data=trialy_by_trial_df, -->
+
+<!--                 control=lmerControl(calc.derivs=FALSE)) -->
+
+<!-- tab_model(m_Q, -->
+
+<!--           dv.labels=c("m_rt_trial"), digits=2, digits.re=2, transform = NULL, show.est = T,  -->
+
+<!--           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells")) -->
+
+<!-- check_model(m_Q, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq")) -->
+
+<!-- ``` -->
+
+# Combined plot
 
 ```{r}
 # save combined plot
-fig_comp_mod <- ggarrange(fig1, fig2, fig3, fig4, fig_PE_time, fig_CP_time,
-          labels = c("A", "B", "C", "D", "E", "F"),
-          ncol = 2, nrow = 3,
-          common.legend = T, legend="top")
+fig_param <- ggarrange(fig1, fig2, fig3, fig4,
+          labels = c("A", "B", "C", "D"),
+          ncol = 2, nrow = 2)
+fig_param
+
+fig_comp_mod <- ggarrange(fig_param, fig5,
+          labels = c("A", "E"),
+          ncol = 1, nrow = 2, heights = c(2, 1))
 fig_comp_mod
 
-png(file.path(project_path, "Manuscript/Figures", "comp_modeling.png"), width = 20, height = 26, units='cm', res = 600)
-fig_comp_mod
-dev.off()
+ggsave(file.path(project_path, "Manuscript/Initial_draft/Figures", "comp_modeling.png"), width = 20, height =25, units='cm', dpi = 600, bg="white")
 ```

@@ -13,9 +13,9 @@ data {
   int<lower=-999, upper=1> outcome[N, MT, C];  // outcome / trial / subject / condition
   
   int kS; // number of subj-level predictors (aud_group)
-  real subj_vars[N,kS]; //subj-level variable matrix - aud_group per subject
+  real subj_vars[N,kS]; //subj-level variable matrix -  N_subject by 1 (aud_group)
   int kV; // number of visit-level predictors (reinforcer_type)
-  real visit_vars[N,C,kV]; //visit-level variable matrix (renforcer_type per subject and visit)
+  real visit_vars[N,C,kV]; //visit-level variable matrix - N_subject by N_visit by 1 (reinforcer_type) 
   
   int<lower = 0, upper = 1> run_estimation; // a switch to evaluate the likelihood
 }
@@ -31,7 +31,7 @@ parameters {
   
   // Declare all parameters as vectors for vectorizing
   // hyperparameters (group-level means)
-  vector[2] mu; // fixed intercepts for the 4 parameters, for HC and juice (these are coded as 0)
+  vector[2] mu; // fixed intercepts for the 2 parameters, for HC and juice (these are coded as 0)
 
   // Subject-level raw parameters (fixed slope of aud group)
   vector[kS] A_sub_m;    // learning rate
@@ -74,7 +74,7 @@ transformed parameters {
     for (v in 1:C) { // for every condition
       
       // fixed and random intercepts
-      A_normal[s,v] = mu[1] + A_vars[s]; // fixed intercept + random intercept per subject
+      A_normal[s,v] = mu[1] + A_vars[s]; // fixed intercept (beta_0) + random difference between fixed intercept and subject-specific intercept (zeta_0)
       tau_normal[s,v] = mu[2] + tau_vars[s];
       
       for (kv in 1:kV) { 

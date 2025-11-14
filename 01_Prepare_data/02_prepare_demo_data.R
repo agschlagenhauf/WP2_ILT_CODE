@@ -9,8 +9,8 @@ sapply(libs, require, character.only=TRUE)
 #####
 
 # define paths
-data_path<-'WP2_ILT_DATA/RedCap/'
-behav_path <- 'WP2_ILT_DATA/Behav/'
+data_path<-'/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT/WP2_ILT_DATA/RedCap/'
+behav_path <- '/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT/WP2_ILT_DATA/Behav/'
 
 ##########################RedCap infos######################
 
@@ -19,9 +19,9 @@ behav_path <- 'WP2_ILT_DATA/Behav/'
 redcap_demo<-read.csv(file.path(data_path, "raw/TRR265ProjectB01WP2I-WP2demobaseline_DATA_2024-12-10_1541.csv", na.strings="", fsep = ""))
 redcap_psycho<-read.csv(file.path(data_path, "raw/TRR265ProjectB01WP2I-WP2psychometric_DATA_2024-12-10_1210.csv", na.strings="", fsep = ""))
 redcap_screening<-read.csv(file.path(data_path, "raw/TRR265TelephoneScree-B01WP2_DATA_2024-06-27_1023.csv", na.strings="", fsep = ""))
-redcap_BA<-read.csv(file.path(data_path, "raw/TRR265BasicAssessmen-B01WP2DemoVars_DATA_2024-12-10_1552.csv", na.strings="", fsep = ""))
-redcap_BA_HC<-read.csv(file.path(data_path, "raw/TRR265BasicAssessmen-B01WP2_DATA_2024-12-10_1541.csv", na.strings="", fsep = ""))
-redcap_FU<-read.csv(file.path(data_path, "raw/TRR265BasicAssessmen-B01WP2DemoVars_DATA_2024-12-19_1630.csv", na.strings="", fsep = ""))
+#redcap_BA<-read.csv(file.path(data_path, "raw/TRR265BasicAssessmen-B01WP2DemoVars_DATA_2024-12-10_1552.csv", na.strings="", fsep = ""))
+redcap_BA_HC<-read.csv(file.path(data_path, "raw/TRR265BasicAssessmen-B01WP2_DATA_2025-09-22_1114.csv", na.strings="", fsep = ""))
+redcap_FU<-read.csv(file.path(data_path, "raw/TRR265BasicAssessmen-B01WP2DemoVars_DATA_2025-09-22_1113.csv", na.strings="", fsep = ""))
 
 load(file.path(behav_path, "behav_final_n71.RData", na.strings="", fsep = ""))
 behav_n71 <- behav_final
@@ -94,19 +94,23 @@ BA_df <- redcap_FU %>%
   filter(redcap_event_name == "erhebungszeitpunkt_arm_1") %>%
   filter(redcap_repeat_instrument != "at_home_audit") %>%
   select(! c(redcap_event_name, redcap_repeat_instrument, redcap_repeat_instance, bx_qf1_fu_sum, bx_qf2_fu_sum, bx_qf3_fu_sum, 
-             bx_qf4_fu_sum, timestamp_audit, bx_athome_audit_sum)) %>%
+             bx_qf4_fu_sum, bx_qf_alc_fu_01, bx_qf_alc_fu_02, timestamp_audit, bx_athome_audit_sum)) %>%
   dplyr::rename(ID = participant_id,
                BA_date = bx_date,
                smoking_days = bx_qf_tab_06,
                format = bx_qf_tab_07,
+               drinking_days = bx_qf_alc_01,
+               format_drinking = bx_qf_alc_02,
                BA_drinks_past3months = bx_qf1_sum,
                BA_drinks_weekday = bx_qf2_sum,
                BA_drinks_weekendday = bx_qf3_sum,
                BA_drinks_lastday = bx_qf4_sum) %>%
   mutate(smoking_days_3m = case_when(format == 1 ~ smoking_days,
                                      format == 2 ~ smoking_days*4.33*3),
+         drinking_days_3m = case_when(format_drinking == 1 ~ drinking_days,
+                                      format_drinking == 2 ~ drinking_days*4.33*3),
          BA_date = as.Date(BA_date, format= "%Y-%m-%d")) %>%
-  select(! c(smoking_days, format))
+  select(! c(smoking_days, format, drinking_days, format_drinking))
 redcap_new <- merge.data.frame(redcap_new, BA_df, by = "ID", all.x = T)
 
 BA_HC_df <- redcap_BA_HC %>%
@@ -116,26 +120,33 @@ BA_HC_df <- redcap_BA_HC %>%
                 BA_date = bx_date,
                 smoking_days = bx_qf_tab_06,
                 format = bx_qf_tab_07,
+                drinking_days = bx_qf_alc_01,
+                format_drinking = bx_qf_alc_02,
                 BA_drinks_past3months = bx_qf1_sum,
                 BA_drinks_weekday = bx_qf2_sum,
                 BA_drinks_weekendday = bx_qf3_sum,
                 BA_drinks_lastday = bx_qf4_sum) %>%
   mutate(smoking_days_3m = case_when(format == 1 ~ smoking_days,
                                      format == 2 ~ smoking_days*4.33*3),
+         drinking_days_3m = case_when(format_drinking == 1 ~ drinking_days,
+                                      format_drinking == 2 ~ drinking_days*4.33*3),
          BA_date = as.Date(BA_date, format= "%Y-%m-%d")) %>%
-  select(! c(smoking_days, format))
+  select(! c(smoking_days, format, drinking_days, format_drinking))
 redcap_new <- merge.data.frame(redcap_new, BA_HC_df, by = "ID", all.x = T)
 
 redcap_new <- redcap_new %>%
   mutate(BA_date = coalesce(BA_date.y, BA_date.x),
          BA_smoking_days = coalesce(smoking_days_3m.y, smoking_days_3m.x),
+         BA_drinking_days = coalesce(drinking_days_3m.y, drinking_days_3m.x),
          BA_drinks_past3months = coalesce(BA_drinks_past3months.y, BA_drinks_past3months.x),
          BA_drinks_weekday = coalesce(BA_drinks_weekday.y, BA_drinks_weekday.x),
          BA_drinks_weekendday = coalesce(BA_drinks_weekendday.y, BA_drinks_weekendday.x),
          BA_drinks_lastday = coalesce(BA_drinks_lastday.y, BA_drinks_lastday.x)
   ) %>%
   mutate(days_since_BA = as.numeric(MRI_date - BA_date)) %>%
-  select(! c(BA_date.x, BA_date.y, smoking_days_3m.x, smoking_days_3m.y, BA_drinks_past3months.x, BA_drinks_past3months.y, 
+  select(! c(BA_date.x, BA_date.y, smoking_days_3m.x, smoking_days_3m.y, 
+             drinking_days_3m.x, drinking_days_3m.y,
+             BA_drinks_past3months.x, BA_drinks_past3months.y, 
              BA_drinks_weekday.x, BA_drinks_weekday.y, BA_drinks_weekendday.x, BA_drinks_weekendday.y,
              BA_drinks_lastday.x, BA_drinks_lastday.y))
 
@@ -178,7 +189,7 @@ redcap_psycho <- redcap_psycho %>%
     uppsp_premeditation = mean(c_across(starts_with("b01_uppsp_pm")), na.rm = F),
     uppsp_perseverance = mean(c_across(starts_with("b01_uppsp_ps")), na.rm = F),
     uppsp_sensation_seeking = mean(c_across(starts_with("b01_uppsp_ss")), na.rm = F),
-    uppsp_positive_urgency = mean(c_across(starts_with("b01_uppsp_ps")), na.rm = F),
+    uppsp_positive_urgency = mean(c_across(starts_with("b01_uppsp_pu")), na.rm = F),
     uppsp_total = mean(c_across(starts_with("uppsp_")), na.rm = F)
   ) %>%
   ungroup()
@@ -344,3 +355,4 @@ redcap_new_imputed <- dplyr::filter(redcap_new_imputed, (ID %in% behav_n56$ID))
 save(file=file.path(data_path, paste("redcap_n", nsub, "_new.RData", sep="")), redcap_new)
 save(file=file.path(data_path, paste("redcap_n", nsub, "_new_imputed.RData", sep="")), redcap_new_imputed)
 save(file=file.path(behav_path, paste("behav_final_redcap_n", nsub, ".RData", sep="")), behav_final_redcap)
+
