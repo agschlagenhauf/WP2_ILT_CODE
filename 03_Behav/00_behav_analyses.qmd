@@ -98,7 +98,12 @@ contrasts(behav_final_redcap$screen_handeness) <- contr.treatment(3, base=2)
 
 ##### define se function #####
 
-se <- function(x) sd(x, na.rm=TRUE)/sqrt(length(x)-sum(is.nan(x)))
+se <- function(x, na.rm = FALSE) {
+  if (na.rm) {
+    x <- x[!is.na(x)]       # remove NA, NaN, etc.
+  }
+  sd(x, na.rm = na.rm) / sqrt(length(x))
+}
 
 ##### general settings #####
 
@@ -255,10 +260,10 @@ d_rating <- behav_rating %>%
   group_by(reinforcer_type,aud_group) %>%
   dplyr::summarise(across(c('taste1','taste2','crave1','crave2','taste_diff','crave_diff', 'taste_mean', 'crave_mean'), .fns=
                    list('_mean' = mean,
-                        '_sd' = sd,
+                        '_se' = se,
                         '_min' = min,
                         '_max' = max),
-                   na.rm=T))
+                   na.rm=TRUE))
 
 d_rating_nan <- behav_rating %>%
   group_by(reinforcer_type,aud_group) %>%
@@ -270,28 +275,28 @@ d_rating_nan
 stats <- d_rating[1,-1:-2] %>% gather(stat, val) %>%
   separate(stat, into = c("var", "stat"), sep = "__") %>%
   spread(stat, val) %>%
-  mutate(across(c('max','mean','min','sd'), round, 2))
+  mutate(across(c('max','mean','min','se'), round, 2))
 stats
 
 # alc HC
 stats <- d_rating[2,-1:-2] %>% gather(stat, val) %>%
   separate(stat, into = c("var", "stat"), sep = "__") %>%
   spread(stat, val) %>%
-  mutate(across(c('max','mean','min','sd'), round, 2))
+  mutate(across(c('max','mean','min','se'), round, 2))
 stats
 
 # jui AUD
 stats <- d_rating[3,-1:-2] %>% gather(stat, val) %>%
   separate(stat, into = c("var", "stat"), sep = "__") %>%
   spread(stat, val) %>%
-  mutate(across(c('max','mean','min','sd'), round, 2))
+  mutate(across(c('max','mean','min','se'), round, 2))
 stats
 
 # jui HC
 stats <- d_rating[4,-1:-2] %>% gather(stat, val) %>%
   separate(stat, into = c("var", "stat"), sep = "__") %>%
   spread(stat, val) %>%
-  mutate(across(c('max','mean','min','sd'), round, 2))
+  mutate(across(c('max','mean','min','se'), round, 2))
 stats
 ```
 
@@ -658,7 +663,7 @@ df_c_stats <- behav_final_redcap %>%
   group_by(reinforcer_type,aud_group) %>%
   dplyr::summarise(across(c('correct'), .fns=
                    list('_mean' = mean,
-                        '_sd' = sd,
+                        '_se' = se,
                         '_min' = min,
                         '_max' = max),
                    na.rm=T))
@@ -675,7 +680,7 @@ df_c_stats <- behav_final_redcap %>%
   group_by(aud_group) %>%
   dplyr::summarise(across(c('correct'), .fns=
                    list('_mean' = mean,
-                        '_sd' = sd,
+                        '_se' = se,
                         '_min' = min,
                         '_max' = max),
                    na.rm=T))
@@ -694,7 +699,7 @@ df_c_stats <- behav_final_redcap %>%
   group_by(reinforcer_type) %>%
   dplyr::summarise(across(c('correct'), .fns=
                    list('_mean' = mean,
-                        '_sd' = sd,
+                        '_se' = se,
                         '_min' = min,
                         '_max' = max),
                    na.rm=T))
@@ -715,7 +720,7 @@ df_c_stats <- behav_final_redcap %>%
   filter(trial_block==1) %>%
   dplyr::summarise(across(c('correct'), .fns=
                    list('_mean' = mean,
-                        '_sd' = sd,
+                        '_se' = se,
                         '_min' = min,
                         '_max' = max),
                    na.rm=T))
@@ -955,7 +960,7 @@ fig_correct_time
 
 <!--                    list('_mean' = mean, -->
 
-<!--                         '_sd' = sd, -->
+<!--                         '_sd' = se, -->
 
 <!--                         '_min' = min, -->
 
@@ -985,7 +990,7 @@ fig_correct_time
 
 <!--                    list('_mean' = mean, -->
 
-<!--                         '_sd' = sd, -->
+<!--                         '_se' = se, -->
 
 <!--                         '_min' = min, -->
 
@@ -1015,7 +1020,7 @@ fig_correct_time
 
 <!--                    list('_mean' = mean, -->
 
-<!--                         '_sd' = sd, -->
+<!--                         '_se' = se, -->
 
 <!--                         '_min' = min, -->
 
@@ -1285,7 +1290,7 @@ fig_correct_time
 
 <!--                    list('_mean' = mean, -->
 
-<!--                         '_sd' = sd, -->
+<!--                         '_se' = se, -->
 
 <!--                         '_min' = min, -->
 
@@ -1315,7 +1320,7 @@ fig_correct_time
 
 <!--                    list('_mean' = mean, -->
 
-<!--                         '_sd' = sd, -->
+<!--                         '_se' = se, -->
 
 <!--                         '_min' = min, -->
 
@@ -1345,7 +1350,7 @@ fig_correct_time
 
 <!--                    list('_mean' = mean, -->
 
-<!--                         '_sd' = sd, -->
+<!--                         '_se' = se, -->
 
 <!--                         '_min' = min, -->
 
@@ -1609,7 +1614,7 @@ df_rt_stats <- behav_final_redcap %>%
   group_by(reinforcer_type,aud_group) %>%
   dplyr::summarise(across(c('rt'), .fns=
                    list('_mean' = mean,
-                        '_sd' = sd,
+                        '_se' = se,
                         '_min' = min,
                         '_max' = max),
                    na.rm=T))
@@ -1626,7 +1631,7 @@ df_rt_stats <- behav_final_redcap %>%
   group_by(aud_group) %>%
   dplyr::summarise(across(c('rt'), .fns=
                    list('_mean' = mean,
-                        '_sd' = sd,
+                        '_se' = se,
                         '_min' = min,
                         '_max' = max),
                    na.rm=T))
@@ -1645,7 +1650,7 @@ df_rt_stats <- behav_final_redcap %>%
   group_by(reinforcer_type) %>%
   dplyr::summarise(across(c('rt'), .fns=
                    list('_mean' = mean,
-                        '_sd' = sd,
+                        '_se' = se,
                         '_min' = min,
                         '_max' = max),
                    na.rm=T))
@@ -1665,7 +1670,7 @@ df_rt_stats <- behav_final_redcap %>%
   filter(trial_block==1) %>%
   dplyr::summarise(across(c('rt'), .fns=
                    list('_mean' = mean,
-                        '_sd' = sd,
+                        '_se' = se,
                         '_min' = min,
                         '_max' = max),
                    na.rm=T))
@@ -2073,5 +2078,5 @@ fig_behav <- ggarrange(fig_taste_crave, fig_correct_time, fig_rt_time,
           common.legend = TRUE, legend="bottom", heights = c(1.3,1,1))
 fig_behav
 
-ggsave(file.path(project_path, "Manuscript/Figures", paste("final_fig_behav_", sample, ".png", sep="")), width = 20, height =25, units='cm', dpi = 600, bg="white")
+ggsave(file.path(project_path, "Manuscript/Initial_draft/Figures", paste("final_fig_behav_", sample, ".png", sep="")), width = 20, height =25, units='cm', dpi = 600, bg="white")
 ```

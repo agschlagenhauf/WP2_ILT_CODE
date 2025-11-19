@@ -54,6 +54,15 @@ Qs <- read.table(file.path(data_path, 'fmri_Qs_PH_withC_init05_n58.txt'), header
 
 # number notation without exponentials
 options(scipen = 50)
+
+##### define se function #####
+
+se <- function(x, na.rm = FALSE) {
+  if (na.rm) {
+    x <- x[!is.na(x)]       # remove NA, NaN, etc.
+  }
+  sd(x, na.rm = na.rm) / sqrt(length(x))
+}
 ```
 
 ```{r}
@@ -195,7 +204,7 @@ stats <- params %>%
   group_by(reinforcer_type,aud_group) %>%
   dplyr::summarise(across(c('alpha'), .fns=
                    list('_mean' = mean,
-                        '_sd' = sd,
+                        '_se' = se,
                         '_min' = min,
                         '_max' = max),
                    na.rm=T))
@@ -312,7 +321,7 @@ stats <- params %>%
   group_by(reinforcer_type,aud_group) %>%
   dplyr::summarise(across(c('tau'), .fns=
                    list('_mean' = mean,
-                        '_sd' = sd,
+                        '_se' = se,
                         '_min' = min,
                         '_max' = max),
                    na.rm=T))
@@ -429,7 +438,7 @@ stats <- params %>%
   group_by(reinforcer_type,aud_group) %>%
   dplyr::summarise(across(c('gamma'), .fns=
                    list('_mean' = mean,
-                        '_sd' = sd,
+                        '_se' = se,
                         '_min' = min,
                         '_max' = max),
                    na.rm=T))
@@ -546,7 +555,7 @@ stats <- params %>%
   group_by(reinforcer_type,aud_group) %>%
   dplyr::summarise(across(c('C'), .fns=
                    list('_mean' = mean,
-                        '_sd' = sd,
+                        '_se' = se,
                         '_min' = min,
                         '_max' = max),
                    na.rm=T))
@@ -671,7 +680,7 @@ stats <- df_log_likelihood %>%
   group_by(reinforcer_type,aud_group) %>%
   dplyr::summarise(across(c('log_likelihood'), .fns=
                    list('_mean' = mean,
-                        '_sd' = sd,
+                        '_se' = se,
                         '_min' = min,
                         '_max' = max),
                    na.rm=T))
@@ -693,7 +702,7 @@ fig5 <- ggplot(df_log_likelihood, aes(x = fct_rev(fct_infreq(reinforcer_type)), 
 
 fig5
 
-ggsave(file.path(project_path, "Manuscript/Figures", "loglik.png"), width = 10, height =8, units='cm', dpi = 600, bg="white")
+ggsave(file.path(project_path, "Manuscript/Initial_draft/Figures", "loglik.png"), width = 10, height =8, units='cm', dpi = 600, bg="white")
 
 ```
 
