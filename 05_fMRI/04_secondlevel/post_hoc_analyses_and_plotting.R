@@ -1,10 +1,12 @@
+###################
 ###### Preps ######
+###################
 
 # clear
 rm(list=ls())
 
 #install.packages('tidyverse', 'plyr')
-libs<-c("tidyverse", "R.matlab", "stringr", "dplyr", "ggplot2", "ggpubr", "bayestestR", "emmeans", "performance")
+libs<-c("tidyverse", "R.matlab", "stringr", "dplyr", "ggplot2", "ggpubr", "bayestestR", "emmeans", "performance", "estimatr", "sjPlot", "rstatix")
 sapply(libs, require, character.only=TRUE)
 
 # define paths
@@ -16,7 +18,9 @@ exploratory_nacc_caudate <- read.csv(file.path(data_path, "fMRI/extracted_values
 exploratory_parietal <- read.csv(file.path(data_path, "fMRI/extracted_values_and_maps/exploratory_parietal.txt"))
 load(file.path(data_path, "Behav/behav_final_redcap_n56.RData"))
 
+############################################################################
 ###### Bilateral basal ganglia activity per group and reinforcer type ######
+############################################################################
 
 # structure data
 mean_bg_roi <- mean_bg_roi %>%
@@ -32,13 +36,22 @@ contrasts(mean_bg_roi$reinforcer) = (contr.treatment(2)-1)*(-1)
 
 # model comparison
 model_roi_intercept <- lm(value ~ 1, data=mean_bg_roi)
-model_roi_group <- lm(value ~ 1 + aud_group, data=mean_bg_roi)
-model_roi_reinforcer <- lm(value ~ 1 + reinforcer, data=mean_bg_roi)
-model_roi_both <- lm(value ~ 1 + aud_group + reinforcer, data=mean_bg_roi)
+check_model(model_roi_intercept)
+# model_roi_group <- lm(value ~ 1 + aud_group, data=mean_bg_roi)
+# model_roi_reinforcer <- lm(value ~ 1 + reinforcer, data=mean_bg_roi)
+# model_roi_both <- lm(value ~ 1 + aud_group + reinforcer, data=mean_bg_roi)
 model_roi_interaction <- lm(value ~ 1 + aud_group*reinforcer, data=mean_bg_roi)
+check_model(model_roi_interaction)
+model_roi_interaction_rob <- lm_robust(value ~ 1 + aud_group*reinforcer, data=mean_bg_roi)
 
-anova(model_roi_intercept, model_roi_group, model_roi_reinforcer, model_roi_both, model_roi_interaction)
-bayesfactor_models(model_roi_intercept, model_roi_group, model_roi_reinforcer, model_roi_both, model_roi_interaction, denominator = model_roi_intercept)
+tab_model(model_roi_interaction,
+          dv.labels=c("model_roi_interaction"), digits=2, digits.re=2, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))#
+tab_model(model_roi_interaction_rob,
+          dv.labels=c("model_roi_interaction"), digits=2, digits.re=2, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))#
+
+bayesfactor_models(model_roi_intercept, model_roi_interaction, denominator = model_roi_intercept)
 
 # create plot
 fig_bg_roi <- ggplot(mean_bg_roi, aes(x=fct_rev(fct_infreq(reinforcer)), y=value, fill=fct_rev(fct_infreq(reinforcer)))) +
@@ -62,9 +75,9 @@ fig_bg_roi
 
 # ggsave(file.path("/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT/Manuscript/Initial_draft/Figures", "Mean_ROI.png"), width = 15, height =10, units='cm', dpi = 600, bg="white")
 
-
-
+##############################################################
 ###### Left NAcc activity per group and reinforcer type ######
+##############################################################
 
 # structure data
 exploratory_nacc <- exploratory_nacc %>%
@@ -80,13 +93,22 @@ contrasts(exploratory_nacc$reinforcer) = (contr.treatment(2)-1)*(-1)
 
 # model comparison
 model_nacc_intercept <- lm(value ~ 1, data=exploratory_nacc)
-model_nacc_group <- lm(value ~ 1 + aud_group, data=exploratory_nacc)
-model_nacc_reinforcer <- lm(value ~ 1 + reinforcer, data=exploratory_nacc)
-model_nacc_both <- lm(value ~ 1 + aud_group + reinforcer, data=exploratory_nacc)
+check_model(model_nacc_intercept)
+# model_nacc_group <- lm(value ~ 1 + aud_group, data=exploratory_nacc)
+# model_nacc_reinforcer <- lm(value ~ 1 + reinforcer, data=exploratory_nacc)
+# model_nacc_both <- lm(value ~ 1 + aud_group + reinforcer, data=exploratory_nacc)
 model_nacc_interaction <- lm(value ~ 1 + aud_group*reinforcer, data=exploratory_nacc)
+check_model(model_nacc_interaction)
+model_nacc_interaction_rob <- lm_robust(value ~ 1 + aud_group*reinforcer, data=exploratory_nacc)
 
-anova(model_nacc_intercept, model_nacc_group, model_nacc_reinforcer, model_nacc_both, model_nacc_interaction)
-bayesfactor_models(model_nacc_intercept, model_nacc_group, model_nacc_reinforcer, model_nacc_both, model_nacc_interaction, denominator = model_nacc_intercept)
+tab_model(model_nacc_interaction,
+          dv.labels=c("model_roi_interaction"), digits=2, digits.re=2, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))#
+tab_model(model_nacc_interaction_rob,
+          dv.labels=c("model_roi_interaction"), digits=2, digits.re=2, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))#
+
+bayesfactor_models(model_nacc_intercept, model_nacc_interaction, denominator = model_nacc_intercept)
 
 # create plot
 fig_expl_nacc <- ggplot(exploratory_nacc, aes(x=fct_rev(fct_infreq(reinforcer)), y=value, fill=fct_rev(fct_infreq(reinforcer)))) +
@@ -110,8 +132,9 @@ fig_expl_nacc
 
 # ggsave(file.path("/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT/Manuscript/Initial_draft/Figures", "Exploratory_NAcc.png"), width = 15, height =10, units='cm', dpi = 600, bg="white")
 
-
+###########################################################################
 ###### Bilateral nacc caudate activity per group and reinforcer type ######
+###########################################################################
 
 # structure data
 exploratory_nacc_caudate <- exploratory_nacc_caudate %>%
@@ -127,14 +150,22 @@ contrasts(exploratory_nacc_caudate$reinforcer) = (contr.treatment(2)-1)*(-1)
 
 # model comparison
 model_nc_intercept <- lm(value ~ 1, data=exploratory_nacc_caudate)
-model_nc_group <- lm(value ~ 1 + aud_group, data=exploratory_nacc_caudate)
-model_nc_reinforcer <- lm(value ~ 1 + reinforcer, data=exploratory_nacc_caudate)
-model_nc_both <- lm(value ~ 1 + aud_group + reinforcer, data=exploratory_nacc_caudate)
+check_model(model_nc_intercept)
+# model_nc_group <- lm(value ~ 1 + aud_group, data=exploratory_nacc_caudate)
+# model_nc_reinforcer <- lm(value ~ 1 + reinforcer, data=exploratory_nacc_caudate)
+# model_nc_both <- lm(value ~ 1 + aud_group + reinforcer, data=exploratory_nacc_caudate)
 model_nc_interaction <- lm(value ~ 1 + aud_group*reinforcer, data=exploratory_nacc_caudate)
+check_model(model_nc_interaction)
+model_nc_interaction_rob <- lm_robust(value ~ 1 + aud_group*reinforcer, data=exploratory_nacc_caudate)
 
-summary(model_nc_interaction)
-anova(model_nc_intercept, model_nc_group, model_nc_reinforcer, model_nc_both, model_nc_interaction)
-bayesfactor_models(model_nc_intercept, model_nc_group, model_nc_reinforcer, model_nc_both, model_nc_interaction, denominator = model_nc_intercept)
+tab_model(model_nc_interaction,
+          dv.labels=c("model_roi_interaction"), digits=2, digits.re=2, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
+tab_model(model_nc_interaction_rob,
+          dv.labels=c("model_roi_interaction"), digits=2, digits.re=2, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
+
+bayesfactor_models(model_nc_intercept, model_nc_interaction_rob, denominator = model_nc_intercept)
 
 # create plot
 fig_nacc_caudate <- ggplot(exploratory_nacc_caudate, aes(x=fct_rev(fct_infreq(reinforcer)), y=value, fill=fct_rev(fct_infreq(reinforcer)))) +
@@ -156,10 +187,11 @@ fig_nacc_caudate <- ggplot(exploratory_nacc_caudate, aes(x=fct_rev(fct_infreq(re
                     direction = -1)
 fig_nacc_caudate
 
-ggsave(file.path("/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT/Manuscript/Initial_draft/Figures", "Extracted_values_nacc_caudate.png"), width = 15, height =11, units='cm', dpi = 600, bg="white")
+#ggsave(file.path("/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT/Manuscript/Initial_draft/Figures", "Extracted_values_nacc_caudate.png"), width = 15, height =11, units='cm', dpi = 600, bg="white")
 
-
+#########################################################################
 ###### Left parietal cortex activity per group and reinforcer type ######
+#########################################################################
 
 # structure data
 exploratory_parietal <- exploratory_parietal %>%
@@ -173,24 +205,89 @@ exploratory_parietal <- exploratory_parietal %>%
 contrasts(exploratory_parietal$aud_group)
 contrasts(exploratory_parietal$reinforcer) = (contr.treatment(2)-1)*(-1)
 
-# model comparison
-model_par_intercept <- lm(value ~ 1, data=exploratory_parietal)
-model_par_group <- lm(value ~ 1 + aud_group, data=exploratory_parietal)
-model_par_reinforcer <- lm(value ~ 1 + reinforcer, data=exploratory_parietal)
-model_par_both <- lm(value ~ 1 + aud_group + reinforcer, data=exploratory_parietal)
-model_par_interaction <- lm(value ~ 1 + aud_group*reinforcer, data=exploratory_parietal)
+exploratory_parietal_aud <- exploratory_parietal %>%
+  filter(aud_group=="AUD")
+exploratory_parietal_hc <- exploratory_parietal %>%
+  filter(aud_group=="HC")
+exploratory_parietal_alc <- exploratory_parietal %>%
+  filter(reinforcer=="alcohol")
+exploratory_parietal_jui <- exploratory_parietal %>%
+  filter(reinforcer=="juice")
 
-check_model(model_par_interaction)
+###### post-hoc t-test reinforcer type within aud group ###### 
 
-anova(model_par_intercept, model_par_group, model_par_reinforcer, model_par_both, model_par_interaction)
-bayesfactor_models(model_par_intercept, model_par_group, model_par_reinforcer, model_par_both, model_par_interaction, denominator = model_par_intercept)
+# outliers
+exploratory_parietal_aud %>%
+  group_by(reinforcer) %>%
+  identify_outliers(value)
 
-summary(model_par_interaction)
-summary(emmeans(model_par_interaction, specs = pairwise ~ aud_group|reinforcer, lmer.df = "satterthwaite", adjust = "bonf", ), infer=TRUE)
-summary(emmeans(model_par_interaction, specs = pairwise ~ reinforcer|aud_group, lmer.df = "satterthwaite", adjust = "bonf", ), infer=TRUE)
+# normality
+exploratory_parietal_aud %>%
+  group_by(reinforcer) %>%
+  shapiro_test(value)
+ggqqplot(exploratory_parietal_aud, x = "value", facet.by = "reinforcer")
 
+# conduct test
+t.test(exploratory_parietal_aud$value[exploratory_parietal_aud$reinforcer=='alcohol'], exploratory_parietal_aud$value[exploratory_parietal_aud$reinforcer=='juice'], paired=TRUE)
+
+###### post-hoc t-test reinforcer type within hc group ###### 
+
+# outliers
+exploratory_parietal_hc %>%
+  group_by(reinforcer) %>%
+  identify_outliers(value)
+
+# normality
+exploratory_parietal_hc %>%
+  group_by(reinforcer) %>%
+  shapiro_test(value)
+ggqqplot(exploratory_parietal_hc, x = "value", facet.by = "reinforcer")
+
+# conduct test
+t.test(exploratory_parietal_hc$value[exploratory_parietal_hc$reinforcer=='alcohol'], exploratory_parietal_hc$value[exploratory_parietal_hc$reinforcer=='juice'], paired=TRUE)
+
+###### post-hoc t-test groups within alc reinforcer ###### 
+
+# outliers
+exploratory_parietal_alc %>%
+  group_by(aud_group) %>%
+  identify_outliers(value)
+
+# normality
+exploratory_parietal_alc %>%
+  group_by(aud_group) %>%
+  shapiro_test(value)
+ggqqplot(exploratory_parietal_alc, x = "value", facet.by = "aud_group")
+
+# homoscedasticity
+exploratory_parietal_alc %>%
+  levene_test(value ~ aud_group)
+
+# conduct test
+t.test(exploratory_parietal_alc$value ~ exploratory_parietal_alc$aud_group, var.equal=TRUE)
+
+###### post-hoc t-test groups within jui reinforcer ######
+
+# outliers
+exploratory_parietal_jui %>%
+  group_by(aud_group) %>%
+  identify_outliers(value)
+
+# normality
+exploratory_parietal_jui %>%
+  group_by(aud_group) %>%
+  shapiro_test(value)
+ggqqplot(exploratory_parietal_jui, x = "value", facet.by = "aud_group")
+
+# homoscedasticity
+exploratory_parietal_jui %>%
+  levene_test(value ~ aud_group)
+
+# conduct test
+t.test(exploratory_parietal_jui$value ~ exploratory_parietal_jui$aud_group, var.equal=TRUE)
 
 # create plot
+
 fig_expl_par <- ggplot(exploratory_parietal, aes(x=fct_rev(fct_infreq(reinforcer)), y=value, fill=fct_rev(fct_infreq(reinforcer)))) +
   geom_violin() +
   geom_boxplot(width = 0.1, size=0.8) +
@@ -212,8 +309,9 @@ fig_expl_par
 
 # ggsave(file.path("/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT/Manuscript/Initial_draft/Figures", "Mean_ROI.png"), width = 15, height =10, units='cm', dpi = 600, bg="white")
 
-
+#########################
 ##### Combined plot #####
+#########################
 
 ggarrange(fig_expl_par, fig_bg_roi, fig_expl_nacc,
           nrow = 1, ncol= 3,

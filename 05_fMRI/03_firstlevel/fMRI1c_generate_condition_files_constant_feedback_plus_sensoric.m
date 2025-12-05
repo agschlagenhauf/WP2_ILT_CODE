@@ -4,8 +4,8 @@
 
 clear;
 clc;
-addpath('C:\spm12')
-addpath('C:\Users\musialm\OneDrive - Charité - Universitätsmedizin Berlin\PhD\04_B01\ILT\WP2_ILT_CODE\03_fMRI\functs')
+addpath('C:\Users\musialm\Downloads\spm12')
+addpath('C:\Users\musialm\OneDrive - Charité - Universitätsmedizin Berlin\PhD\04_B01\ILT\WP2_ILT_CODE\05_fMRI\functs')
 
 % define parameters
 reg = 1;
@@ -14,14 +14,13 @@ MR = 60; % Microtime resolution = number of slices (Schichten) in MR protocol
 bin = TR/MR;
 
 % define output path
-%stats_path = 'S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\02_spm12_1st_level\PH_withC_n58'; % folder for single stats of this specific model, add names of pmods
-stats_path = 'S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\02_spm12_1st_level\PH_withC_group_n58_constant_feedback_+_sensoric'; % folder for single stats of this specific model, add names of pmods
+stats_path = 'S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\02_ILT\00_spm12_1st_level\PH_withC_n58_constant_feedback_+_sensoric_correctbaseline_compcor'; % folder for single stats of this specific model, add names of pmods
 
 % define behavioral data files
 behav_path   = 'C:\Users\musialm\OneDrive - Charité - Universitätsmedizin Berlin\PhD\04_B01\ILT\WP2_ILT_DATA\Behav\raw\FilesReport_ILTdata_2023-05-24_1718\documents'; % raw behavioral data path
 
 % get ids from n58 parametric modulator txt file
-PEs = readtable(fullfile(stats_path, 'fmri_PEs_PH_withC_hierarchical_nortype_n58.txt'));
+PEs = readtable(fullfile(stats_path, 'fmri_PEs_PH_withC_init05_n58.txt'));
 ids = unique(cellstr(num2str(PEs.ID)));
 clear PEs;
 
@@ -104,21 +103,6 @@ for n = 1:length(ids)
         PEs{n,block} = PEs{n,block}(isnan(PEs{n,block})==0); % exclude NaNs from pmods
         PCs{n,block} = PEs{n,block}(isnan(PEs{n,block})==0);
 
-%         % Reorder PE and PC so that NaN elements are at the position
-%         % where no action was made (currently at the end of the vector)
-%         nan_ind = find(isnan(D_sub.A)); % get index of NaN in action vector
-% 
-%         for ind = 1:length(nan_ind)
-% 
-%             PE_non_nan_start = PEs{n}(1:nan_ind(ind)-1);
-%             PE_non_nan_end = PEs{n}(nan_ind(ind):end);
-%             PEs{n}=[non_nan_start; NaN; non_nan_end];
-% 
-%             PC_non_nan_start = PCs{n}(1:nan_ind(ind)-1);
-%             PC_non_nan_end = PCs{n}(nan_ind(ind):end);
-%             PCs{n}=[non_nan_start; NaN; non_nan_end];
-% 
-%         end
         regs          = [PEs{n,block} PCs{n,block}];
 
         %% get onsets & set bins
@@ -134,11 +118,11 @@ for n = 1:length(ids)
         D_sub.T.onset_swallow(D_sub.R==-1) = 0;
         
         %%% get event onsets
-        onsets_cue      = D_sub.T.trial_onset'-D_sub.T.baseline_start;
-        onsets_feedback = D_sub.T.onset_fb'-D_sub.T.baseline_start;
-        onsets_taste = D_sub.T.onset_taste'-D_sub.T.baseline_start;
-        onsets_swallow = D_sub.T.onset_swallow'-D_sub.T.baseline_start;
-        onsets_trialend= D_sub.T.onset_trialend'-D_sub.T.baseline_start;
+        onsets_cue      = D_sub.T.trial_onset'-D_sub.T.time_begin;
+        onsets_feedback = D_sub.T.onset_fb'-D_sub.T.time_begin;
+        onsets_taste = D_sub.T.onset_taste'-D_sub.T.time_begin;
+        onsets_swallow = D_sub.T.onset_swallow'-D_sub.T.time_begin;
+        onsets_trialend= D_sub.T.onset_trialend'-D_sub.T.time_begin;
         onsets_feedback_sensoric = onsets_feedback(onsets_swallow>=0);
         
         onsets_cue_missings = onsets_cue(isnan(D_sub.A)); % previously onsets_missings = onsets_feedback(isnan(D_sub.A))

@@ -13,6 +13,8 @@ editor_options:
   chunk_output_type: inline
 ---
 
+# Preps
+
 ```{r}
 rm(list=ls())
 
@@ -21,7 +23,7 @@ sapply(libs, require, character.only=TRUE)
 
 data_path<-'/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT/WP2_ILT_DATA/'
 
-sample = "n58" # n58 n71 n13
+sample = "n13" # n58 n71 n13
 
 if (sample == "n56") {
   load(file.path(data_path,"RedCap/redcap_n56_new.RData"))
@@ -59,7 +61,9 @@ gender_summary %>%
 ```
 
 ```{r}
-chisq.test(redcap$aud_group, redcap$gender)
+
+test <- chisq.test(redcap$aud_group, redcap$gender)
+print(test, digits=20)
 ```
 
 ## School degree
@@ -97,6 +101,8 @@ age_summary %>%
   kable("html") %>%
   kable_styling(font_size = 18,
                 latex_options = "scale_down")
+
+print(age_summary$mean, digits=20)
 ```
 
 ```{r}

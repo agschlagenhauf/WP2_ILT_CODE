@@ -240,7 +240,7 @@ tab_model(m_alpha,
 check_model(m_alpha, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
 ```
 
-```{r, echo=FALSE, results='hide'}
+```{r}
 # robust estimation
 m_alpha_robust <- rlmer(alpha ~ 1 + reinforcer_type*aud_group + (1 | ID), 
                         data=params,
@@ -291,7 +291,7 @@ lm_alpha_smoking <- lmer(alpha ~ BA_smoking_days + (1 | ID),
                          control=lmerControl(calc.derivs=FALSE))
 
 tab_model(lm_alpha_smoking,
-          dv.labels=c("lm_alpha_smoking"), digits=2, digits.re=2, df.method = "satterthwaite",
+          dv.labels=c("lm_alpha_smoking"), digits=5, digits.re=2, df.method = "satterthwaite",
           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
 
 check_model(lm_alpha_smoking, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
@@ -469,7 +469,7 @@ m_gamma <- lmer(gamma ~ 1 + reinforcer_type*aud_group + (1 | ID),
                 control=lmerControl(calc.derivs=FALSE))
 
 tab_model(m_gamma,
-          dv.labels=c("m_gamma"), digits=3, digits.re=2, df.method = "satterthwaite",
+          dv.labels=c("m_gamma"), digits=5, digits.re=2, df.method = "satterthwaite",
           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
 
 check_model(m_gamma, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
@@ -500,7 +500,7 @@ lm_gamma_taste <- lmer(gamma ~ taste + (1 | ID),
                          control=lmerControl(calc.derivs=FALSE))
 
 tab_model(lm_gamma_taste,
-          dv.labels=c("lm_gamma_taste"), digits=2, digits.re=2, df.method = "satterthwaite",
+          dv.labels=c("lm_gamma_taste"), digits=5, digits.re=2, df.method = "satterthwaite",
           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
 
 check_model(lm_gamma_taste, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
@@ -524,7 +524,7 @@ lm_gamma_smoking <- lmer(gamma ~ BA_smoking_days + (1 | ID),
                          control=lmerControl(calc.derivs=FALSE))
 
 tab_model(lm_gamma_smoking,
-          dv.labels=c("lm_gamma_smoking"), digits=2, digits.re=2, df.method = "satterthwaite",
+          dv.labels=c("lm_gamma_smoking"), digits=5, digits.re=2, df.method = "satterthwaite",
           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
 
 check_model(lm_gamma_smoking, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
@@ -587,7 +587,7 @@ m_C <- lmer(C ~ 1 + reinforcer_type*aud_group + (1 | ID),
             control=lmerControl(calc.derivs=FALSE))
 
 tab_model(m_C,
-          dv.labels=c("m_C"), digits=3, digits.re=2, df.method = "satterthwaite",
+          dv.labels=c("m_C"), digits=5, digits.re=2, df.method = "satterthwaite",
           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
 
 check_model(m_C, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
@@ -643,7 +643,7 @@ lm_C_smoking <- lmer(C ~ BA_smoking_days + (1 | ID),
                          control=lmerControl(calc.derivs=FALSE))
 
 tab_model(lm_C_smoking,
-          dv.labels=c("lm_C_smoking"), digits=2, digits.re=2, df.method = "satterthwaite",
+          dv.labels=c("lm_C_smoking"), digits=5, digits.re=2, df.method = "satterthwaite",
           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
 
 check_model(lm_C_smoking, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
@@ -656,8 +656,8 @@ tab_model(lm_C_smoking_rob,
           dv.labels=c("lm_C_smoking_rob"), digits=2, digits.re=2, df.method = "normal",
           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci=0.95,CSS = css_theme("cells"))
 
-CIs <- confintROB(lm_C_smoking_rob, parm=c(1:2), level=0.95, method="boot", boot.type = "parametric")
-saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_lm_C_smoking_rob.rds"))
+#CIs <- confintROB(lm_C_smoking_rob, parm=c(1:2), level=0.95, method="boot", boot.type = "parametric")
+#saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_lm_C_smoking_rob.rds"))
 CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_lm_C_smoking_rob.rds"))
 CIs
 
