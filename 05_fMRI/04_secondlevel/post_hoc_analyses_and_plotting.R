@@ -17,6 +17,20 @@ exploratory_nacc <- read.csv(file.path(data_path, "fMRI/extracted_values_and_map
 exploratory_nacc_caudate <- read.csv(file.path(data_path, "fMRI/extracted_values_and_maps/nacc_caudate.txt"))
 exploratory_parietal <- read.csv(file.path(data_path, "fMRI/extracted_values_and_maps/exploratory_parietal.txt"))
 load(file.path(data_path, "Behav/behav_final_redcap_n56.RData"))
+# load(file.path(data_path, "Behav/behav_final_n56.RData"))
+# load(file.path(data_path, "RedCap/redcap_n56_new.RData"))
+# 
+# behav_rating <- behav_final %>%
+#   group_by(ID,reinforcer_type) %>%
+#   dplyr::select(ID,reinforcer_type,ID_block,taste1, taste2, crave1, crave2) %>%
+#   distinct() %>%
+#   mutate(taste_diff=taste2-taste1,
+#          crave_diff=crave2-crave1,
+#          taste_mean = ((taste1 + taste2)/2),
+#          crave_mean = ((crave1 + crave2)/2))
+# behav_rating <- merge(behav_rating,redcap_new,by="ID",all.x = T)
+# behav_rating <- behav_rating %>% arrange(aud_group, ID, reinforcer_type)
+
 
 ############################################################################
 ###### Bilateral basal ganglia activity per group and reinforcer type ######
@@ -30,9 +44,12 @@ mean_bg_roi <- mean_bg_roi %>%
   mutate(combination = as.factor(combination),
          reinforcer = case_when(combination %in% c("mean_rpe_alc_roi") ~ "alcohol",
                                 combination %in% c("mean_rpe_jui_roi") ~ "juice"),
-         reinforcer = as.factor(reinforcer))
-contrasts(mean_bg_roi$aud_group)
-contrasts(mean_bg_roi$reinforcer) = (contr.treatment(2)-1)*(-1)
+         reinforcer = as.factor(reinforcer)) %>%
+  arrange(aud_group, ID, reinforcer)
+contrasts(mean_bg_roi$aud_group) <- c(-0.5, 0.5)
+contrasts(mean_bg_roi$reinforcer) = c(0.5, -0.5)
+
+# behav_rating$mean_bg_roi <- as.numeric(mean_bg_roi$value)
 
 # model comparison
 model_roi_intercept <- lm(value ~ 1, data=mean_bg_roi)
@@ -48,7 +65,7 @@ tab_model(model_roi_interaction,
           dv.labels=c("model_roi_interaction"), digits=2, digits.re=2, df.method = "satterthwaite",
           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))#
 tab_model(model_roi_interaction_rob,
-          dv.labels=c("model_roi_interaction"), digits=2, digits.re=2, df.method = "satterthwaite",
+          dv.labels=c("model_roi_interaction"), digits=2, digits.re=2, df.method = "normal",
           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))#
 
 bayesfactor_models(model_roi_intercept, model_roi_interaction, denominator = model_roi_intercept)
@@ -75,6 +92,10 @@ fig_bg_roi
 
 # ggsave(file.path("/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT/Manuscript/Initial_draft/Figures", "Mean_ROI.png"), width = 15, height =10, units='cm', dpi = 600, bg="white")
 
+# check correlation taste - activity
+cor.test(behav_rating$crave_mean, behav_rating$mean_bg_roi)
+plot(behav_rating$crave_mean, behav_rating$mean_bg_roi)
+
 ##############################################################
 ###### Left NAcc activity per group and reinforcer type ######
 ##############################################################
@@ -88,8 +109,8 @@ exploratory_nacc <- exploratory_nacc %>%
          reinforcer = case_when(combination %in% c("nacc_alc") ~ "alcohol",
                                 combination %in% c("nacc_jui") ~ "juice"),
          reinforcer = as.factor(reinforcer))
-contrasts(exploratory_nacc$aud_group)
-contrasts(exploratory_nacc$reinforcer) = (contr.treatment(2)-1)*(-1)
+contrasts(exploratory_nacc$aud_group) <- c(-0.5, 0.5)
+contrasts(exploratory_nacc$reinforcer) <- c(0.5, -0.5)
 
 # model comparison
 model_nacc_intercept <- lm(value ~ 1, data=exploratory_nacc)
@@ -105,7 +126,7 @@ tab_model(model_nacc_interaction,
           dv.labels=c("model_roi_interaction"), digits=2, digits.re=2, df.method = "satterthwaite",
           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))#
 tab_model(model_nacc_interaction_rob,
-          dv.labels=c("model_roi_interaction"), digits=2, digits.re=2, df.method = "satterthwaite",
+          dv.labels=c("model_roi_interaction"), digits=2, digits.re=2, df.method = "normal",
           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))#
 
 bayesfactor_models(model_nacc_intercept, model_nacc_interaction, denominator = model_nacc_intercept)
@@ -145,8 +166,8 @@ exploratory_nacc_caudate <- exploratory_nacc_caudate %>%
          reinforcer = case_when(combination %in% c("nacc_caudate_alc") ~ "alcohol",
                                 combination %in% c("nacc_caudate_jui") ~ "juice"),
          reinforcer = as.factor(reinforcer))
-contrasts(exploratory_nacc_caudate$aud_group)
-contrasts(exploratory_nacc_caudate$reinforcer) = (contr.treatment(2)-1)*(-1)
+contrasts(exploratory_nacc_caudate$aud_group) <- c(-0.5, 0.5)
+contrasts(exploratory_nacc_caudate$reinforcer) <- c(0.5, -0.5)
 
 # model comparison
 model_nc_intercept <- lm(value ~ 1, data=exploratory_nacc_caudate)
@@ -162,10 +183,10 @@ tab_model(model_nc_interaction,
           dv.labels=c("model_roi_interaction"), digits=2, digits.re=2, df.method = "satterthwaite",
           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
 tab_model(model_nc_interaction_rob,
-          dv.labels=c("model_roi_interaction"), digits=2, digits.re=2, df.method = "satterthwaite",
+          dv.labels=c("model_roi_interaction"), digits=2, digits.re=2, df.method = "normal",
           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
 
-bayesfactor_models(model_nc_intercept, model_nc_interaction_rob, denominator = model_nc_intercept)
+bayesfactor_models(model_nc_intercept, model_nc_interaction, denominator = model_nc_intercept)
 
 # create plot
 fig_nacc_caudate <- ggplot(exploratory_nacc_caudate, aes(x=fct_rev(fct_infreq(reinforcer)), y=value, fill=fct_rev(fct_infreq(reinforcer)))) +
@@ -202,8 +223,10 @@ exploratory_parietal <- exploratory_parietal %>%
          reinforcer = case_when(combination %in% c("parietal_alc") ~ "alcohol",
                                 combination %in% c("parietal_jui") ~ "juice"),
          reinforcer = as.factor(reinforcer))
-contrasts(exploratory_parietal$aud_group)
-contrasts(exploratory_parietal$reinforcer) = (contr.treatment(2)-1)*(-1)
+contrasts(exploratory_parietal$aud_group) <- c(-0.5, 0.5)
+contrasts(exploratory_parietal$reinforcer) <- c(0.5, -0.5)
+
+# behav_rating$exploratory_parietal <- as.numeric(exploratory_parietal$value)
 
 exploratory_parietal_aud <- exploratory_parietal %>%
   filter(aud_group=="AUD")
@@ -228,7 +251,9 @@ exploratory_parietal_aud %>%
 ggqqplot(exploratory_parietal_aud, x = "value", facet.by = "reinforcer")
 
 # conduct test
-t.test(exploratory_parietal_aud$value[exploratory_parietal_aud$reinforcer=='alcohol'], exploratory_parietal_aud$value[exploratory_parietal_aud$reinforcer=='juice'], paired=TRUE)
+ttest1<-t.test(exploratory_parietal_aud$value[exploratory_parietal_aud$reinforcer=='alcohol'], exploratory_parietal_aud$value[exploratory_parietal_aud$reinforcer=='juice'], paired=TRUE)
+ttest1
+p.adjust(ttest1$p.value,n=4)
 
 ###### post-hoc t-test reinforcer type within hc group ###### 
 
@@ -244,7 +269,9 @@ exploratory_parietal_hc %>%
 ggqqplot(exploratory_parietal_hc, x = "value", facet.by = "reinforcer")
 
 # conduct test
-t.test(exploratory_parietal_hc$value[exploratory_parietal_hc$reinforcer=='alcohol'], exploratory_parietal_hc$value[exploratory_parietal_hc$reinforcer=='juice'], paired=TRUE)
+ttest2<-t.test(exploratory_parietal_hc$value[exploratory_parietal_hc$reinforcer=='alcohol'], exploratory_parietal_hc$value[exploratory_parietal_hc$reinforcer=='juice'], paired=TRUE)
+ttest2
+p.adjust(ttest2$p.value,n=4)
 
 ###### post-hoc t-test groups within alc reinforcer ###### 
 
@@ -264,7 +291,9 @@ exploratory_parietal_alc %>%
   levene_test(value ~ aud_group)
 
 # conduct test
-t.test(exploratory_parietal_alc$value ~ exploratory_parietal_alc$aud_group, var.equal=TRUE)
+ttest3<-t.test(exploratory_parietal_alc$value ~ exploratory_parietal_alc$aud_group, var.equal=TRUE)
+ttest3
+p.adjust(ttest3$p.value,n=4)
 
 ###### post-hoc t-test groups within jui reinforcer ######
 
@@ -284,7 +313,9 @@ exploratory_parietal_jui %>%
   levene_test(value ~ aud_group)
 
 # conduct test
-t.test(exploratory_parietal_jui$value ~ exploratory_parietal_jui$aud_group, var.equal=TRUE)
+ttest4<-t.test(exploratory_parietal_jui$value ~ exploratory_parietal_jui$aud_group, var.equal=TRUE)
+ttest4
+p.adjust(ttest4$p.value,n=4)
 
 # create plot
 
@@ -309,6 +340,16 @@ fig_expl_par
 
 # ggsave(file.path("/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT/Manuscript/Initial_draft/Figures", "Mean_ROI.png"), width = 15, height =10, units='cm', dpi = 600, bg="white")
 
+# # check correlation taste - activity
+# cor.test(behav_rating$taste_mean, behav_rating$exploratory_parietal)
+# plot(behav_rating$taste_mean, behav_rating$exploratory_parietal)
+# 
+# corr_df <- behav_rating %>%
+#   select(taste_mean, crave_mean, mean_bg_roi, exploratory_parietal)
+# 
+# rcorr(as.matrix(corr_df))
+# chart.Correlation(corr_df)
+
 #########################
 ##### Combined plot #####
 #########################
@@ -318,5 +359,5 @@ ggarrange(fig_expl_par, fig_bg_roi, fig_expl_nacc,
           common.legend = T,
           legend ='bottom')
 
-ggsave(file.path("/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT/Manuscript/Initial_draft/Figures", "Extracted_values_combined.png"), width = 40, height =11, units='cm', dpi = 600, bg="white")
+#ggsave(file.path("/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT/Manuscript/Initial_draft/Figures", "Extracted_values_combined.png"), width = 40, height =11, units='cm', dpi = 600, bg="white")
 

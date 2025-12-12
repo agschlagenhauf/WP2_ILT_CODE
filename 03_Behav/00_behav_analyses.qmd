@@ -63,7 +63,7 @@ if (sample == 'n58') {
 
 redcap <- redcap_new
 
-##### Adapt basic dfs & set contrasts #####
+# adapt basic dfs 
 
 behav_final <- behav_final %>%
   rowwise() %>%
@@ -77,11 +77,12 @@ behav_final_redcap <- behav_final_redcap %>%
          crave = (crave1+crave2)/2,
          trial_block_centered = trial_block-1)
 
-# create outcome as predictor for stay switch analyses
+redcap$aud_group <- factor(redcap$aud_group, levels = c("AUD", "HC"))
+behav_final_redcap$aud_group <- factor(behav_final_redcap$aud_group, levels = c("AUD", "HC"))
+
 behav_final$outcome_pred <- factor(behav_final$outcome)
 behav_final_redcap$outcome_pred <- factor(behav_final_redcap$outcome)
 
-# recode rt from s to ms
 behav_final$rt <- behav_final$rt*1000
 behav_final_redcap$rt <- behav_final_redcap$rt*1000
 
@@ -89,18 +90,17 @@ behav_final_redcap$rt <- behav_final_redcap$rt*1000
 contrasts(behav_final$outcome_pred) <- contr.treatment(2)
 contrasts(behav_final_redcap$outcome_pred) <- contr.treatment(2)
 
-contrasts(behav_final$reinforcer_type) <- abs(contr.treatment(2)-1)
-contrasts(behav_final_redcap$reinforcer_type) <- abs(contr.treatment(2)-1)
+# contrasts(behav_final$reinforcer_type) <- abs(contr.treatment(2)-1)
+# contrasts(behav_final_redcap$reinforcer_type) <- abs(contr.treatment(2)-1)
+# 
+# contrasts(redcap$aud_group) <- abs(contr.treatment(2)-1)
+# contrasts(behav_final_redcap$aud_group) <- abs(contr.treatment(2)-1)
 
-redcap$aud_group <- factor(redcap$aud_group, levels = c("AUD", "HC"))
-behav_final_redcap$aud_group <- factor(behav_final_redcap$aud_group, levels = c("AUD", "HC"))
-contrasts(redcap$aud_group) <- abs(contr.treatment(2)-1)
-contrasts(behav_final_redcap$aud_group) <- abs(contr.treatment(2)-1)
+contrasts(behav_final$reinforcer_type) <- c(0.5, -0.5)
+contrasts(behav_final_redcap$reinforcer_type) <- c(0.5, -0.5)
 
-behav_final_redcap$screen_handeness <- factor(behav_final_redcap$screen_handeness)
-behav_final_redcap$MRI <- factor(behav_final_redcap$MRI)
-contrasts(behav_final_redcap$screen_handeness) <- contr.treatment(3, base=2)
-#contrasts(behav_final_redcap$MRI) <- contr.treatment(1)
+contrasts(redcap$aud_group) <- c(0.5, -0.5)
+contrasts(behav_final_redcap$aud_group) <- c(0.5, -0.5)
 
 ##### define se function #####
 
@@ -115,6 +115,8 @@ se <- function(x, na.rm = FALSE) {
 
 # number notation without exponentials
 options(scipen = 50)
+# show all emmeans decimal places
+emm_options(opt.digits = FALSE)
 ```
 
 ## Prepare dfs
@@ -124,7 +126,7 @@ options(scipen = 50)
 
 behav_rating <- behav_final %>%
   group_by(ID,reinforcer_type) %>%
-  select(ID,reinforcer_type,ID_block,taste1, taste2, crave1, crave2) %>%
+  dplyr::select(ID,reinforcer_type,ID_block,taste1, taste2, crave1, crave2) %>%
   distinct() %>%
   mutate(taste_diff=taste2-taste1,
          crave_diff=crave2-crave1,
@@ -193,40 +195,6 @@ df_c_block_trial_group <- behav_final_redcap %>%
   dplyr::summarise(p_correct = mean(correct, na.rm = TRUE),
             ci_l = ci(correct, na.rm=TRUE)[2],
             ci_u = ci(correct, na.rm=TRUE)[3]
-  )
-
-##### Win-stay #####
-
-# get p correct per subject and block for linear mixed-effects regression
-df_win_stay <- behav_final %>%
-  group_by(ID,reinforcer_type,taste,crave) %>%
-  summarise_at(vars(stay,win_stay), list(p = mean), na.rm=T) %>%
-  na.omit()
-df_win_stay <- merge(df_win_stay,redcap,by="ID") # merge with demographic data for linear mixed-effects 
-
-# get p correct per block and aud group and trial for plotting
-df_win_stay_trial_group <- behav_final_redcap %>%
-  group_by(aud_group,reinforcer_type,trial_block) %>%
-  dplyr::summarise(p = mean(win_stay, na.rm = TRUE),
-            ci_l = ci(win_stay, na.rm=TRUE)[2],
-            ci_u = ci(win_stay, na.rm=TRUE)[3]
-  )
-
-##### No-win-switch #####
-
-# get p correct per subject and block for linear mixed-effects regression
-df_nowin_switch <- behav_final %>%
-  group_by(ID,reinforcer_type,taste,crave) %>%
-  summarise_at(vars(stay,nowin_switch), list(p = mean), na.rm=T) %>%
-  na.omit()
-df_nowin_switch <- merge(df_nowin_switch,redcap,by="ID") # merge with demographic data for linear mixed-effects 
-
-# get p correct per block and aud group and trial for plotting
-df_nowin_switch_trial_group <- behav_final_redcap %>%
-  group_by(aud_group,reinforcer_type,trial_block) %>%
-  dplyr::summarise(p = mean(nowin_switch, na.rm = TRUE),
-            ci_l = ci(nowin_switch, na.rm=TRUE)[2],
-            ci_u = ci(nowin_switch, na.rm=TRUE)[3]
   )
 
 ##### RT #####
@@ -308,8 +276,6 @@ cor.test(behav_final_redcap$taste, behav_final_redcap$crave, , method="spearman"
 
 ### Taste ratings
 
-#### Time effects
-
 ```{r}
 m_taste_time <- lmer(value ~ 1 + reinforcer_type*aud_group*ratings + (1 + reinforcer_type + ratings |ID), 
                      data=behav_rating_long_taste,
@@ -333,61 +299,36 @@ tab_model(m_taste_time_rob,
           dv.labels=c("m_taste_time_rob"), digits=2, digits.re=2, df.method = "normal",
           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
 
-# CIs <- confintROB(m_taste_time_rob, parm=c(1:8), level=0.95, method="boot", boot.type = "parametric")
-# saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_taste_time_rob.rds"))
-CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_taste_time_rob.rds"))
+#CIs <- confintROB(m_taste_time_rob, parm=c(1:8), level=0.95, method="boot", boot.type = "parametric")
+#saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_taste_time_rob_ec.rds"))
+CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_taste_time_rob_ec.rds"))
 CIs
 ```
 
 ```{r}
-summary(emmeans(m_taste_time_rob, specs = pairwise ~ reinforcer_type|aud_group|ratings, lmer.df = "asymptotic", adjust = "bonf", ), infer=TRUE)
-summary(emmeans(m_taste_time_rob, specs = pairwise ~ aud_group|reinforcer_type|ratings, lmer.df = "asymptotic", adjust = "bonf"), infer=TRUE)
-summary(emmeans(m_taste_time_rob, specs = revpairwise ~ ratings|aud_group|reinforcer_type, lmer.df = "asymptotic", adjust = "bonf"), infer=TRUE)
-```
+mmeans <- emmeans(m_taste_time_rob, ~ reinforcer_type*aud_group, at = list(ratings = 'taste1'), lmer.df = "asymptotic")
+mmeans
+contrast(mmeans,
+         list(AJ_AUD = c(1, -1, 0, 0),
+              AJ_HC = c(0, 0, 1, -1),
+              AUDHC_A = c(1, 0, -1, 0),
+              AUDHC_J = c(0, 1, 0, -1)),
+         infer=TRUE,
+         lmer.df = "asymptotic",
+         adjust="bonferroni")
 
-#### Across both ratings
+summary(emmeans(m_taste_time_rob, specs = revpairwise ~ ratings|reinforcer_type, lmer.df = "asymptotic", adjust = NULL)$contrasts, 
+        infer=TRUE, 
+        by=NULL, 
+        adjust="bonf")
 
-```{r}
-m_taste <- lmer(value ~ 1 + reinforcer_type*aud_group + (1 + reinforcer_type| ID), 
-                     data=behav_rating_long_taste,
-                     control=lmerControl(calc.derivs=FALSE), 
-                     REML=F)
-
-tab_model(m_taste,
-          dv.labels=c("m_taste"), digits=2, digits.re=2, df.method = "satterthwaite",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
-
-check_model(m_taste, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq") )
-```
-
-```{r}
-m_taste_rob <- rlmer(value ~ 1 + reinforcer_type*aud_group + (1 + reinforcer_type| ID), 
-                     data=behav_rating_long_taste,
-                     control=lmerControl(calc.derivs=FALSE), 
-                     REML=F)
-
-tab_model(m_taste_rob,
-          dv.labels=c("m_taste_rob"), digits=2, digits.re=2, df.method = "normal", 
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci = 0.95, CSS = css_theme("cells"))#
-
-# CIs <- confintROB(m_taste_rob, parm=c(1:4), level=0.95, method="boot", boot.type = "parametric")
-# saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_taste_rob.rds"))
-CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_taste_rob.rds"))
-CIs
-```
-
-```{r}
-summary(emmeans(m_taste, specs = pairwise ~ reinforcer_type|aud_group, lmer.df = "satterthwaite", adjust = "bonf"), infer=TRUE)
-summary(emmeans(m_taste, specs = pairwise ~ aud_group|reinforcer_type, lmer.df = "satterthwaite", adjust = "bonf"), infer=TRUE)
-```
-
-```{r}
-plot_model(m_taste, type = "pred", terms = c("aud_group", "reinforcer_type"))
+summary(emmeans(m_taste_time_rob, specs = revpairwise ~ ratings|aud_group, lmer.df = "asymptotic", adjust = NULL)$contrasts, 
+        infer=TRUE, 
+        by=NULL, 
+        adjust="bonf")
 ```
 
 ### Craving ratings
-
-#### Time effects
 
 ```{r}
 m_crave_time <- lmer(value ~ 1 + reinforcer_type*aud_group*ratings + (1 + reinforcer_type + ratings|ID), 
@@ -413,55 +354,26 @@ tab_model(m_crave_time_rob,
           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
 summary(m_crave_time_rob)
 
-# CIs <- confintROB(m_crave_time_rob, parm=c(1:8), level=0.95, method="boot", boot.type = "parametric")
-# saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_crave_time_rob.rds"))
-CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_crave_time_rob.rds"))
+#CIs <- confintROB(m_crave_time_rob, parm=c(1:8), level=0.95, method="boot", boot.type = "parametric")
+#saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_crave_time_rob_ec.rds"))
+CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_crave_time_rob_ec.rds"))
 CIs
 ```
 
 ```{r}
-summary(emmeans(m_crave_time_rob, specs = pairwise ~ reinforcer_type|aud_group|ratings, lmer.df = "asymptotic", adjust = "bonf"), infer=TRUE)
-summary(emmeans(m_crave_time_rob, specs = pairwise ~ aud_group|reinforcer_type|ratings, lmer.df = "asymptotic", adjust = "bonf"), infer=TRUE)
-```
+mmeans <- emmeans(m_crave_time_rob, ~ reinforcer_type*aud_group, at = list(ratings = 'crave1'),
+                  lmer.df = "asymptotic")
+mmeans
+contrast(mmeans,
+         list(AJ_AUD = c(1, -1, 0, 0),
+              AJ_HC = c(0, 0, 1, -1),
+              AUDHC_A = c(1, 0, -1, 0),
+              AUDHC_J = c(0, 1, 0, -1)),
+         infer=TRUE,
+         lmer.df = "asymptotic",
+         adjust="bonferroni")
 
-```{r}
-plot_model(m_crave_time, type = "pred", terms = c("aud_group", "reinforcer_type"))
-```
-
-#### Across both ratings
-
-```{r}
-m_crave <- lmer(value ~ 1 + reinforcer_type*aud_group + (1+reinforcer_type|ID), 
-                     data=behav_rating_long_crave,
-                     control=lmerControl(calc.derivs=FALSE), 
-                     REML=F)
-
-tab_model(m_crave,
-          dv.labels=c("m_crave"), digits=2, digits.re=2, df.method = "satterthwaite",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
-
-check_model(m_crave, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq") )
-```
-
-```{r}
-m_crave_rob <- rlmer(value ~ 1 + reinforcer_type*aud_group + (1+reinforcer_type|ID), 
-                     data=behav_rating_long_crave,
-                     control=lmerControl(calc.derivs=FALSE), 
-                     REML=F)
-
-tab_model(m_crave_rob,
-          dv.labels=c("m_crave_rob"), digits=2, digits.re=2, df.method = "normal",
-          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))#
-
-# CIs <- confintROB(m_crave_rob, parm=c(1:4), level=0.95, method="boot", boot.type = "parametric")
-# saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_crave_rob.rds"))
-CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_crave_rob.rds"))
-CIs
-```
-
-```{r}
-summary(emmeans(m_crave_rob, specs = pairwise ~ reinforcer_type|aud_group, lmer.df = "asymptotic", adjust = "bonf"), infer=TRUE)
-summary(emmeans(m_crave_rob, specs = pairwise ~ aud_group|reinforcer_type, lmer.df = "asymptotic", adjust = "bonf"), infer=TRUE)
+summary(emmeans(m_crave_time_rob, specs = revpairwise ~ ratings|aud_group, lmer.df = "asymptotic", adjust = NULL)$contrasts, infer=TRUE, by=NULL, adjust="bonf")
 ```
 
 ## Plotting
@@ -824,19 +736,21 @@ if (sample == "n58") {
 ```
 
 ```{r}
-emm_options(opt.digits = FALSE)
-mtrends <- emtrends(m_rt_trial_1, ~reinforcer_type|aud_group, var = "trial_block_centered", lmer.df = "satterthwaite", lmerTest.limit = 5702, adjust = NULL, infer=TRUE)
+mtrends <- emtrends(m_rt_trial_1_robust, ~reinforcer_type, var = "trial_block_centered", lmer.df = "asymptotic", adjust = "bonf", infer=TRUE)
 mtrends
-as.data.frame(mtrends)$t.ratio
-pairs(mtrends, adjust = "bonf", infer=TRUE)
 
-mtrends <- emtrends(m_rt_trial_1, ~aud_group|reinforcer_type, var = "trial_block_centered", lmer.df = "satterthwaite", lmerTest.limit = 5702, adjust = NULL, infer=TRUE)
+mtrends <- emtrends(m_rt_trial_1_robust, ~reinforcer_type*aud_group, var = "trial_block_centered", lmer.df = "asymptotic", adjust = 'bonf', infer=TRUE)
 mtrends
-pairs(mtrends, adjust = "bonf", infer=TRUE)
+contrast(mtrends,
+         list(AJ_AUD = c(1, -1, 0, 0),
+              AJ_HC = c(0, 0, 1, -1)),
+         infer=TRUE,
+         lmer.df = "asymptotic",
+         adjust="bonferroni")
 ```
 
 ```{r}
-plot_model(m_rt_trial_1, type = "pred", terms = c("trial_block_centered [all]", "reinforcer_type", "aud_group")) +
+plot_model(m_rt_trial_1_robust, type = "pred", terms = c("trial_block_centered [all]", "reinforcer_type", "aud_group")) +
   theme_light(base_size = 14)
 ```
 
@@ -868,20 +782,23 @@ tab_model(m_rt_1_robust,
 
 #plot(m_rt_1_robust)
 
-#CIs <- confintROB(m_rt_1_robust, parm=c(1:4), level=0.95, method="boot", boot.type = "parametric")
-#saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_rt_1_robust.rds"))
-CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_rt_1_robust.rds"))
+# CIs <- confintROB(m_rt_1_robust, parm=c(1:4), level=0.95, method="boot", boot.type = "parametric")
+# saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_rt_1_robust_ec.rds"))
+CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_rt_1_robust_ec.rds"))
 CIs
 ```
 
 ```{r}
-print(summary(emmeans(m_rt_1_robust, specs = pairwise ~ reinforcer_type|aud_group, lmer.df = "asymptotic", adjust = "bonf"), infer=TRUE)$contrasts, digits=5)
-print(summary(emmeans(m_rt_1_robust, specs = pairwise ~ aud_group|reinforcer_type, lmer.df = "asymptotic", adjust = "bonf"), infer=TRUE)$contrasts, digits=5)
-```
-
-```{r}
-plot_model(m_rt_1_robust, type = "pred", terms = c("aud_group", "reinforcer_type")) +
-  theme_light(base_size = 14)
+mmeans <- emmeans(m_rt_1_robust, ~ reinforcer_type*aud_group, lmer.df = "asymptotic")
+mmeans
+contrast(mmeans,
+         list(AJ_AUD = c(1, -1, 0, 0),
+              AJ_HC = c(0, 0, 1, -1),
+              AUDHC_A = c(1, 0, -1, 0),
+              AUDHC_J = c(0, 1, 0, -1)),
+         infer=TRUE,
+         lmer.df = "asymptotic",
+         adjust="bonferroni")
 ```
 
 ## Controlling for covariates
@@ -1005,19 +922,6 @@ if (sample == "n58") {
 }
 ```
 
-```{r}
-mtrends <- emtrends(m_rt_trial_1_controlled, ~reinforcer_type|aud_group, var = "trial_block_centered", lmer.df = "satterthwaite", lmerTest.limit = 5702)
-pairs(mtrends, adjust = "bonf")
-
-mtrends <- emtrends(m_rt_trial_1_controlled, ~aud_group|reinforcer_type, var = "trial_block_centered", lmer.df = "satterthwaite", lmerTest.limit = 5702)
-pairs(mtrends, adjust = "bonf")
-```
-
-```{r}
-plot_model(m_rt_trial_1_controlled, type = "pred", terms = c("trial_block_centered [all]", "reinforcer_type", "aud_group")) +
-  theme_light(base_size = 14)
-```
-
 ### Across all trials
 
 ```{r}
@@ -1045,20 +949,10 @@ tab_model(m_rt_1_controlled_rob,
           show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
 
 # CIs <- confintROB(m_rt_1_controlled_rob, parm=c(1:6), level=0.95, method="boot", boot.type = "parametric")
-# saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_rt_1_controlled_rob.rds"))
-CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_rt_1_controlled_rob.rds"))
+# saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_rt_1_controlled_rob_ec.rds"))
+CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_rt_1_controlled_rob_ec.rds"))
 CIs
 
-```
-
-```{r}
-summary(emmeans(m_rt_1_controlled_rob, specs = pairwise ~ reinforcer_type|aud_group, lmer.df = "asymptotic", adjust = "bonf"), infer=TRUE)
-summary(emmeans(m_rt_1_controlled_rob, specs = pairwise ~ aud_group|reinforcer_type, lmer.df = "asymptotic", adjust = "bonf"), infer=TRUE)
-```
-
-```{r}
-plot_model(m_rt_1_controlled, type = "pred", terms = c("aud_group", "reinforcer_type")) +
-  theme_light(base_size = 14)
 ```
 
 ## Plotting
