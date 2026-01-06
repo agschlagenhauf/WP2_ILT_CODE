@@ -1,6 +1,6 @@
 # Drug-related prediction error encoding in addiction
 
-This repository contains all code used to produce the results in the preprint 'Learning from Alcohol Rewards: Neural Signatures of Drug-Related Reward Prediction Errors in Alcohol Use Disorder' published at https://doi.org/10.31234/osf.io/ec7kh_v1.
+This repository contains all code used to produce the results in the preprint 'Learning from Alcohol Rewards: Neural Signatures of Drug-Related Reward Prediction Errors in Alcohol Use Disorder' published at https://doi.org/10.31234/osf.io/ec7kh_v2.
 
 ## 00_Experiment
 Contains Matlab code of the Instrumental Learning Task performed during fMRI
