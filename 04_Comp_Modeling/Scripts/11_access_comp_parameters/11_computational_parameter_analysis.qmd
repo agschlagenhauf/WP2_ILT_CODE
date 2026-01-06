@@ -679,7 +679,7 @@ No control necessary.
 ```{r}
 df_log_likelihood <- trialy_by_trial_df %>%
   group_by(ID, aud_group, reinforcer_type, taste, crave, BA_smoking_days) %>%
-  summarise(log_likelihood = sum(log(pc_pred), na.rm=T))
+  dplyr::summarise(log_likelihood = sum(log(pc_pred), na.rm=T))
 ```
 
 ### Descriptive stats
@@ -710,9 +710,6 @@ fig5 <- ggplot(df_log_likelihood, aes(x = fct_rev(fct_infreq(reinforcer_type)), 
                   palette = "Pastel1")
 
 fig5
-
-ggsave(file.path(project_path, "Manuscript/Initial_draft/Figures", "loglik.png"), width = 10, height =8, units='cm', dpi = 600, bg="white")
-
 ```
 
 ### LMMs
@@ -814,5 +811,5 @@ fig_comp_mod <- ggarrange(fig_param, fig5,
           ncol = 1, nrow = 2, heights = c(2, 1))
 fig_comp_mod
 
-ggsave(file.path(project_path, "Manuscript/Initial_draft/Figures", "comp_modeling.png"), width = 20, height =25, units='cm', dpi = 600, bg="white")
+#ggsave(file.path(project_path, "Manuscript/Initial_draft/Figures", "final_comp_modeling.png"), width = 20, height =25, units='cm', dpi = 1000, bg="white")
 ```

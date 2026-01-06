@@ -10,6 +10,7 @@ clc;
 clear;
 warning off;
 addpath('C:\spm12')
+addpath('/Users/milenamusial/Downloads/spm')
 addpath('C:\Users\musialm\OneDrive - Charité - Universitätsmedizin Berlin\PhD\04_B01\ILT\WP2_ILT_CODE\05_fMRI\functs')
 
 % define paths

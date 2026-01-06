@@ -359,5 +359,5 @@ ggarrange(fig_expl_par, fig_bg_roi, fig_expl_nacc,
           common.legend = T,
           legend ='bottom')
 
-#ggsave(file.path("/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT/Manuscript/Initial_draft/Figures", "Extracted_values_combined.png"), width = 40, height =11, units='cm', dpi = 600, bg="white")
+ggsave(file.path("/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT/Manuscript/Initial_draft/Figures", "Extracted_values_combined.png"), width = 40, height =11, units='cm', dpi=1000, bg="white")
 
