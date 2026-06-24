@@ -12,7 +12,7 @@ addpath ('C:\Users\musialm\OneDrive - Charité - Universitätsmedizin Berlin\PhD\0
 
 meta_path = 'S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\02_ILT\00_spm12_1st_level\';
 
-first_level_path = fullfile(meta_path, 'PH_withC_n58_constant_feedback_+_sensoric_correctbaseline_compcor\');
+first_level_path = fullfile(meta_path, 'PH_withC_n58_constant_feedback_+_sensoric_correctbaseline_compcor_correctPC_posnegPE_on_trial\');
 
 gui=1; %open GUI
 
@@ -63,50 +63,58 @@ for pb=1:length(pbnfolder) % loop pbn
     
     % define search patterns
     pattern_visual_alc = 'Sn\(1\) trial\*bf\(1\)$';
-    pattern_RPE_alc = 'Sn\(1\) trialxprediction_error\^1\*bf\(1\)$';
+    pattern_RPE_pos_alc = 'Sn\(1\) trialxprediction_error_pos\^1\*bf\(1\)$';
+    pattern_RPE_neg_alc = 'Sn\(1\) trialxprediction_error_neg\^1\*bf\(1\)$';
     pattern_CP_alc = 'Sn\(1\) trialxchoice_prob\^1\*bf\(1\)$'; 
     pattern_sensoric_alc = 'Sn\(1\) sensoric\*bf\(1\)$';
+
     pattern_visual_jui = 'Sn\(2\) trial\*bf\(1\)$';
-    pattern_RPE_jui = 'Sn\(2\) trialxprediction_error\^1\*bf\(1\)$';
+    pattern_RPE_pos_jui = 'Sn\(2\) trialxprediction_error_pos\^1\*bf\(1\)$';
+    pattern_RPE_neg_jui = 'Sn\(2\) trialxprediction_error_neg\^1\*bf\(1\)$';
     pattern_CP_jui = 'Sn\(2\) trialxchoice_prob\^1\*bf\(1\)$'; 
     pattern_sensoric_jui = 'Sn\(2\) sensoric\*bf\(1\)$';
     
     % create contrast vectors
     cvec_visual_alc = double(~cellfun('isempty', regexp(names, pattern_visual_alc, 'once')))';
-    cvec_RPE_alc = double(~cellfun('isempty', regexp(names, pattern_RPE_alc, 'once')))';
+    cvec_RPE_pos_alc = double(~cellfun('isempty', regexp(names, pattern_RPE_pos_alc, 'once')))';
+    cvec_RPE_neg_alc = double(~cellfun('isempty', regexp(names, pattern_RPE_neg_alc, 'once')))';
     cvec_CP_alc = double(~cellfun('isempty', regexp(names, pattern_CP_alc, 'once')))';
     cvec_sensoric_alc = double(~cellfun('isempty', regexp(names, pattern_sensoric_alc, 'once')))';
+
     cvec_visual_jui = double(~cellfun('isempty', regexp(names, pattern_visual_jui, 'once')))';
-    cvec_RPE_jui = double(~cellfun('isempty', regexp(names, pattern_RPE_jui, 'once')))';
+    cvec_RPE_pos_jui = double(~cellfun('isempty', regexp(names, pattern_RPE_pos_jui, 'once')))';
+    cvec_RPE_neg_jui = double(~cellfun('isempty', regexp(names, pattern_RPE_neg_jui, 'once')))';
     cvec_CP_jui = double(~cellfun('isempty', regexp(names, pattern_CP_jui, 'once')))';
     cvec_sensoric_jui = double(~cellfun('isempty', regexp(names, pattern_sensoric_jui, 'once')))';
 
     % Alc condition contrasts
     N=N+1; tb(N,:)={ N 'Tcon' 'none' 'visual_alc'           cvec_visual_alc};
-    N=N+1; tb(N,:)={ N 'Tcon' 'none' 'RPE_alc'              cvec_RPE_alc};
+    N=N+1; tb(N,:)={ N 'Tcon' 'none' 'RPE_pos_alc'          cvec_RPE_pos_alc};
+    N=N+1; tb(N,:)={ N 'Tcon' 'none' 'RPE_neg_alc'          cvec_RPE_neg_alc};
     N=N+1; tb(N,:)={ N 'Tcon' 'none' 'CP_alc'               cvec_CP_alc};
     N=N+1; tb(N,:)={ N 'Tcon' 'none' 'sensoric_alc'         cvec_sensoric_alc};
 
     % Jui condition contrasts
     N=N+1; tb(N,:)={ N 'Tcon' 'none' 'visual_jui'           cvec_visual_jui};
-    N=N+1; tb(N,:)={ N 'Tcon' 'none' 'RPE_jui'              cvec_RPE_jui};
-    N=N+1; tb(N,:)={ N 'Tcon' 'none' 'CP_jui'               cvec_CP_jui};
+    N=N+1; tb(N,:)={ N 'Tcon' 'none' 'RPE_pos_jui'          cvec_RPE_pos_jui};
+    N=N+1; tb(N,:)={ N 'Tcon' 'none' 'RPE_neg_jui'          cvec_RPE_neg_jui};
+    N=N+1; tb(N,:)={ N 'Tcon' 'none' 'CP_neg_jui'           cvec_CP_jui};
     N=N+1; tb(N,:)={ N 'Tcon' 'none' 'sensoric_jui'         cvec_sensoric_jui};
 
     % Alc & Jui condition contrasts
     N=N+1; tb(N,:)={ N 'Tcon' 'none' 'visual'               (cvec_visual_alc+cvec_visual_jui)};
-    N=N+1; tb(N,:)={ N 'Tcon' 'none' 'RPE'                  (cvec_RPE_alc+cvec_RPE_jui)};
+    N=N+1; tb(N,:)={ N 'Tcon' 'none' 'RPE_pos'              (cvec_RPE_pos_alc+cvec_RPE_pos_jui)};
+    N=N+1; tb(N,:)={ N 'Tcon' 'none' 'RPE_neg'              (cvec_RPE_neg_alc+cvec_RPE_neg_jui)};
     N=N+1; tb(N,:)={ N 'Tcon' 'none' 'CP'                   (cvec_CP_alc+cvec_CP_jui)};
     N=N+1; tb(N,:)={ N 'Tcon' 'none' 'sensoric'             (cvec_sensoric_alc+cvec_sensoric_jui)};
 
     % Comparison alc jui contrasts
-    N=N+1; tb(N,:)={ N 'Tcon' 'none' 'RPE_alc > RPE_jui'    (cvec_RPE_alc+(cvec_RPE_jui*-1))};
-    N=N+1; tb(N,:)={ N 'Tcon' 'none' 'RPE_alc < RPE_jui'    ((cvec_RPE_alc*-1)+cvec_RPE_jui)};
+    N=N+1; tb(N,:)={ N 'Tcon' 'none' 'RPE_pos_alc > RPE_pos_jui'    (cvec_RPE_pos_alc+(cvec_RPE_pos_jui*-1))};
+    N=N+1; tb(N,:)={ N 'Tcon' 'none' 'RPE_pos_alc < RPE_pos_jui'    ((cvec_RPE_pos_alc*-1)+cvec_RPE_pos_jui)};
+    N=N+1; tb(N,:)={ N 'Tcon' 'none' 'RPE_neg_alc > RPE_neg_jui'    (cvec_RPE_neg_alc+(cvec_RPE_neg_jui*-1))};
+    N=N+1; tb(N,:)={ N 'Tcon' 'none' 'RPE_neg_alc < RPE_neg_jui'    ((cvec_RPE_neg_alc*-1)+cvec_RPE_neg_jui)};
     N=N+1; tb(N,:)={ N 'Tcon' 'none' 'CP_alc > CP_jui'      (cvec_CP_alc+(cvec_CP_jui*-1))};
     N=N+1; tb(N,:)={ N 'Tcon' 'none' 'CP_alc < CP_jui'      ((cvec_CP_alc*-1)+cvec_CP_jui)};
-    
-    % Extra post-hoc contrasts
-    N=N+1; tb(N,:)={ N 'Tcon' 'none' 'CP neg'               (cvec_CP_alc+cvec_CP_jui*-1)};
 
     %% Create SPM structure
 

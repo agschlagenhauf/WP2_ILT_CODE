@@ -44,7 +44,7 @@ behav_final_redcap <- behav_final_redcap %>%
          crave = (crave1+crave2)/2)
 
 df_taste_crave <- behav_final_redcap %>%
-  select(ID, reinforcer_type, taste, crave, BA_smoking_days) %>%
+  dplyr::select(ID, reinforcer_type, taste, crave, BA_smoking_days) %>%
   unique()
 
 params <- read.table(file.path(data_path, 'Params_PH_withC_init05_n58.txt'), header = T)
@@ -69,7 +69,7 @@ se <- function(x, na.rm = FALSE) {
 ### prepare params df ###
 
 params <- params %>%
-  select(!ID_block) %>%
+  dplyr::select(!ID_block) %>%
   mutate(ID = as.factor(ID),
          aud_group = factor(aud_group, levels = c("HC", "AUD")),
          reinforcer_type = as.factor(reinforcer_type),
@@ -82,14 +82,14 @@ params <- left_join(params, df_taste_crave)
 trialy_by_trial_df <- left_join(PEs, CPs, by = c("ID_block", "trial_block", "reinforcer_type", "ID"))
 trialy_by_trial_df <- left_join(trialy_by_trial_df, Qs, by = c("ID_block", "trial_block", "reinforcer_type", "ID"))
 trialy_by_trial_df <- trialy_by_trial_df %>%
-  select(ID, reinforcer_type, trial_block, PE_pred, pc_pred, Q_pred) %>%
+  dplyr::select(ID, reinforcer_type, trial_block, PE_pred, pc_pred, Q_pred) %>%
   mutate(ID = as.factor(ID),
          reinforcer_type = as.factor(reinforcer_type),
          abs_PE_pred = abs(PE_pred))
 
 trialy_by_trial_df <- left_join(trialy_by_trial_df, behav_final_redcap, by=c("ID", "reinforcer_type", "trial_block"))
 trialy_by_trial_df <- trialy_by_trial_df %>%
-  select(ID, ID_block, aud_group, age, taste, crave, BA_smoking_days, reinforcer_type, trial_block, choice, PE_pred, abs_PE_pred, pc_pred, Q_pred) %>%
+  dplyr::select(ID, ID_block, aud_group, age, taste, crave, BA_smoking_days, reinforcer_type, trial_block, choice, correct, PE_pred, abs_PE_pred, pc_pred, Q_pred) %>%
   mutate(aud_group = factor(aud_group, levels = c("HC", "AUD"))) %>%
   arrange(ID_block)
 
@@ -153,8 +153,12 @@ trialy_by_trial_df$new_absPEs <- new_absPEs_all
 trialy_by_trial_df$new_CPs <- new_CPs_all
 trialy_by_trial_df$new_Qs <- new_Qs_all
 
+trialy_by_trial_df <- trialy_by_trial_df %>%
+  mutate(trial_block_centered = trial_block-1)
+
 # df per block and aud group and trial for plotting
-df_tbt_time <- trialy_by_trial_df %>%
+df_tbt_time <- trialy_by_trial_df%>%
+  filter(correct==1) %>%
   group_by(aud_group,reinforcer_type,trial_block) %>%
   dplyr::summarise(mean_PE = mean(new_absPEs, na.rm = TRUE),
             ci_l_PE = ci(new_absPEs, na.rm=TRUE)[2],
@@ -170,8 +174,9 @@ df_tbt_time <- trialy_by_trial_df %>%
 
 # df per block and group for plotting 
 df_tbt_average <- trialy_by_trial_df %>%
+  filter(correct==1) %>%
   group_by(aud_group,reinforcer_type) %>%
-  dplyr::summarise(mean_PE = mean(new_absPEs, na.rm = TRUE),
+  dplyr::summarize(mean_PE = mean(new_absPEs, na.rm = TRUE),
             ci_l_PE = ci(new_absPEs, na.rm=TRUE)[2],
             ci_u_PE = ci(new_absPEs, na.rm=TRUE)[3],
             mean_CP = mean(new_CPs, na.rm = TRUE),
@@ -184,14 +189,6 @@ df_tbt_average <- trialy_by_trial_df %>%
   mutate(aud_group = factor(aud_group, levels = c("HC", "AUD")))
 
 # set contrasts
-
-# contrasts(params$reinforcer_type) <- abs(contr.treatment(2)-1)
-# contrasts(trialy_by_trial_df$reinforcer_type) <- abs(contr.treatment(2)-1)
-# contrasts(df_tbt_time$reinforcer_type) <- abs(contr.treatment(2)-1)
-# 
-# contrasts(params$aud_group)
-# contrasts(trialy_by_trial_df$aud_group)
-# contrasts(df_tbt_time$aud_group)
 
 contrasts(params$reinforcer_type) <- c(0.5, -0.5)
 contrasts(trialy_by_trial_df$reinforcer_type) <- c(0.5, -0.5)
@@ -225,9 +222,9 @@ fig1 <- ggplot(params, aes(x = fct_rev(fct_infreq(reinforcer_type)), y = alpha, 
   geom_violin() +
   geom_boxplot(width=0.1, size=0.8) +
   facet_wrap(~aud_group, scales="fixed") +
-  scale_x_discrete(NULL, labels=c("juice", "alcohol")) +
+  scale_x_discrete("Reinforcer type", labels=c("juice", "alcohol")) +
   scale_y_continuous("Initial learning rate (α)", limits = c(0,1)) +
-  theme_light(base_size=18, base_family = "Aptos") +
+  theme_light(base_size=16, base_family = "Arial") +
   theme(legend.position = "none") +
   scale_fill_brewer(name="Reinforcer type", 
                   labels=c("juice", "alcohol"),
@@ -342,9 +339,9 @@ fig2 <- ggplot(params, aes(x = fct_rev(fct_infreq(reinforcer_type)), y = tau, fi
   geom_violin() +
   geom_boxplot(width=0.1, size=0.8) +
   facet_wrap(~aud_group, scales="fixed") +
-  scale_x_discrete(NULL, labels=c("juice", "alcohol")) +
+  scale_x_discrete("Reinforcer type", labels=c("juice", "alcohol")) +
   scale_y_continuous("Inverse temperature (β)", limits = c(0,100)) +
-  theme_light(base_size=18, base_family = "Aptos") +
+  theme_light(base_size=16, base_family = "Arial") +
   theme(legend.position = "none") +
   scale_fill_brewer(name="Reinforcer type", 
                   labels=c("alcohol", "juice"),
@@ -461,7 +458,7 @@ fig3 <- ggplot(params, aes(x = fct_rev(fct_infreq(reinforcer_type)), y = gamma, 
   facet_wrap(~aud_group, scales="fixed") +
   scale_x_discrete("Reinforcer type", labels=c("juice", "alcohol")) +
   scale_y_continuous("Decay constant (γ)", limits = c(0,1)) +
-  theme_light(base_size=18, base_family = "Aptos") +
+  theme_light(base_size=16, base_family = "Arial") +
   theme(legend.position = "none") +
   scale_fill_brewer(name="Reinforcer type", 
                   labels=c("alcohol", "juice"),
@@ -578,7 +575,7 @@ fig4 <- ggplot(params, aes(x = fct_rev(fct_infreq(reinforcer_type)), y = C, fill
   facet_wrap(~aud_group, scales="fixed") +
   scale_x_discrete("Reinforcer type", labels=c("juice", "alcohol")) +
   scale_y_continuous("Scaling coefficient (C)", limits = c(0,1)) +
-  theme_light(base_size=18, base_family = "Aptos") +
+  theme_light(base_size=16, base_family = "Arial") +
   theme(legend.position = "none") +
   scale_fill_brewer(name="Reinforcer type", 
                   labels=c("alcohol", "juice"),
@@ -703,7 +700,7 @@ fig5 <- ggplot(df_log_likelihood, aes(x = fct_rev(fct_infreq(reinforcer_type)), 
   facet_wrap(~aud_group, scales="fixed") +
   scale_x_discrete("Reinforcer type", labels=c("juice", "alcohol")) +
   scale_y_continuous("Log likelihood", limits = c(-40,0)) +
-  theme_light(base_size=18, base_family = "Aptos") +
+  theme_light(base_size=16, base_family = "Arial") +
   theme(legend.position = "none") +
   scale_fill_brewer(name="Reinforcer type", 
                   labels=c("alcohol", "juice"),
@@ -797,19 +794,207 @@ CIs
 
 No controlling necessary.
 
+
+# Trial-by-trial quantities
+
+## Q-values
+
+### Descriptive stats
+
+```{r}
+fig6 <- ggplot(df_tbt_time, aes(x = trial_block, y = mean_Q, color = fct_rev(fct_infreq(reinforcer_type)), group = fct_rev(fct_infreq(reinforcer_type)))) +
+  geom_line(aes(color=fct_rev(fct_infreq(reinforcer_type))), linewidth=0.8) +
+  geom_ribbon(aes(ymin = ci_l_Q, ymax = ci_u_Q, fill = fct_rev(fct_infreq(reinforcer_type))), alpha = 0.2, color = NA) + 
+  facet_wrap(~aud_group, scales="fixed") +
+  scale_x_continuous("Trial") +
+  scale_y_continuous("Q-value of optimal card", limits = c(0,1)) +
+  theme_light(base_size=16, base_family = "Arial") +
+  scale_color_brewer(name=NULL,
+                  labels=c("juice", "alcohol"),
+                  palette = "Pastel1",
+                  direction=-1) +
+  scale_fill_brewer(name=NULL, 
+                  labels=c("juice", "alcohol"),
+                  palette = "Pastel1",
+                  direction=-1) +
+    theme(legend.position = "top")
+fig6
+```
+
+### LMMs
+
+#### Across all trials
+
+```{r}
+m_Qs <- lmer(new_Qs ~ 1 + reinforcer_type*aud_group + BA_smoking_days + (1 + reinforcer_type | ID), 
+                         data=trialy_by_trial_df[trialy_by_trial_df$correct==1,],
+                         control=lmerControl(calc.derivs=FALSE),
+                          REML=F)
+
+tab_model(m_Qs,
+          dv.labels=c("m_Qs"), digits=2, digits.re=2, show.est = T, df.method = "wald",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
+
+check_model(m_Qs, check=c("pp_check", "reqq", "qq"))
+
+m_Qs_robust <- rlmer(new_Qs ~ 1 + reinforcer_type*aud_group + BA_smoking_days + (1 + reinforcer_type | ID), 
+                         data=trialy_by_trial_df[trialy_by_trial_df$correct==1,],
+                         control=lmerControl(calc.derivs=FALSE),
+                          REML=F)
+
+tab_model(m_Qs_robust,
+          dv.labels=c("m_Qs_robust"), digits=2, digits.re=2, show.est = T, df.method = "wald",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
+summary(m_Qs_robust)
+
+
+# CIs <- confintROB(m_Qs_robust, parm=c(1:5), level=0.95, method="boot", boot.type = "parametric")
+# saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_Qs_robust.rds"))
+CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_m_Qs_robust.rds"))
+CIs
+```
+
+```{r}
+mmeans <- emmeans(m_Qs_robust, ~ reinforcer_type*aud_group, lmer.df = "asymptotic")
+mmeans
+contrast(mmeans,
+         list(AJ_HC = c(1, -1, 0, 0),
+              AJ_AUD = c(0, 0, 1, -1),
+              AUDHC_A = c(-1, 0, 1, 0),
+              AUDHC_J = c(0, -1, 0, 1)),
+         infer=TRUE,
+         lmer.df = "asymptotic",
+         adjust="bonferroni")
+```
+
+```{r}
+plot_model(m_Qs_robust, type = "pred", terms = c("aud_group", "reinforcer_type")) +
+  theme_light(base_size = 14)
+```
+
+
+#### Time effects
+
+```{r}
+m_Q_trial=lmer(new_Qs~reinforcer_type*aud_group*trial_block_centered + BA_smoking_days + (1 + reinforcer_type + trial_block_centered | ID),
+                data=trialy_by_trial_df[trialy_by_trial_df$correct==1,],
+                control=lmerControl(calc.derivs=FALSE), 
+                REML=F)
+
+tab_model(m_Q_trial,
+          dv.labels=c("m_Q_trial"), digits=5, digits.re=2, transform = NULL, show.est = T, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
+
+check_model(m_Q_trial, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+
+```
+
+```{r}
+
+m_Q_trial_robust=rlmer(new_Qs~reinforcer_type*aud_group*trial_block_centered + BA_smoking_days + (1 + reinforcer_type + trial_block_centered | ID),
+                data=trialy_by_trial_df[trialy_by_trial_df$correct==1,],
+                control=lmerControl(calc.derivs=FALSE), 
+                REML=F)
+
+tab_model(m_Q_trial_robust,
+          dv.labels=c("m_Q_trial_robust"), digits=5, digits.re=2, transform = NULL, show.est = T, df.method = "wald",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
+
+CIs <- confintROB(m_Q_trial_robust, parm=c(1:9), level=0.95, method="Wald", boot.type = "parametric")
+CIs
+```
+
+```{r}
+mtrends <- emtrends(m_Q_trial_robust, ~reinforcer_type*aud_group, var = "trial_block_centered", lmer.df = "asymptotic", adjust = 'bonf', infer=TRUE)
+mtrends
+contrast(mtrends,
+         list(AJ_HC = c(1, -1, 0, 0),
+              AJ_AUD = c(0, 0, 1, -1),
+              AUDHC_A = c(-1, 0, 1, 0),
+              AUDHC_J = c(0, -1, 0, 1)),
+         infer=TRUE,
+         lmer.df = "asymptotic",
+         adjust="bonferroni")
+```
+```{r}
+plot_model(m_Q_trial_robust, type = "pred", terms = c("trial_block_centered",  "reinforcer_type", "aud_group")) +
+  theme_light(base_size = 14)
+```
+
+
+### Controlling for covariates
+
+#### Check correlation
+
+```{r}
+# taste
+lm_Q_taste <- lmer(new_Qs ~ taste + (1 + taste | ID), 
+                        data=trialy_by_trial_df[trialy_by_trial_df$correct==1,], 
+                        control=lmerControl(calc.derivs=FALSE), 
+                        REML=F)
+
+tab_model(lm_Q_taste,
+          dv.labels=c("lm_Q_taste"), digits=2, digits.re=2, show.est = T, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
+
+check_model(lm_Q_taste, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+
+lm_Q_taste_rob <- rlmer(new_Qs ~ taste + (1 + taste | ID), 
+                        data=trialy_by_trial_df[trialy_by_trial_df$correct==1,], 
+                        control=lmerControl(calc.derivs=FALSE), 
+                        REML=F)
+
+tab_model(lm_Q_taste_rob,
+          dv.labels=c("lm_rt_taste_rob"), digits=2, digits.re=2, show.est = T, df.method = "normal",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
+
+CIs <- confintROB(lm_Q_taste_rob, parm=c(1:2), level=0.95, method="Wald", boot.type = "parametric")
+CIs
+
+# smoking
+lm_Q_smoking <- lmer(new_Qs ~ BA_smoking_days + (1 | ID), 
+                        data=trialy_by_trial_df[trialy_by_trial_df$correct==1,], 
+                        control=lmerControl(calc.derivs=FALSE), 
+                     REML=F)
+
+tab_model(lm_Q_smoking,
+          dv.labels=c("lm_Q_smoking"), digits=2, digits.re=2, show.est = T, df.method = "satterthwaite",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
+
+check_model(lm_Q_smoking, check=c("pp_check", "linearity",  "homogeneity",  "normality", "reqq", "qq"))
+
+lm_Q_smoking_rob <- rlmer(new_Qs ~ BA_smoking_days + (1 | ID), 
+                        data=trialy_by_trial_df[trialy_by_trial_df$correct==1,], 
+                        control=lmerControl(calc.derivs=FALSE), 
+                     REML=F)
+
+tab_model(lm_Q_smoking_rob,
+          dv.labels=c("lm_Q_smoking_rob"), digits=2, digits.re=2, show.est = T, df.method = "normal",
+          show.se=TRUE, show.stat=TRUE, show.df=TRUE, show.ci= 0.95,CSS = css_theme("cells"))
+summary(lm_Q_smoking_rob)
+
+# CIs <- confintROB(lm_Q_smoking_rob, parm=c(1:2), level=0.95, method="boot", boot.type = "parametric")
+# saveRDS(CIs, file=file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_lm_Q_smoking_rob.rds"))
+CIs <- readRDS(file.path(project_path, "WP2_ILT_DATA/Behav/models_cis/CIs_lm_Q_smoking_rob.rds"))
+CIs
+```
+
+
+
 # Combined plot
 
 ```{r}
 # save combined plot
-fig_param <- ggarrange(fig1, fig2, fig3, fig4,
-          labels = c("A", "B", "C", "D"),
-          ncol = 2, nrow = 2)
+fig_param <- ggarrange(fig1, fig2, fig3, fig4, fig5, fig6,
+          labels = c("A", "B", "C", "D", "E", "F"),
+          ncol = 2, nrow = 3,
+          common.legend = F)
 fig_param
 
-fig_comp_mod <- ggarrange(fig_param, fig5,
-          labels = c("A", "E"),
-          ncol = 1, nrow = 2, heights = c(2, 1))
-fig_comp_mod
+# fig_comp_mod <- ggarrange(fig_param, fig5,
+#           labels = c("A", "E"),
+#           ncol = 1, nrow = 2, heights = c(2, 1))
+# fig_comp_mod
 
-#ggsave(file.path(project_path, "Manuscript/Initial_draft/Figures", "final_comp_modeling.png"), width = 20, height =25, units='cm', dpi = 1000, bg="white")
+ggsave(file.path(project_path, "Manuscript/Addiction Neuroscience/revision_1/Figures", "Figure_4.tiff"), width = 19, height = 25, units='cm', dpi = 1000, bg="white")
 ```

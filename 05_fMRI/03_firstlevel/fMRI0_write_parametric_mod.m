@@ -4,9 +4,10 @@
 
 close all; clear all;
 addpath('C:\spm12')
+addpath('C:\Users\musialm\Downloads\spm12')
 addpath('C:\Users\musialm\OneDrive - Charité - Universitätsmedizin Berlin\PhD\04_B01\ILT\WP2_ILT_CODE\05_fMRI\functs')
 
-main_path='S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\02_ILT\00_spm12_1st_level\PH_withC_n58_constant_feedback_+_sensoric_correctbaseline_compcor';
+main_path='S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\02_ILT\00_spm12_1st_level\PH_withC_n58_constant_feedback_+_sensoric_correctbaseline_compcor_correctPC_posnegPE_on_trial';
 
 % load parametric modulators
 PEs = readtable(fullfile(main_path, 'fmri_PEs_PH_withC_init05_n58.txt'));

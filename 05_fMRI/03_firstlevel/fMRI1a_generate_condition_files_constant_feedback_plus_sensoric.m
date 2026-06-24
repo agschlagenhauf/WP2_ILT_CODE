@@ -14,7 +14,7 @@ MR = 60; % Microtime resolution = number of slices (Schichten) in MR protocol
 bin = TR/MR;
 
 % define output path
-stats_path = 'S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\02_ILT\00_spm12_1st_level\PH_withC_n58_constant_feedback_+_sensoric_correctbaseline_compcor'; % folder for single stats of this specific model, add names of pmods
+stats_path = 'S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\02_ILT\00_spm12_1st_level\PH_withC_n58_constant_feedback_+_sensoric_correctbaseline_compcor_correctPC'; % folder for single stats of this specific model, add names of pmods
 
 % define behavioral data files
 behav_path   = 'C:\Users\musialm\OneDrive - Charité - Universitätsmedizin Berlin\PhD\04_B01\ILT\WP2_ILT_DATA\Behav\raw\FilesReport_ILTdata_2023-05-24_1718\documents'; % raw behavioral data path
@@ -101,7 +101,7 @@ for n = 1:length(ids)
         PCs{n,block} = PCs_sub-nanmean(PCs_sub);
 
         PEs{n,block} = PEs{n,block}(isnan(PEs{n,block})==0); % exclude NaNs from pmods
-        PCs{n,block} = PEs{n,block}(isnan(PEs{n,block})==0);
+        PCs{n,block} = PCs{n,block}(isnan(PCs{n,block})==0);
 
         regs          = [PEs{n,block} PCs{n,block}];
 
@@ -220,7 +220,8 @@ for n = 1:length(ids)
         end
         
         %%% create onset regressors (containing as many onsets as bins per phase)
-        % non-missing trials
+
+        % non-missing trials - trial phase
         ind = [0; cumsum(trial_events(1:end))]; % past bins at the beginning of each trial
         for i=1:length(onsets_cue)
             % define onsets (with bin distance) that will be modulated for

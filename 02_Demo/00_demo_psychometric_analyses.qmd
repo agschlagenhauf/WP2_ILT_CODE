@@ -23,7 +23,7 @@ sapply(libs, require, character.only=TRUE)
 
 data_path<-'/Users/milenamusial/Library/CloudStorage/OneDrive-Charité-UniversitätsmedizinBerlin/PhD/04_B01/ILT/WP2_ILT_DATA/'
 
-sample = "n13" # n58 n71 n13
+sample = "n56" # n58 n71 n13
 
 if (sample == "n56") {
   load(file.path(data_path,"RedCap/redcap_n56_new.RData"))

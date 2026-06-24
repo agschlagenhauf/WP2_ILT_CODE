@@ -10,12 +10,12 @@ clc;
 clear;
 warning off;
 addpath('C:\spm12')
-addpath('/Users/milenamusial/Downloads/spm')
+addpath('C:\Users\musialm\Downloads\spm12')
 addpath('C:\Users\musialm\OneDrive - Charité - Universitätsmedizin Berlin\PhD\04_B01\ILT\WP2_ILT_CODE\05_fMRI\functs')
 
 % define paths
 paMeta_epi = 'S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\01_fmriprep_v23.2.1';
-einzelstatspath= 'S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\02_ILT\00_spm12_1st_level\PH_withC_n58_constant_feedback_+_sensoric_correctbaseline_compcor';
+einzelstatspath= 'S:\AG\AG-Schlagenhauf_TRR265\Daten\B01\WP2_DATA\derivatives\02_ILT\00_spm12_1st_level\PH_withC_n58_constant_feedback_+_sensoric_correctbaseline_compcor_correctPC_winnowin_Q';
 
 TR=0.869; % in sec
 
